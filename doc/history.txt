@@ -1,0 +1,78 @@
+20170125: 0.2.1
+	  bugfix cost.styl_gnl_file: accent batch augmentation in
+  	  stereo files fixed
+20170130: 0.2.2
+	  bugfix coex.export_rhy: now working for stereo files
+20170131: --> version 0.3
+20170203: 0.3.1
+	  pho featset now also usable for augmentation with unit=file
+          (so far the combination of unit=file and wgt:pho=1 lead to
+	  an non-infomative error)
+20170206: 0.3.2
+	  bugfix cost.styl_rhy_file: now working for stereo files
+20170216: 0.3.3
+	  bugfix copl.plot_browse_channel: declination plot now possible
+	  also without preceding local contour stylization
+20170224: 0.3.4
+	  bugfix coag:aug_loc_fv: now returns the same number of arguments
+	  for ag_select='left|right|max'
+20170224: 0.3.5
+	  bugfix coag:aug_fv_mrg: higher numpy versions do not support
+	  column concat with empty arrays. append() calls corrected
+	  accordingly.
+20170306: 0.3.6
+	  bugfix coag:aug_annot_init(): empty string default for timeStamp
+	  cost:styl_glob(): eval for N=0 no robust NaN instead of error
+20170321: 0.3.7
+	  cost:styl_std_feat(): duration 'dur' features now calcaluated
+	  more precisely based on original segment on- and offsets.
+	  So far it was derived from the number of f0 samples in the
+	  resp. segment
+20170327: 0.3.8
+	  index column removed from csv output to ease reading with R
+20170328: 0.3.9
+	  file path to csv omitted in R template output 
+20170405: 0.3.10
+	  bugfix: file part omission in R template output
+	  file stems containing a '.' are not further
+	  split into stem and extension
+20170502: 0.3.11
+	  coag:aug_syl(): now robust if time info in annotation exceeds
+	  		  signal file length
+	  coag:aug_annot_upd(): now also outputting (empty) tiers if no
+	  	          event extracted. Before a missing tier lead to
+			  an error if needed for stylization. Empty tier
+			  info is written to log file.
+	  copp:pp_tier_time_to_tab(): adjusted to cope with empty tiers
+          copp:pp_f_rate(): adjusted to cope with empty tiers
+	  cost:styl_std_feat(): now robust against empty signal input
+          config fsys:export:fullpath: +/- fullpath switch to
+	  	 csv tables in R code output
+20170516: 0.3.12
+	  - fixed a bug resulting from version update 0.3.7
+	  In cost:styl_std_feat() calls now not only segment but event tiers
+	  are correctly processed.
+	  - bugfix: for 'loc' feature set extraction customized options
+	  preproc:loc:{point|nrm}_win not anymore overwritten by default
+	  preproc:{point|nrm}_win values of 0.5 and 1s, respectively
+          - coag:aug_pho_nrm()
+	    - vowel duration normalization by median devision
+	    replaced by robust z-scores
+20170522: 0.4.1
+	  - added global segment features:
+	    {bl|ml|tl|rng}_rate, i.e.
+	    base/mid/topline/range rate (ST or Hz per sec)
+	  - added extended local segment features:
+	    {bl|ml|tl|rng}_{c0|c1|rate}, i.e.
+	    base/mid/topline/range intercept, slope, and rate (ST or Hz per sec)
+          - cost:styl_rhy()
+            * the proportion of event-rate-related DCT coefficients is
+	    calculated relative to the coefficients with frequencies between
+	    lb and ub (before: all coefficients, which makes comparisons
+	    across different signal lengths hard to interprete)
+	    * same for mean absolute error: IDCT by the event-rate-related
+	    DCT coefficients is compared with the IDCT by the coefficients
+	    with frequencies between lb and ub
+20170718: 0.4.2
+	  - some plot:browse options added for index verbose and selected
+	    plotting
