@@ -1,1 +1,392 @@
-
+{
+    "fs": 100,
+    "navigate": {
+	"from_scratch": 1,
+	"overwrite_config": 1,
+	"do_diagnosis": 0,
+	"do_augment_chunk": 0,
+	"do_augment_syl": 0,
+	"do_augment_glob": 0,
+	"do_augment_loc": 0,
+	"do_preproc": 1,
+	"do_styl_glob": 1,
+	"do_styl_loc": 1,
+	"do_styl_loc_ext": 1,
+	"do_styl_gnl_f0": 1,
+	"do_styl_gnl_en": 1,
+	"do_styl_bnd": 1,
+	"do_styl_bnd_win": 1,
+	"do_styl_bnd_trend": 1,
+	"do_styl_rhy_f0": 1,
+	"do_styl_rhy_en": 1,
+	"do_clst_loc": 0,
+	"do_clst_glob": 0,
+	"do_export": 1,
+	"do_plot": 0
+    },
+    "preproc": {
+	"st": 1,
+	"base_prct": 5,
+	"smooth": {
+	    "mtd": "sgolay",
+	    "win": 7,
+	    "ord": 3
+	},
+	"out": {
+	    "f": 2,
+	    "m": "median"
+	},
+	"nrm_win": 1,
+	"point_win": 0.5
+    },
+    "styl": {
+	"glob": {
+	    "nrm": {
+		"mtd": "minmax",
+		"rng": [0,1]
+	    },
+	    "decl_win": 0.1,
+	    "prct": {
+		"bl": 10,
+		"tl": 90
+	    }
+	},
+	"loc": {
+	    "nrm": {
+		"mtd": "minmax",
+		"rng": [-1,1]
+	    },
+	    "ord": 3
+	},
+	"register": "ml",
+	"bnd": {
+	    "nrm": {
+		"mtd": "minmax",
+		"rng": [0,1]
+	    },
+	    "decl_win": 0.1,
+	    "prct": {
+		"bl": 10,
+		"tl": 90
+	    },
+	    "win": 2,
+	    "cross_chunk": 1
+	},
+	"gnl_en": {
+	    "alpha": 0.95,
+	    "sts": 0.01,
+	    "win": 0.05,
+	    "wintyp": "hamming",
+	    "winparam": ""
+	},
+	"rhy_f0": {
+	    "typ": "f0",
+	    "sig": {
+	    },
+	    "rhy": {
+		"wintyp": "kaiser",
+		"winparam": 1,
+		"lb": 0,
+		"ub": 10,
+		"nsm": 3,
+		"rmo": 1,
+		"wgt": {
+		    "rb": 1
+		}
+	    }
+	},
+	"rhy_en": {
+	    "typ": "en",
+	    "sig": {
+		"sts": 0.01,
+		"win": 0.05,
+		"wintyp": "hamming",
+		"winparam": ""
+	    },
+	    "rhy": {
+		"wintyp": "kaiser",
+		"winparam": 1,
+		"lb": 0,
+		"ub": 10,
+		"nsm": 3,
+		"rmo": 1,
+		"wgt": {
+		    "rb": 1
+		}
+	    }
+	}
+    },
+    "clst": {
+	"glob": {
+	    "mtd": "meanShift",
+	    "kMeans": {
+		"init": "meanShift",
+		"n_cluster": 3,
+		"max_iter": 300,
+		"n_init": 10
+	    },
+	    "meanShift": {
+		"bin_seeding": "False",
+		"min_bin_freq": 1,
+		"bandwidth": 0
+	    },
+	    "estimate_bandwidth": {
+		"quantile": 0.3,
+		"n_samples": 1000
+	    }
+	},
+	"loc": {
+	    "mtd": "meanShift",
+	    "kMeans": {
+		"init": "meanShift",
+		"n_cluster": 5,
+		"max_iter": 300,
+		"n_init": 10
+	    },
+	    "meanShift": {
+		"bin_seeding": "False",
+		"min_bin_freq": 1,
+		"bandwidth": 0
+	    },
+	    "estimate_bandwidth": {
+		"quantile": 0.3,
+		"n_samples": 1000
+	    }
+	}
+    },
+    "augment": {
+	"chunk": {
+	    "e_rel": 0.0767,
+	    "l": 0.1524,
+	    "l_ref": 5,
+	    "n": -1,
+	    "fbnd": 0,
+	    "min_pau_l": 0.5,
+	    "min_chunk_l": 0.2,
+	    "flt": {
+		"btype": "low",
+		"f": 8000,
+		"ord": 5
+	    }
+	},
+	"syl": {
+	    "e_rel": 1.07,
+	    "l": 0.08,
+	    "l_ref": 0.15,
+	    "d_min": 0.05,
+	    "e_min": 0.16,
+	    "flt": {
+		"f": [200,4000],
+		"btype": "band",
+		"ord": 5
+	    }
+	},
+	"glob": {
+	    "measure": "abs",
+	    "prct": 95,
+	    "wgt": {
+		"std":  {
+		    "ml": {
+			"rms": 1
+		    },
+		    "rng": {
+			"rms": 1
+		    }
+		}
+	    },
+	    "wgt_mtd": "silhouette",
+	    "min_l": 1,
+	    "cntr_mtd": "seed_prct",
+	    "use_gaps": 1,
+	    "heuristics": "ORT"
+	},
+	"loc": {
+	    "measure": "delta",
+	    "prct": 30,
+	    "wgt": {
+		"gst": {
+                    "ml": {
+                        "rms": 1
+                    },
+                    "rng": {
+                        "rms": 1
+                    }
+                },
+		"gnl_en": {
+		    "rms_nrm": 1
+		},
+		"gnl_f0": {
+		    "med_nrm": 1,
+		    "iqr_nrm": 1
+		}
+	    },
+	    "acc_select": "max",
+            "ag_select": "max",
+	    "wgt_mtd": "silhouette",
+	    "cntr_mtd": "seed_prct",
+	    "min_l": 0.2,
+	    "heuristics": "ORT",
+	    "min_l_a": 0.5,
+	    "max_l_na": 0.2
+	}
+    },
+    "plot": {
+        "browse": {
+            "time": "final",
+            "type": {
+                "loc": {
+                    "decl": 0,
+                    "acc": 0
+                },
+                "glob": {
+                    "decl": 0
+                },
+                "rhy_f0": {
+                    "rhy": 0
+                },
+                "rhy_en": {
+                    "rhy": 0
+                },
+                "complex": {
+                    "superpos": 0,
+                    "gestalt": 0
+                },
+                "clst": {
+                    "contours": 0
+                }
+            },
+            "save": 0
+	},
+        "grp": {
+            "type": {
+                "loc": {
+                    "decl": 1,
+                    "acc": 0
+                },
+                "glob": {
+                    "decl": 0
+                }
+            },
+            "grouping": [
+		"spk"
+            ],
+	    "save": 1
+        },
+        "res": {
+            "type": {
+                "clst": {
+                    "contours": 0
+                }
+            },
+            "save": 0
+        }
+    },
+    "fsys": {
+	"f0": {
+	    "dir": "<directory containing F0 files>",
+	    "ext": "f0",
+	    "typ": "tab"
+	},
+	"aud": {
+	    "dir": "<directory containing wav audio files>",
+	    "typ": "wav",
+	    "ext": "wav"
+	},
+	"annot": {
+	    "dir": "<directory containing TextGrid annotation files>",
+	    "typ": "TextGrid",
+	    "ext": "TextGrid"
+	},
+	"export": {
+	    "dir": "<output directory>",
+	    "stm": "test",
+	    "csv": 1,
+	    "f0_preproc": 0,
+	    "f0_residual": 0,
+	    "f0_resyn": 0
+	},
+	"pic": {
+            "dir": "<plotting directory>",
+            "stm": ""
+        },
+	"grp": {
+	    "src": "<type of files from which to examine name: f0|aud|annot>",
+	    "sep": "<separator between file name parts>",
+	    "lab": [
+		"<grouping variable for each file name part>"
+	    ]
+	},
+	"label": {
+	    "pau": "<pause label in annotation>",
+	    "chunk": "<chunk label>",
+	    "syl": "<syllable nucleus label>"
+	},
+	"augment": {
+	    "chunk": {
+		"tier_out_stm": "<output tier name of automatic chunking>"
+	    },
+	    "syl": {
+		"tier_out_stm": "<output tier name of syllabification>",
+		"tier_parent": "<parent tier name>"
+	    },
+	    "glob": {
+		"tier": "<name of tier to be segmented into IPs>",
+		"tier_out_stm": "<output tier name>",
+		"tier_parent": "<parent tier name>"
+	    },
+	    "loc": {
+		"tier_acc": "<name of point tier for accent extraction>",
+		"tier_ag": "<name of interval tier for accent extraction>",
+		"tier_out_stm": "<output tier name>",
+		"tier_parent": "<parent tier name>"
+	    }
+	},
+	"glob": {
+	    "tier": [
+		"<IP tiers>"
+	    ]
+	},
+	"loc": {
+	    "tier_ag": [
+		"<accent interval tiers>"
+	    ],
+	    "tier_acc": [
+		"<accent point tiers>"		
+	    ]
+	},
+	"bnd": {
+	    "tier": [
+		"<tiers for boundary candidates>"
+	    ]
+	},
+	"gnl_f0": {
+	    "tier": [
+		"<analysis tier>"
+	    ]
+	},
+	"gnl_en": {
+	    "tier": [
+		"<analysis tier>"
+	    ]
+	},
+	"rhy_f0": {
+	    "tier": [
+		"<analysis tier>"
+	    ],
+	    "tier_rate": [
+		"<influence tier on segments in analysis tier>"
+	    ]
+	},
+	"rhy_en": {
+	    "tier": [
+		"<analysis tier>"
+	    ],
+	    "tier_rate": [
+		"<influence tier on segments in analysis tier>"
+	    ]
+	},
+	"channel": {
+	    "<tier name>": <channel index>
+	}
+    }
+}
