@@ -1,4 +1,8 @@
 # copasul
 code for prosody analyses (python 3)
 
-see doc/README.txt
+to get started:
+doc/README.txt
+
+detailed description:
+doc/copasul_manual.pdf
