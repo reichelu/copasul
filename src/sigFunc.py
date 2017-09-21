@@ -10,7 +10,8 @@ import sys
 import copy as cp
 import scipy.fftpack as sf
 
-# NOTE: int2float might be removed after scipy update (check defaults in myl.sig_preproc)
+# NOTE: int2float might be removed after scipy update
+#       (check defaults in myl.sig_preproc)
 
 # read wav file
 # IN:
@@ -83,7 +84,7 @@ def dct_wrapper(y,opt):
     # band pass truncation of coefs
     # indices of coefs with lb <= freq <= ub
     i = dct_trunc(f,ci,opt)
-    
+
     # mean abs error from band-limited IDCT
     #mae = dct_mae(c,i,y)
 
@@ -105,7 +106,7 @@ def dct_wrapper(y,opt):
 
     # spectral moments
     if len(j)>0:
-        sm = specmom(fi,ci,opt['nsm'])
+        sm = specmom(ci,fi,opt['nsm'])
     else:
         sm = np.zeros(opt['nsm'])
     
@@ -165,6 +166,7 @@ def specmom(c,f=[],n=3):
     for i in myl.idx_seg(1,n):
         m = myl.push(m, sum(c*((f-k)**i))/s)
         k = m[-1]
+
     return m
 
 # wrapper around IDCT
