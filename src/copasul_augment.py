@@ -68,7 +68,7 @@ def aug_main(copa,f_log_in):
         #if ff_annot[i] != '/homes/reichelu/data/inton_ap/data/deu/TextGrid/deu_deu005_g145axx0-015-BAC.TextGrid': continue ##!!t
 
         # add to existing file or generation from scratch
-        annot, fstm, fo = aug_annot_init(ff_annot,i,opt,timeStamp)
+        annot, fstm, fo = aug_annot_init(ff_annot,ff_wav,i,opt,timeStamp)
         add_mat['fi']=i
 
         # extending annotation by chunk, syl tiers f.a. channel
@@ -113,7 +113,7 @@ def aug_batch(dom,ff_wav,ff_annot,ff_f0,opt,add_mat):
     # distributing c to files
     ps = aug_batch_distrib(ps,c,wgt)
     for ii in myl.numkeys(ps['file']):
-        annot, fstm, fo = aug_annot_init(ff_annot,ii,opt)
+        annot, fstm, fo = aug_annot_init(ff_annot,ff_wav,ii,opt)
         for i in myl.numkeys(ps['file'][ii]):
             psf = ps['file'][ii][i]
             if dom=='glob':
@@ -182,7 +182,7 @@ def aug_batch_ps(dom,ff_wav,ff_annot,ff_f0,opt,add_mat):
         f = ff_wav[ii]
         aug_spec, fs, s, lng, f0_dat, ncol = aug_sig(f,ff_f0[ii],opt)
         # existing file or generation from scratch
-        annot, fstm, fo = aug_annot_init(ff_annot,ii,opt)
+        annot, fstm, fo = aug_annot_init(ff_annot,ff_wav,ii,opt)
         add_mat['fi']=ii
         # over channels
         for i in range(ncol):
@@ -411,6 +411,8 @@ def aug_ps_init():
 # initalizes annotation dict
 # IN:
 #   ff_annot: list of annotation files
+#   ff_wav: list of wav files (file name taken in case ff_annot is empty since to be generated
+#           from scratch)
 #   i: current index in wav file list
 #   opt
 #   timeStamp: for secure copy <''> (if empty string, no copy made)
@@ -418,7 +420,7 @@ def aug_ps_init():
 #   annot: annotation dictionary (empty if no annot file available)
 #   fstm: file stem for error messages
 #   fo: output annotation file (input file will be overwritten)
-def aug_annot_init(ff_annot,i,opt,timeStamp=''):
+def aug_annot_init(ff_annot,ff_wav,i,opt,timeStamp=''):
     if len(ff_annot) > i:
         # secure copy
         if len(timeStamp)>0:
@@ -433,7 +435,7 @@ def aug_annot_init(ff_annot,i,opt,timeStamp=''):
         # empty annotation
         annot = {}
         fstm = ''
-        fo = "{}.{}".format(op.join(opt['fsys']['annot']['dir'],myl.stm(ff_annot[i])),
+        fo = "{}.{}".format(op.join(opt['fsys']['annot']['dir'],myl.stm(ff_wav[i])),
                             opt['fsys']['annot']['ext'])
     return annot, fstm, fo
 
