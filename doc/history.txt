@@ -76,3 +76,10 @@
 20170718: 0.4.2
 	  - some plot:browse options added for index verbose and selected
 	    plotting
+20170905: 0.4.3
+          - time stamps (t_on, t_off) added to boundary feature output
+20170921: 0.4.4
+	  - bugfix in spectral moment calculation in sigFunc.py:specmom()
+20171010: 0.4.5
+	  - bugfix: annotation augmentation now works also from scratch, i.e.
+	    without pre-given annotation files
