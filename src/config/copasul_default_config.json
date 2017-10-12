@@ -348,6 +348,7 @@
 			"dir": "",
 			"stm": "copasul",
 			"csv": 1,
+			"summary": 0,
 			"f0_preproc": 0,
 			"f0_residual": 0,
 			"f0_resyn": 0
