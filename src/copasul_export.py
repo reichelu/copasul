@@ -4,6 +4,7 @@
 
 import mylib as myl
 import numpy as np
+import scipy as si
 import pandas as pd
 import os
 import copy as cp
@@ -52,6 +53,8 @@ from pandas import DataFrame
 def export_main(copa):
     if copa['config']['fsys']['export']['csv']:
         export_csv(copa)
+    if copa['config']['fsys']['export']['summary']:
+        export_summary(copa)
     if copa['config']['fsys']['export']['f0_preproc']:
         export_f0(copa,'y')
     if copa['config']['fsys']['export']['f0_residual']:
@@ -94,6 +97,290 @@ def export_f0(copa,fld):
             np.savetxt(fo,x,fmt='%.2f')
 
 
+#### csv summary ##########################################
+
+# reads all feature csv tables outputted by export:csv
+# and computes mean and variance scores for all variables
+# IN:
+#   copa
+# OUT:
+#   files: <output_stem>.summary.csv, 1 row per channel
+#                               .R input template
+# VAR:
+#   suma[fileIdx][channelIndex][fset][feat][v|m|sd|med|iqr|h|g|u]
+#   v: array of values on which m|sd|med|iqr|h is calculated
+#   m, med: mean values
+#   s, iqr: variance
+#   h: entropy (for contour classes only)
+#   g: grouping value
+#   u: 'segment'|'file', features from segment or file level
+# feat := feat_analysisTier in case fset contains the column 'tier'
+
+
+def export_summary(copa):
+    opt = copa['config']
+    # output files stem
+    fo = myl.fsys_stm(opt,'export')
+    # list of feature sets
+    fset = myl.lists('featsets','list')
+    # general factor variables
+    fac = myl.lists('factors','set')
+    suma = {}
+
+    found_csv = False
+
+    # over feature sets
+    for fs in sorted(fset):
+        for u in ['segment', 'file']:
+            if u=='segment':
+                f = "{}.{}.csv".format(fo,fs)
+            else:
+                f = "{}.{}_file.csv".format(fo,fs)
+            if not os.path.isfile(f):
+                continue
+            
+            found_csv = True
+
+            d = myl.input_wrapper(f,'csv')
+            fileIdx = myl.uniq(d['fi'])
+            channelIdx = myl.uniq(d['ci'])
+            d = pd.DataFrame(d)
+            # over file indices
+            for fi in fileIdx:
+                for ci in channelIdx:
+                    suma = upd_suma(suma,fs,d,fi,ci,fac,u)
+
+    if not found_csv:
+        sys.exit("Nothing to summarize. Output csv tables first.")
+
+    # from suma to export dict
+    fp = opt['fsys']['export']['fullpath']
+    suma2exp(suma,fo,fp)
+
+# update suma dict (see export_summary())
+# IN:
+#   suma dict
+#   fs_in - featSet name
+#   d - input dict from csv file
+#   fi - file index
+#   ci - channel index
+#   fac - list of factor variable names
+#   u - unit 'segment'|'file' (to indicate whether gnl_en or gnl_en_file
+#                            has been read)
+# OUT:
+#   suma updated
+def upd_suma(suma,fs_in,d,fi,ci,fac,u):
+    if u=='file':
+        fs = "{}_{}".format(fs_in,u)
+    else:
+        fs = fs_in
+    if fi not in suma:
+        suma[fi] = {ci:{fs:{}}}
+    elif ci not in suma[fi]:
+        suma[fi][ci] = {fs:{}}
+    elif fs not in suma[fi][ci]:
+        suma[fi][ci][fs]={}
+    # subset for resp. file idx
+    dd = d[d.fi==fi]
+    dd = dd[dd.ci==ci]
+
+    # analysis tiers if any (featsets gnl, rhy, etc)
+    if 'tier' in dd:
+        tiers = myl.uniq(dd['tier'])
+    else:
+        tiers = ['*']
+
+    # over tiers
+    for t in tiers:
+        if t=='*':
+            ds = dd
+        else:
+            ds = dd[dd.tier==t]
+        
+        # over features
+        for x in ds.keys():
+            suma = upd_suma_feat(suma,fs,ds,fi,ci,fac,u,x,t)
+
+    return suma
+
+# called by upd_suma for single feat
+# IN:
+#   see upd_suma()
+#   x featName
+#   t tierName
+# OUT:
+#   suma upd
+def upd_suma_feat(suma,fs,ds,fi,ci,fac,u,x,t):
+
+    if t == '*':
+        key = x
+    else:
+        key = "{}_{}".format(t,x)
+
+    # file-level grouping
+    if (x=='stm' or re.search('^grp_',x)):
+        v = list(ds[x])
+        suma[fi][ci][fs][key] = {'g':v[0],'u':u}
+        return suma
+    # skip factor variables (except of class)
+    if ((x in fac) or re.search('^(lab|spk|tier)',x) or
+        re.search('_(lab|tier)$',x) or
+        re.search('_(lab|tier)_',x)):
+        return suma
+    v = np.asarray(ds[x])
+    # feat values: NA -> np.nan -> remove
+    v = myl.nan_repl(ds[x])
+    v = v.astype('float')
+    v = myl.rm_nan(v)
+    # contour class feat
+    if x == 'class':
+        suma[fi][ci][fs][key]={'v':v,'h':np.nan,'u':u}
+        if len(v)>0:
+            suma[fi][ci][fs][key]['h'] = myl.list2entrop(v)
+        return suma
+    # all other features
+    suma[fi][ci][fs][key]={'v':v,'m':np.nan,'sd':np.nan,
+                       'med':np.nan,'iqr':np.nan,'u':u}
+    # segment- or file-level
+    if u=='segment':
+        if len(v)>0:
+            suma[fi][ci][fs][key]['m'] = np.mean(v)
+            suma[fi][ci][fs][key]['med'] = np.median(v)
+            suma[fi][ci][fs][key]['sd'] = np.std(v)
+            suma[fi][ci][fs][key]['iqr'] = si.std(v)
+    else:
+        if len(v)==0:
+            suma[fi][ci][fs][key]['v'] = [np.nan]
+
+    return suma
+
+# summary -> export dict -> .csv|R
+# IN:
+#   suma summary dict (see export_summary())
+#   fo output stem
+#   fp fullPath for csv reference in R output True|False from opt
+# OUT:
+#   csv and R file; 1 row per file
+# VAR:
+# exp export dict
+#   'fi' -> [fileIndices]
+#   'ci' -> [channelIndices]
+#   myGrouping -> [fileLevel grouping vars]
+#   myFeatSet_myFeat_myMeas -> [featureValMeansAndVars]  
+def suma2exp(suma,fo,fp):
+    exp = suma2exp_init(suma)
+    # incremental d update
+    for fi in myl.numkeys(suma):
+        for ci in myl.numkeys(suma[fi]):
+            exp = suma2exp_upd(exp,suma,fi,ci)
+
+    # remove redundant grouping columns
+    exp = exp_rm_redun(exp)
+
+    exp_to_file(exp,fo,'summary',checkFld='fi',facpat='',fullPath=fp)
+
+
+
+# remove redundant grouping and stem columns from export dict
+# IN:
+#   exp - export dict
+# OUT:
+#   exp - without redundant columns
+def exp_rm_redun(exp):
+
+    # over column names
+    cnn = myl.sorted_keys(exp)
+    for cn in cnn:
+        if not re.search('_(grp_|stm)',cn):
+            continue
+        nc = cn
+        nc = re.sub('^(.+?)_grp','grp',nc)
+        nc = re.sub('^(.+?)_stm','stm',nc)
+        if nc not in exp:
+            exp[nc] = cp.deepcopy(exp[cn])
+        del exp[cn]
+
+    return exp
+
+# inits export dict exp from summary dict suma
+# IN:
+#   suma dict
+# OUT:
+#   exp dict
+def suma2exp_init(suma):
+    i = myl.numkeys(suma)
+    fi = i[0]
+    i = myl.numkeys(suma[fi])
+    ci = i[0]
+    exp = {'fi':[], 'ci':[]}
+    # over featsets
+    for fs in suma[fi][ci]:
+        # over features/groupings
+        for x in suma[fi][ci][fs]:
+            # file or segment level features
+            if suma[fi][ci][fs][x]['u']=='file':
+                key = exp_suma_key(fs,x,'g')
+                exp[key] = []
+            else:
+                # over subfields m,sd,med...
+                for s in suma[fi][ci][fs][x]:
+                    if re.search('[vu]',s):
+                        continue
+                    key = exp_suma_key(fs,x,s)
+                    exp[key] = []
+
+    return exp
+
+
+# update export dict
+# IN:
+#   exp - export dict (becoming csv and R file later on)
+#   suma - summary dict
+#   fi - file index
+#   ci - channel index
+# OUT:
+#   d updated
+def suma2exp_upd(exp,suma,fi,ci):
+    exp['fi'].append(fi)
+    exp['ci'].append(ci)
+    # over featsets
+    for fs in suma[fi][ci]:
+        # over features/groupings
+        for x in suma[fi][ci][fs]:
+            if suma[fi][ci][fs][x]['u']=='file':
+                key = exp_suma_key(fs,x,'g')
+                # featval or grouping val?
+                if 'v' in suma[fi][ci][fs][x]:
+                    s='v'
+                else:
+                    s='g'
+                exp[key].append(suma[fi][ci][fs][x][s][0])
+                continue
+            # over subfields m,sd,med...
+            for s in suma[fi][ci][fs][x]:
+                if re.search('[vu]',s):
+                    continue
+                key = exp_suma_key(fs,x,s)
+                exp[key].append(suma[fi][ci][fs][x][s])
+    return exp
+
+# generates key for output dict
+# grouping variable: <featSet>_<varName>
+# other variables: <featSet>_<varName>_{m|med|...}
+# IN:
+#   fs featSetName
+#   x  varName
+#   s  statMeasName
+# OUT:
+#   key
+def exp_suma_key(fs,x,s):
+    if s=='g':
+        key = "{}_{}".format(fs,x)
+    else:
+        key = "{}_{}_{}".format(fs,x,s)
+    return key
+
+
 ### csv bracket ######################################
 
 def export_csv(copa):
@@ -107,14 +394,13 @@ def export_csv(copa):
     if not os.path.isdir(opt['fsys']['export']['dir']):
         os.mkdir(opt['fsys']['export']['dir'])
 
-    # to check whether dict contains resp feature set
-    # and not only time information
+    # obligatory subfields to check whether dict contains
+    # resp feature set and not only time information
     fld={'glob':'decl', 'loc':'acc', 'bnd':'std', 'gnl_f0':'std',
          'gnl_en':'std', 'rhy_f0':'rhy', 'rhy_en':'rhy'}
     
     # output file stem
-    fo = os.path.join(opt['fsys']['export']['dir'],
-                      opt['fsys']['export']['stm'])
+    fo = myl.fsys_stm(opt,'export')
     
     # dataFrames to be merged
     #   f0|en -> 'file'|'seg' -> dataFrame
@@ -123,7 +409,6 @@ def export_csv(copa):
 
     #print(c[0][0])
     #sys.exit()
-
 
     if copa_contains(c,'glob',fld):
         export_glob(c,fo,opt)
@@ -644,7 +929,11 @@ def exp_to_file(d,fo,infx,checkFld='fi',facpat='',fullPath=False):
 
 
 # R table read export
-# IN: output table, file stem, pattern additionally to treat as factor
+# IN:
+#  d output table
+#  fo file stem
+#  facpat pattern additionally to treat as factor
+#  fullPath <False> should csv file be addressed by full path or file name only
 def exp_R(d,fo,facpat='',fullPath=False):
     # fo +/- full path
     if fullPath:
@@ -652,7 +941,7 @@ def exp_R(d,fo,facpat='',fullPath=False):
     else:
         foo = os.path.basename(fo)
     # factors (next to grp_*, lab_*)
-    fac = {'class','ci','fi','si','gi','stm','tier','spk'}
+    fac = myl.lists('factors','set')
     o = ["d<-read.table(\"{}.csv\",header=T,fileEncoding=\"UTF-8\",sep =\",\",".format(foo),"\tcolClasses=c("]
     for x in sorted(d.keys()):
         #if ((x in fac) or re.search('^(grp|lab|class)',x)):typ = 'factor'
