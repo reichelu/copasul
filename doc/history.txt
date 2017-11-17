@@ -83,3 +83,9 @@
 20171010: 0.4.5
 	  - bugfix: annotation augmentation now works also from scratch, i.e.
 	    without pre-given annotation files
+20171011: 0.5.1
+	  - summary output added: mean and variation measures for all
+	  extracted features (unigram entropy for contour classes) per file
+20171117: 0.5.2
+	  - more robust processing of TextGrids with empty tiers
+
