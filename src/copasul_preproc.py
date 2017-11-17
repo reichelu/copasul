@@ -1154,6 +1154,11 @@ def pp_read(an,opt,tn='',fn=''):
         else:
             kk='points'
             kt='mark'
+
+        # skip empty tier
+        if kk not in t:
+            return d,d,lab
+
         for i in myl.numkeys(t[kk]):
             if pp_is_pau(t[kk][i][kt],opt['lab_pau']): continue
             lab.append(t[kk][i][kt])

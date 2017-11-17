@@ -22,7 +22,7 @@ import re
 # wrapper aroung all copasul analysis steps
 # IN:
 #   args dict
-#       ['config']: config dict or string myConfigFile.json
+#       ['config']: string myConfigFile.json
 #       ['copa']: copa dict, facultatively. Will be read from file
 #                 if not provided
 # OUT:
@@ -234,7 +234,7 @@ if __name__ == "__main__":
     #myCwd = os.getcwd()
     myCwd = coro.copa_root()
     ##### command line input ####################################
-    parser = argparse.ArgumentParser(description="copasul.py -- Intonation analysis tool version 0.5.1")
+    parser = argparse.ArgumentParser(description="copasul.py -- Intonation analysis tool version 0.5.2")
     parser.add_argument('-c','--config', help='myConfigFile.json', required=True)
     args = vars(parser.parse_args())
     copa = copasul(args)
