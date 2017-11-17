@@ -6,3 +6,6 @@ doc/README.txt
 
 detailed description:
 doc/copasul_manual.pdf
+
+history:
+doc/history.txt
