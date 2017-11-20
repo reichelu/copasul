@@ -24,27 +24,25 @@ import csv
 ### collection of general purpose functions ###############
 ###########################################################
 
-### I/O functions
-# input_wrapper()
+####### I/O functions
+### input_wrapper()
 # i_tg()       -> tg dict
 # i_par()      -> interchange dict
 # i_copa_xml() -> interchange dict
 # i_lol()      -> 2dim nparray
 # i_seg_lab()  -> d.t [[on off]...]
 #                  .lab [label ...]
-
-# output_wrapper()
+### output_wrapper()
 # o_tg()
 # o_par()
 # o_copa_xml()
-
 ### annotation processing
 # par_mau2word()
 #   creates word segment tier from .par file MAU tier
 # tg_mau2chunk()
 #   creates chunk tier from pauses in MAU
 # tg_add()
-#   adds tier to TextGrid
+#   adds/replaces tier to TextGrid
 # tg_tier()
 #   returns tier from TextGrid
 # tg_tn()
@@ -56,6 +54,10 @@ import csv
 #   TextGrid -> interchange format
 # inter2tg()
 #   interchange format -> TextGrid
+# tg2par()
+#   as tg2inter() + added header element with sample rate
+# par2tg()
+#   as inter2tg(), but omitting the header item
 # tab2copa_xml_tier()
 #   numpy array to copa_xml tier
 ### pipeline: add tiers to existing TextGrid (w/o replacement)
@@ -145,7 +147,8 @@ def lists(typ='register',ret='list'):
                   'rhy_f0','rhy_en','augment','chunk'],
           'facafa': ['glob','loc','bnd','gnl_f0','gnl_en',
                      'rhy_f0','rhy_en','augment','chunk',
-                     'aud','f0','annot']}
+                     'aud','f0','annot'],
+          'factors': ['class','ci','fi','si','gi','stm','tier','spk']}
     if typ in ll:
         if ret=='list':
             return ll[typ]
@@ -165,7 +168,8 @@ def lists(typ='register',ret='list'):
 #  value (incl. 'max'|'min'|'nan' etc. in combination with op 'is')
 # OUT:
 #  1-dim index array
-def find(x,op,v):
+def find(x_in,op,v):
+    x = np.asarray(x_in)
     if op=='==':
         xi = np.asarray((x==v).nonzero())[0,:]
     elif op=='!=':
@@ -297,12 +301,16 @@ def pr(*args):
     for v in args:
         print(v)
 
-# returns sorted list of numeric keys
+# returns sorted list of numeric (more general: same data-type) keys
 # IN:
 #   x dict with numeric keys
 # OUT:
 #   sortedKeyList
 def numkeys(x):
+    return sorted(list(x.keys()))
+
+# same as numkeys(), only for name clarity purpose
+def sorted_keys(x):
     return sorted(list(x.keys()))
 
 # add key to empty subdict if not yet part of dict
@@ -401,7 +409,7 @@ def outl_idx(y,opt):
 # IN:
 #   anyVariable (except json: dict type)
 #   fileName
-#   typ: 'pickle'|'TextGrid'|'json'|'list'
+#   typ: 'pickle'|'TextGrid'|'json'|'list'|'string'
 # OUT:
 #   <fileOutput>
 def output_wrapper(v,f,typ):
@@ -415,14 +423,19 @@ def output_wrapper(v,f,typ):
         o_tg(v,f)
     elif re.search('xml',typ):
         o_copa_xml(v,f)
-    elif typ == 'list':
+    elif re.search('(string|list)',typ):
+        if typ=='list':
+            x = "\n".join(v)
+        else:
+            x = v
         h = open(f,mode='w',encoding='utf-8')
-        h.write("\n".join(v))
+        h.write(x)
         h.close()
     elif typ == 'json':
         with open(f,m) as h:
             json.dump(v, h, indent="\t", sort_keys=True)
             h.close()
+
 
 # TextGrid output of dict read in by i_tg()
 # (appended if file exists, else from scratch)
@@ -524,7 +537,6 @@ def tg_tier(tg,tn):
 def tg_tn(tg):
     return sorted(list(tg['item_name'].keys()))
     
-
 # creates chunk tier (interpausal units) from MAU tier in TextGrid
 # IN:
 #   tg: textgrid dict
@@ -718,6 +730,21 @@ def count2prob(c,n):
         p[x] = c[x]/n
     return p
 
+# probs to entropy
+# IN:
+#    p - dict: myType -> myProb from count2prob()
+# OUT:
+#    h - unigramEntropy
+def prob2entrop(p):
+    h = 0
+    for x in p:
+        if p[x]==0:
+            continue
+        h -= (p[x] * math.log(p[x],2))
+    return h
+
+
+
 # wrapper around counter() and count2prob()
 # IN:
 #   x - list of strings
@@ -728,6 +755,23 @@ def list2prob(x):
     c, n = counter(x)
     return count2prob(c,n)
 
+# wrapper around counter() and count2prob(), prob2entrop()
+# IN:
+#   x - list of strings
+# OUT:
+#   myUnigramEntropy
+def list2entrop(x):
+    c, n = counter(x)
+    p = count2prob(c,n)
+    return prob2entrop(p)
+
+# returns sorted + unique element list
+# IN:
+#   x - list
+# OUT:
+#   x - list unique
+def uniq(x):
+    return sorted(list(set(x)))
 
 # returns precision, recall, and F1
 # from input dict C
@@ -1068,7 +1112,10 @@ def tg_add(tg,tier,opt={'repl':True}):
 # OUT:
 #    tg: TextGrid dict
 # for 'interval' tiers gaps between subsequent intervals are bridged
+# only tiers with time information are taken over!
 def inter2tg(an):
+    typeMap = {'segment':'IntervalTier', 'event':'TextTier'}
+    itemMap = {'segment':'intervals', 'event':'points'}
     tg = {'type':'TextGrid','format':'long',
           'head':{'xmin':0,'xmax':-1,'size':0},
           'item_name':{},'item':{}}
@@ -1076,15 +1123,14 @@ def inter2tg(an):
     ii=1
     # over tiers
     for x in sorted(an.keys()):
+        # skip tier without time info
+        if an[x]['type'] not in typeMap:
+            continue
         tg['head']['size']+=1
         tg['item_name'][x]=ii
-        tg['item'][ii]={'name':x, 'size':0, 'xmin':0, 'xmax':-1}
-        if an[x]['type']=='segment':
-            tg['item'][ii]['class']='IntervalTier'
-            z = 'intervals'
-        else:
-            tg['item'][ii]['class']='TextTier'
-            z = 'points'
+        tg['item'][ii]={'name':x, 'size':0, 'xmin':0, 'xmax':-1,
+                        'class':typeMap[an[x]['type']]}
+        z = itemMap[an[x]['type']]
         # becomes tg['item'][ii]['points'|'intervals']
         tt={}
         # point or interval tier content
@@ -1140,6 +1186,65 @@ def inter2tg(an):
         tg['item'][ii]['xmax']=tg['head']['xmax']
     return tg
 
+
+# as inter2tg() but omitting header item
+# IN:
+#   par dict from i_par()
+# OUT:
+#   tg dict as with i_tg()
+def par2tg(par_in):
+    par = cp.deepcopy(par_in)
+    del par['header']
+    return inter2tg(par)
+
+# wrapper around tg2inter() + adding 'header' item / 'class' key
+# WARNING: information loss! MAU tier does not contain any wordIdx reference!
+# IN:
+#  tg: dict read by tg_in
+#  fs: sample rate
+# OUT:
+#  par: par dict (copa-xml format)
+# REMARK: output cannot contain wordIdx refs!
+#    thus MAU is class 2 in this case, without 'i' field
+def tg2par(tg,fs):
+    par = tg2inter(tg)
+    # add 'class' key
+    for tn in par:
+        par[tn]['class'] = par_class(par,tn)
+    par['header'] = par_header(fs)
+    return par
+
+# returns class of a par tier to be added to dict coming from tg2inter()
+# IN:
+#  par: par dict
+#  tn: tierName
+# OUT:
+#  c: tierClass
+def par_class(par,tn):
+    t = par[tn]['type']
+    if t=='null':
+        return 1
+    n = numkeys(par[tn]['items'])
+    if 'i' in par[tn]['items'][n[0]]:
+        wordRef = True
+    else:
+        wordRef = False
+    if t=='event':
+        if wordRef:
+            return 5
+        return 3
+    else:
+        if wordRef:
+            return 4
+        return 2
+
+# returns header dict for par dict
+# IN:
+#   fs: sample rate
+# OUT:
+#   h: header dict
+def par_header(fs):
+    return {'type':'header','class':0,'items':{'SAM':fs}}
 
 # transforms textgrid dict to interchange format
 #  same as i_par(), i_copa_xml() output
@@ -1540,6 +1645,17 @@ def sig_preproc(y,opt={}):
 
     return y
 
+
+# concats dir and stem of fsys-subdirectory
+# IN:
+#   opt with subdir ['fsys'][s][dir|stm]
+#   s - subdir name (e.g. 'out', 'export' etc
+def fsys_stm(opt,s):
+    fo = os.path.join(opt['fsys'][s]['dir'],
+                      opt['fsys'][s]['stm'])
+    return fo
+
+
 # prints stem of current f0 file in copasul framework
 def verbose_stm(copa,ii):
     if 'data' in copa:
@@ -1606,6 +1722,15 @@ def o_copa_xml(an,f):
 def xml_hd():
     return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
 
+
+# maps >0|0 to True|False
+def int2bool(x):
+    if x>0:
+        return True
+    elif x==0:
+        return False
+    else:
+        sys.exit("{} cannot be transformed to booelan".format(x))
 
 
 # returns different forms of False
@@ -1680,6 +1805,98 @@ def str_standard(x,a=False):
         x = re.sub('\s+',' ',x)
     return x
 
+# BAS partiture file output
+# IN:
+#   par: dict in i_copa_xml format (read by i_par)
+#   fil: file name
+# OUT:
+#   par file output to f
+# Tier class examples
+#   1: KAS:	0	v i:6
+#   2: IPA:    4856    1228    @
+#   3: LBP: 1651 PA
+#   4: USP:    3678656 14144   48;49   PAUSE_WORD
+#   5: PRB:    54212    5   TON: H*; FUN: NA
+def o_par(par,f):
+    # sample rate
+    fs = par['header']['items']['SAM']
+    # init output list
+    o = [["LHD: Partitur 1.3"],
+         ["SAM: {}".format(fs)],
+         ["LBD:"]]
+    for tn in sorted_keys(par):
+        if tn=='header':
+            continue
+        tier = cp.deepcopy(par[tn])
+        #print(sorted(tier.keys()))
+        c = tier['class']
+        # add to par output list
+        for i in numkeys(tier['items']):
+            a = o_par_add(tier,tn,i,c,fs)
+            # unsnap for segments
+            o = o_par_unsnap(o,a,c)
+            o.append(a)
+
+    # -> 1dim list
+    for i in idx(o):
+        #print(o[i])
+        o[i] = ' '.join(map(str,o[i]))
+
+    # output
+    output_wrapper(o,f,'list')
+    return
+
+# for segment tiers reduces last time offset in o by 1 sample
+# if equal to onset in a
+# IN:
+#   o: par list output so far
+#   a: new list to add
+#   c: tier class
+# OUT:
+#   o: last sublist updated 
+def o_par_unsnap(o,a,c):
+    # no MAU segment tier
+    if c!=4 or a[0] != 'MAU:':
+        return o
+    # diff tiers
+    if o[-1][0]!=a[0]:
+        return o
+    t = o[-1][1]
+    dur = o[-1][2]
+    if t+dur != a[1]-1:
+        o[-1][2] = a[1]-1-t
+    return o
+        
+
+# adds row to par output file
+# IN:
+#   tier: tier subdict from par
+#   tn: current tier name
+#   i: current item index in tier
+#   c: tier class 1-5
+#   fs: sample rate
+def o_par_add(tier,tn,i,c,fs):
+    x = tier['items'][i]
+    s = "{}:".format(tn)
+    if c==1:
+        # no time reference
+        a = [s,x['i'],x['label']]
+    elif c==2 or c==4:
+        # segment
+        t = int(x['t_start']*fs)
+        dur = int((x['t_end']-x['t_start'])*fs)
+        if c==2:
+            a = [s,t,dur,x['label']]
+        else:
+            a = [s,t,dur,x['i'],x['label']]
+    elif c==3 or c==5:
+        # event
+        t = int(x['t']*fs)
+        if c==3:
+            a = [s,t,x['label']]
+        else:
+            a = [s,t,x['i'],x['label']]
+    return a
 
 # BAS partiture file input
 # IN:
@@ -1694,17 +1911,26 @@ def str_standard(x,a=False):
 # OUT (same as i_copa_xml + 'class' for tier class and 'i' for word idx)
 # event tier:
 #   dict [myTierName]['type'] = 'event'
-#                    ['class'] = 1-5
+#                    ['class'] = 3,5
 #                    ['items'][itemIdx]['label']
 #                                      ['t']
 #                                      ['i']
 # segment tier
 #        [myTierName]['type'] = 'segment'
-#                    ['class'] = 1-5
+#                    ['class'] = 2,4
 #                    ['items'][itemIdx]['label']
 #                                      ['t_start']
 #                                      ['t_end']
 #                                      ['i']
+# no time info tier
+#        [myTierName]['type'] = 'null'
+#                    ['class'] = 1
+#                    ['items'][itemIdx]['label']
+#                                      ['i']
+# header
+#        [header]['type'] = 'header'
+#                ['class'] = 0
+#                ['items']['SAM'] = mySampleRate
 # symbolic reference to word idx 'i' is always of type 'str'
 #    (since it might include [,;])
 # for all other tier classes t, t_start, t_end are floats; unit: seconds
@@ -1749,7 +1975,9 @@ def i_par(f,opt={}):
         tn = re.sub(':$','',z[0])
         if tn not in tc: continue
         if tn not in par:
-            if tc[tn] in {1,3,5}:
+            if tc[tn] == 1:
+                typ = 'null'
+            elif tc[tn] in {3,5}:
                 typ = 'event'
             else: 
                 typ = 'segment'
@@ -1784,6 +2012,9 @@ def i_par(f,opt={}):
             par[tn]['items'][ii[tn]]['i'] = z[2]
         ii[tn]+=1
         
+    # add header subdict
+    par['header'] = par_header(fs)
+
     return par
 
 # returns wrd dict derived from MAU tier
@@ -2137,7 +2368,19 @@ def is_type(x):
         return 'list'
     return 'unk'
 
-
+# returns key, value pair from dict with maximum value
+# (first one found in alphabetically sorted key list)
+# IN:
+#   h - dict with numeric values
+# OUT:
+#   k - key with max value
+#   v - max value
+def max_kv(h):
+    k, v = np.nan, np.nan
+    for x in sorted_keys(h):
+        if np.isnan(v) or h[x]>v:
+            k,v = x,h[x]
+    return k,v
 
 # returns index of first minimum in list or nparray
 # IN:
@@ -2202,6 +2445,36 @@ def trs_pattern(x,pat,lng):
 def root_path():
     return os.path.abspath(os.sep)
 
+# wrapper around g2p (local or webservice)
+# IN:
+#   opt dict
+#     all parameters accepted by g2p.pl
+#    + local True|False (if False, webservice is called)     
+def g2p(opt):
+
+    if opt['local']:
+        cmd = "/homes/reichelu/repos/repo_pl/src/prondict/g2p.pl -task apply"
+    else:
+        cmd = "curl -v -X POST -H 'content-type: multipart/form-data'"
+        
+    for x in opt:
+        if (re.search('local',x) or (x=='o' and (not opt['local']))):
+            continue
+        y = ''
+        if x=='i':
+            y = '@'
+        if opt['local']:
+            z = " -{} {}".format(x,opt[x])
+        else:
+            z = " -F {}={}{}".format(x,y,opt[x])
+        cmd += z
+
+    if not opt['local']:
+        cmd += " 'http://clarin.phonetik.uni-muenchen.de/BASWebServices/services/runG2P'"
+
+    webservice_output(cmd,opt)
+
+
 
 # wrapper around webmaus general
 # IN:
@@ -2221,7 +2494,7 @@ def root_path():
 #     .insprob <0.0>
 #     .mausshift <10.0>
 #     .noinitialfinalsilence <false>
-#     .local <false>; if true maus is called not as webservice
+#     .local <False>; if true maus is called not as webservice
 # OUT:
 #     par file written to opt.par_out
 def webmaus(opt):
@@ -2236,7 +2509,7 @@ def webmaus(opt):
                            'insprob':0,
                            'mausshift':10.0,
                            'noinitialfinalsilence':'false',
-                           'local':'false'})
+                           'local':False})
     optmap = {'OUTFORMAT':'outformat',
               'INSORTTEXTGRID':'insorttextgrid',
               'INSKANTEXTGRID':'inskantextgrid',
@@ -2255,41 +2528,59 @@ def webmaus(opt):
               'SIGNAL':'signal',
               'NOINITIALFINALSILENCE':'noinitialfinalsilence'}
         
-    if opt['local'] == 'true':
+    if opt['local']:
         cmd = "maus"
     else:
         cmd = "curl -v -X POST -H 'content-type: multipart/form-data'"
-
 
     for x in optmap:
         if optmap[x] in opt:
             y = ''
             if re.search('^(BPF|SIGNAL)$',x):
                 y = '@'
-            if opt['local'] == 'false':
-                z = " -F {}={}{}".format(x,y,opt[optmap[x]])
+            if opt['local']:
+                z = " {}={}".format(x,opt[optmap[x]])
             else:
-                z = " {}={}{}".format(x,y,opt[optmap[x]])
+                z = " -F {}={}{}".format(x,y,opt[optmap[x]])
 
             cmd += z
 
-    if opt['local'] == 'false':
+    if opt['local']:
+        cmd += " > {}".opt['out']
+    else:
         cmd += " 'http://clarin.phonetik.uni-muenchen.de/BASWebServices/services/runMAUS'"
 
+    webservice_output(cmd,opt)
+
+
+# collect output from g2p or MAUS
+# write into file opt['out'], resp opt['o']
+def webservice_output(cmd,opt):
     print(cmd)
     ans = subprocess.check_output(cmd, shell=True, universal_newlines=True)
     print(ans)
 
+    # local call -> done
+    if opt['local']:
+        return
+
+    # webservice answer parse
     m = re.search('<downloadLink>(?P<res>(.+?))<\/downloadLink>',ans)
 
     if m is None:
-        sys.exit("maus error: {}".format(ans))
+        sys.exit("error: {}".format(ans))
 
     res = m.group('res')
     if res is None:
-        sys.exit("maus error: {}".format(ans))
+        sys.exit("error: {}".format(ans))
 
-    os.system("wget {} -O {}".format(res,opt['out']))
+    # unifying across maus and g2p
+    if 'out' in opt:
+        o = opt['out']
+    else:
+        o = opt['o']
+
+    os.system("wget {} -O {}".format(res,o))
 
     return
 
@@ -2412,6 +2703,14 @@ def string_std(s):
     return s
 
 
+# remove nan from array
+# IN:
+#   x - 1-dim array
+# OUT:
+#   x without nan
+def rm_nan(x):
+    return x[~np.isnan(x)]
+
 # linear interpolation over NaN
 # IN:
 #   y - np array 1-dim
@@ -2488,3 +2787,25 @@ def ext_true(d,k):
     if (k in d) and d[k]:
         return True
     return False
+
+# OUT: list of default 10 item color circle + some additional ones
+def colors():
+    return ['blue', 'orange', 'green', 'red','purple',
+            'brown', 'pink', 'gray', 'olive', 'cyan',
+            'lime', 'darkgreen', 'maroon', 'salmon',
+            'darkcyan','powderblue','lightgreen']
+
+# sorts elements in list x according to their time points in list t
+# IN:
+#   x - list of elements to be sorted
+#   t - list of their time stamps
+# OUT:
+#   x sorted
+def timeSort(x,t):
+    for i in range(0,len(x)-1):
+        for j in range(i+1,len(x)):
+            if t[i]>t[j]:
+                b = x[j]
+                x[j] = x[i]
+                x[i] = b
+    return x

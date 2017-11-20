@@ -42,7 +42,7 @@ def copasul(args={}):
     # generate new copa dict?
     # or load it/take it from input args
     if opt['navigate']['from_scratch']:
-        copa = coin.copa_init(opt)
+        copa = coin.copa_init(opt,f_log)
     else:
         if ('copa' in args and 
             (type(copa) is dict) and
@@ -174,7 +174,7 @@ def copa_plots(copa,opt):
 # appends init row to log file
 # IN:
 #   task 'open'|'val' - init logfile, write validation metrics into logfile
-#   copa
+#   copa (can be dummy container with 'config' key only {'config':opt})
 #   f_log (for task 'val'
 # OUT:
 #   if task=='val': True
@@ -234,7 +234,7 @@ if __name__ == "__main__":
     #myCwd = os.getcwd()
     myCwd = coro.copa_root()
     ##### command line input ####################################
-    parser = argparse.ArgumentParser(description="copasul.py -- Intonation analysis tool version 0.5.2")
+    parser = argparse.ArgumentParser(description="copasul.py -- Intonation analysis tool version 0.6.1")
     parser.add_argument('-c','--config', help='myConfigFile.json', required=True)
     args = vars(parser.parse_args())
     copa = copasul(args)

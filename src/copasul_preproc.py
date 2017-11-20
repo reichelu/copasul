@@ -63,7 +63,109 @@ def pp_main(copa,f_log_in=''):
             copa['data'][ii][i]={}
             copa = pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log)
 
+    # f0 semitone conversion by grouping factor
+    copa = pp_f0_st_wrapper(copa)
+
     return copa
+
+
+# f0 semitone conversion by grouping factor
+# IN:
+#   copa
+# OUT:
+#   copa with converted f0 values in ['data'][myFi][myCi]['f0']['y']
+# REMARKS:
+#   groupingValues not differentiated across groupingVariables of different
+#   channels
+#   e.g. base_prct_grp.1 = 'spk1' (e.g. ='abc')
+#        base_prct_grp.2 = 'spk2' (e.g. ='abc')
+#     -> 1 base value is calculated for 'abc' and not 2 for spk1_abc and
+#        spk2_abc, respectively
+def pp_f0_st_wrapper(copa):
+
+    opt = copa['config']
+
+    ## do nothing
+    # ('base_prct_grp' is deleted in copasul_init.py if not
+    #  needed, incl. the case that base_prct==0)
+    if 'base_prct_grp' not in opt['preproc']:
+        return copa
+    
+    ## 1. collect f0 for each grouping level
+    # over file/channel idx
+    # fg[myGrpLevel] = concatenatedF0
+    fg = {}
+    # lci[myChannelIdx] = myGroupingVar
+    lci = copa['config']['preproc']['base_prct_grp']
+    for ii in myl.numkeys(copa['data']):
+        for i in myl.numkeys(copa['data'][ii]):
+            fg = pp_f0_grp_fg(fg,copa,ii,i,lci)
+
+    ## 2. base value for each grouping level
+    #bv[myGrpLevel] = myBaseValue
+    bv = pp_f0_grp_bv(fg,opt)
+
+    ## 3. group-wise semitone conversion
+    for ii in myl.numkeys(copa['data']):
+        for i in myl.numkeys(copa['data'][ii]):
+            copa = pp_f0_grp_st(copa,ii,i,bv,lci,opt)
+
+    return copa
+    
+# towards grp-wise semitone conversion: fg update
+# IN:
+#   fg: fg[myGrpLevel] = concatenatedF0
+#   copa
+#   ii: fileIdx
+#   i: channelIdx
+#   lci: copa['config']['base_prct_grp']
+# OUT:
+#   fg: updated
+def pp_f0_grp_fg(fg,copa,ii,i,lci):
+    z = copa['data'][ii][i]
+    # channel-related grouping factor level
+    x = z['grp'][lci[i]]
+    if x not in fg:
+        fg[x] = myl.ea()
+    fg[x] = np.append(fg[x],z['f0']['y'])
+    return fg
+
+# calculate base value for each grouping level
+# IN:
+#   fg: fg[myGrpLevel] = concatenatedF0
+#   opt
+# OUT:
+#   bv[myGrpLevel] = myBaseValue
+def pp_f0_grp_bv(fg,opt):
+    # base prct
+    b = opt['preproc']['base_prct']
+    bv = {}
+    for x in fg:
+        yi = myl.find(fg[x],'>',0)
+        cbv, b = pp_bv(fg[x][yi],opt)
+        bv[x] = cbv
+
+    return bv
+
+# grp-wise semitone conversion
+# IN:
+#   copa
+#   ii: fileIdx
+#   i: channelIdx
+#   bv: bv[myGrpLevel]=myBaseValue
+#   lci: copa['config']['base_prct_grp']
+#   opt
+# OUT:
+#   copa with st-transformed f0
+def pp_f0_grp_st(copa,ii,i,bv,lci,opt):
+    # grp value
+    gv = copa['data'][ii][i]['grp'][lci[i]]
+    y = copa['data'][ii][i]['f0']['y']
+    yr, z = pp_semton(y,opt,bv[gv])
+    copa['data'][ii][i]['f0']['y'] = yr
+    copa['data'][ii][i]['f0']['bv'] = bv[gv]
+    return copa
+
 
 # standalone to modify only grouping fields in copa dict
 # (via pp_main all subsequent processing would be overwritten)
@@ -74,6 +176,7 @@ def pp_grp_wrapper(copa):
         for i in myl.numkeys(copa['data'][ii]):
             copa = pp_grp(copa,ii,i)
     return copa
+
 
 # file x channel-wise filling of copa['data']
 # IN:
@@ -194,16 +297,12 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
     ## preproc + filling copa.f0 #############
     if 'skip_f0' not in opt:
         f0, t, y, bv = pp_f0_preproc(f0,glb[-1][1],opt)
-        copa['data'][ii][i]['f0'] = {}
-        copa['data'][ii][i]['f0']['t']  = t
-        copa['data'][ii][i]['f0']['y']  = y
-        copa['data'][ii][i]['f0']['bv'] = bv
+        copa['data'][ii][i]['f0'] = {'t':t, 'y':y, 'bv':bv}
     else:
         # horiz extrapolation only to sync f0 and glob
         # for embedding in augment
         f0 = pp_zp(f0,glb[-1][1],opt,True)
-        copa['data'][ii][i]['f0']['t'] = f0[:,0]
-        copa['data'][ii][i]['f0']['y'] = f0[:,1]
+        copa['data'][ii][i]['f0'] = {'t':f0[:,0], 'y':f0[:,1]}
 
     ## sync onsets of glob and loc to f0 #####
     if len(glb)>0:
@@ -484,7 +583,11 @@ def pp_f0_preproc(f0,t_max,opt):
     # <0 -> 0
     y[myl.find(y,'<',0)]=0
     # semitone transform, base ref value (in Hz)
-    y, bv = pp_semton(y,opt)
+    #     later by calculating the base value over a grp factor (e.g. spk)
+    if 'base_prct_grp' in opt['preproc']:
+        bv = -1
+    else:
+        y, bv = pp_semton(y,opt)
     return f0, t, y, bv
 
 # merging AG segment and ACC event tiers to n x 3 array [[on off center]...]
@@ -1276,26 +1379,32 @@ def pp_loc(x,opt):
     return myl.cellwise(myl.trunc2,x)
         
 ### semitone transformation ##########################
-def pp_semton(y,opt):
+def pp_semton(y,opt,bv=-1):
     yi = myl.find(y,'>',0)
-    if opt['preproc']['base_prct']>0:
-        yp = y[yi]
-        px = np.percentile(yp,opt['preproc']['base_prct'])
-        yy = yp[myl.find(yp,'<=',px)]
-        bv = np.median(yp[myl.find(yp,'<=',px)])
-        b = bv
-        if b < 1:
-            b = 1
+    if opt['preproc']['base_prct']>0 and bv < 0:
+        bv, b = pp_bv(y[yi],opt)
+    elif bv > 0:
+        b = max(bv,1)
     else:
-        bv = 0
-        b = 1
+        bv, b = 0, 1
     if opt['preproc']['st']==1:
         y[yi] = 12*np.log2(y[yi]/b)
     else:
         y = y - bv
-
     return y, bv
 
+# calculate base and semitone conversion reference value
+# IN:
+#   yp: f0 values (>0 only!, see pp_semton())
+# OUT:
+#   bv: base value in Hz
+#   b: semtion conversion reference value (corrected bv)
+def pp_bv(yp,opt):
+    px = np.percentile(yp,opt['preproc']['base_prct'])
+    yy = yp[myl.find(yp,'<=',px)]
+    bv = np.median(yp[myl.find(yp,'<=',px)])
+    b = max(bv,1)
+    return bv, b
 
 ### smoothing ########################################
 def pp_smooth(y,opt):

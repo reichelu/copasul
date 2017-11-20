@@ -28,6 +28,7 @@ def copa_init(opt):
 # OUT:
 #   opt: initialized config (defaults added etc.)
 def copa_opt_init(conf):
+
     ## user defined
     # input is dictionary or json file name string
     if type(conf) is dict:
@@ -40,6 +41,7 @@ def copa_opt_init(conf):
     dfl =  myl.input_wrapper(f_dfl,'json')
     # merged
     opt = myl.opt_default(opt,dfl)
+
     # adjust variable types
     # filter frequencies as list
     for x in ['chunk','syl']:
@@ -150,4 +152,30 @@ def copa_opt_init(conf):
         if 'color' not in opt['plot'][x]:
             opt['plot'][x]['color'] = opt['plot']['color']
 
+    # check [preproc][base_prct_grp] <-> [fsys][grp][lab] compliance
+    if 'base_prct_grp' in opt['preproc']:
+        # empty or not needed subdict
+        if ((len(list(opt['preproc']['base_prct_grp'].keys()))==0) or
+            opt['preproc']['base_prct']==0):
+            del opt['preproc']['base_prct_grp']
+        else:
+            # over channel idx
+            for ci in opt['preproc']['base_prct_grp']:
+                g = opt['preproc']['base_prct_grp'][ci]
+                # label cannot be inferred from file name
+                if g not in opt['fsys']['grp']['lab']:
+                    print('WARNING: labels in opt.preproc.base_prct_grp need to be extractable from filename by opt.fsys.grp.lab. Removed. Base percentile will be calculated separately for each file.')
+                    del opt['preproc']['base_prct_grp']
+                    break
+
+    # transform string key to channel idx in copa['data']['fileIdx']
+    if 'base_prct_grp' in opt['preproc']:
+        bpg={}
+        lcis = myl.sorted_keys(opt['preproc']['base_prct_grp'])
+        for cis in lcis:
+            ci = int(cis)-1
+            opt['preproc']['base_prct_grp'][ci] = opt['preproc']['base_prct_grp'][cis]
+            del opt['preproc']['base_prct_grp'][cis]
+
     return opt
+
