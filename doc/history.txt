@@ -88,4 +88,7 @@
 	  extracted features (unigram entropy for contour classes) per file
 20171117: 0.5.2
 	  - more robust processing of TextGrids with empty tiers
-
+20171120: 0.6.1
+	  - reference value for semitone conversion can now be calculated
+	  not only separately for each file/channel, but for any
+	  grouping variable, e.g. separately for each speaker
