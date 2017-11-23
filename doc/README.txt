@@ -29,7 +29,7 @@ src/*py    for prosody analyses
     *praat for f0 extraction
 
 # Shell call:
-> copasul.py myConfigFile.json
+> copasul.py -c myConfigFile.json
 
 # Python environment call:
 >>> import copasul as copa
