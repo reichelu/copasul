@@ -1,7 +1,7 @@
 ############################################################################
 ## CoPaSul -                                                             ###
 ## Contour-based, parametric, and superpositional intonation stylization ###
-############################ä###############################################
+############################################################################
 
 Author: Uwe Reichel, Budapest, 2017
 	Research Institute for Linguistics
