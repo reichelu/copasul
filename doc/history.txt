@@ -92,3 +92,8 @@
 	  - reference value for semitone conversion can now be calculated
 	  not only separately for each file/channel, but for any
 	  grouping variable, e.g. separately for each speaker
+20171120: 0.6.2
+	  - new features: mean values for base-, mid-, topline, and range
+	  (bl_m, ml_m, tl_m, rng_m)
+	  - bugfix in copasul.py at call of coin.copa_opt_init()
+	  (bug since version 0.6.1)
