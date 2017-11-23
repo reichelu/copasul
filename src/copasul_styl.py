@@ -449,6 +449,7 @@ def styl_residual(y,df,r):
 #     [myRegister]['c']   base/mid/topline/range coefs
 #                 ['y']   line
 #                 ['rate'] rate (ST per sec, only if input t is not empty)
+#                 ['m']   mean value of line (resp. line dist)
 #        myRegister :=
 #          'bl' - baseline
 #          'ml' - midline
@@ -476,16 +477,20 @@ def styl_decl_fit(y,opt,med=myl.ea(),t=myl.ea()):
     df['tn'] = tn
     df['ml']['c'] = mc
     df['ml']['y'] = mv
+    df['ml']['m'] = np.mean(df['ml']['y'])
 
     # fit base and topline
     df['bl']['c'] = styl_polyfit(tn,med[:,0],1)
     df['bl']['y'] = np.polyval(df['bl']['c'],tn)
+    df['bl']['m'] = np.mean(df['bl']['y'])
     df['tl']['c'] = styl_polyfit(tn,med[:,2],1)
     df['tl']['y'] = np.polyval(df['tl']['c'],tn)
+    df['tl']['m'] = np.mean(df['tl']['y'])
  
     # fit range
     df['rng']['c'] = styl_polyfit(tn,med[:,2]-med[:,0],1)
     df['rng']['y'] = np.polyval(df['rng']['c'],tn)
+    df['rng']['m'] = max(0,np.mean(df['rng']['y']))
 
     # declination rates
     if len(t)==2:

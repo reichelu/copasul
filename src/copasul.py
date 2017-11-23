@@ -42,7 +42,7 @@ def copasul(args={}):
     # generate new copa dict?
     # or load it/take it from input args
     if opt['navigate']['from_scratch']:
-        copa = coin.copa_init(opt,f_log)
+        copa = coin.copa_init(opt)
     else:
         if ('copa' in args and 
             (type(copa) is dict) and

@@ -434,10 +434,10 @@ def export_csv(copa):
 
 def export_glob(c,fo,opt):
     cn = ['fi','ci','si','stm','t_on','t_off','bv',
-          'bl_c1','bl_c0','bl_r','bl_rate',
-          'ml_c1','ml_c0','ml_r','ml_rate',
-          'tl_c1','tl_c0','tl_r','tl_rate',
-          'rng_c1','rng_c0','rng_r','rng_rate',
+          'bl_c1','bl_c0','bl_r','bl_rate','bl_m',
+          'ml_c1','ml_c0','ml_r','ml_rate','ml_m',
+          'tl_c1','tl_c0','tl_r','tl_rate','tl_m',
+          'rng_c1','rng_c0','rng_r','rng_rate','rng_m',
           'lab','m','sd','med','iqr','max','min','dur']
     if 'class' in c[0][0]['glob'][0]:
         cn.append('class')
@@ -466,12 +466,13 @@ def export_glob(c,fo,opt):
                     d["{}_c0".format(x)].append(dd[x]['c'][1])
                     d["{}_r".format(x)].append(dd[x]['r'])
                     d["{}_rate".format(x)].append(dd[x]['rate'])
+                    d["{}_m".format(x)].append(dd[x]['m'])
                 if 'class' in cn:
                     d['class'].append(c[ii][i]['glob'][j]['class'])
                 # grouping
                 d = export_grp_upd(d,c[ii][i]['grp'])
 
-    #for x in list(d.keys()): print("{}: {}".format(x,len(d[x])))
+    #for x in list(d.keys()): print("{}: {}".format(x,len(d[x]))) #!c
 
     exp_to_file(d,fo,'glob',fullPath=opt['fsys']['export']['fullpath'])
 
@@ -499,10 +500,10 @@ def export_loc(c,fo,opt):
            'tl_rms','tl_sd','tl_d_init','tl_d_fin',
            'rng_rms','rng_sd','rng_d_init','rng_d_fin']
     # declination feature set
-    cnd = ['bl_c0','bl_c1','bl_rate',
-           'ml_c0','ml_c1','ml_rate',
-           'tl_c0','tl_c1','tl_rate',
-           'rng_c0','rng_c1','rng_rate']
+    cnd = ['bl_c0','bl_c1','bl_rate','bl_m',
+           'ml_c0','ml_c1','ml_rate','ml_m',
+           'tl_c0','tl_c1','tl_rate','tl_m',
+           'rng_c0','rng_c1','rng_rate','rng_m']
     # poly coef columns for cno and cne dep on polyord
     po = opt['styl']['loc']['ord']
     for i in range(po+1):
@@ -566,11 +567,13 @@ def export_loc(c,fo,opt):
                             d["{}_c1".format(x)].append(gg[x]['c'][0])
                             d["{}_c0".format(x)].append(gg[x]['c'][1])
                             d["{}_rate".format(x)].append(gg[x]['rate'])
+                            d["{}_m".format(x)].append(gg[x]['m'])
                     else: # e.g. empty segment
                         for x in myl.lists():
                             d["{}_c1".format(x)].append('NA')
                             d["{}_c0".format(x)].append('NA')
                             d["{}_rate".format(x)].append('NA')
+                            d["{}_m".format(x)].append('NA')
                     
 
                 # grouping
