@@ -479,6 +479,9 @@ def styl_decl_fit(y,opt,med=myl.ea(),t=myl.ea()):
     df['ml']['y'] = mv
     df['ml']['m'] = np.mean(df['ml']['y'])
 
+    # get c for 'none' register (evtl needed for clustering if register='none')
+    df['none'] = {'c': styl_polyfit(tn,y,1)}
+
     # fit base and topline
     df['bl']['c'] = styl_polyfit(tn,med[:,0],1)
     df['bl']['y'] = np.polyval(df['bl']['c'],tn)
