@@ -97,3 +97,6 @@
 	  (bl_m, ml_m, tl_m, rng_m)
 	  - bugfix in copasul.py at call of coin.copa_opt_init()
 	  (bug since version 0.6.1)
+20171204: 0.6.3
+	  - bugfix: styl.register == 'none' now wors with
+	  navigate.do_clst_loc
