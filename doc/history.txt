@@ -97,6 +97,12 @@
 	  (bl_m, ml_m, tl_m, rng_m)
 	  - bugfix in copasul.py at call of coin.copa_opt_init()
 	  (bug since version 0.6.1)
-20171204: 0.6.3
-	  - bugfix: styl.register == 'none' now wors with
+20171211: 0.6.3
+	  - new rhy_f0/en features from DCT spectrum:
+	  Number of peaks in absolute DCT spectrum (n peak), corresponding
+	  frequency for coefficient with amplitude maximum (f max), and
+	  frequency difference for each selected prosodic event
+	  rate to f max (dgm) and to the nearest peak (dlm).
+	  - new config parameter peak_prct for DCT peak candidates
+	  - bugfix: styl.register == 'none' now works with
 	  navigate.do_clst_loc
