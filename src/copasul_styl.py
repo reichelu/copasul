@@ -804,7 +804,7 @@ def styl_loc_ext_file(copa,ii,gopt,lopt):
 #   - all diffs: locseg-globseg
 #   - sd is taken from (y_off-y_on)/lng since poly coefs 
 #     of globseg and locseg decl are derived from different
-#     time normalizations
+#     time normalizations. That is, slopediff actually is a rate difference!
 #   - no alignment in residual stylization (i.e. no defined center := 0)
 def styl_gestalt(obj):
     (dfl,dfg_in,idx,opt,y) = (obj['dfl'],obj['dfg'],obj['idx'],obj['opt'],obj['y'])
@@ -1136,7 +1136,11 @@ def styl_rhy_file(copa,ii,fld,opt):
 #                       ['prop'] - proportion of coefs around
 #                                 resp rate relative to coef sum
 #                       ['rate'] - rate in analysed domain
+#                       ['dgm'] dist to glob max in dct !
+#                       ['dlm'] dist to loc max in dct !
 #      ['dur'] - segment duration (in sec) 
+#      ['f_max'] - freq of max amplitude
+#      ['n_peak'] - number of peaks in DCT spectrum
 def styl_speech_rhythm(y,r={},opt={},copaConfig={}):
     err=0
     dflt={}
@@ -1173,6 +1177,9 @@ def styl_speech_rhythm(y,r={},opt={},copaConfig={}):
     # dct features
     rhy = sif.dct_wrapper(y,opt['rhy'])
 
+    # number of local maxima
+    rhy['n_peak'] = len(rhy['f_lmax'])
+
     # duration
     rhy['dur'] = myl.smp2sec(len(y),opt['rhy']['fs'])
     
@@ -1205,6 +1212,8 @@ def fs_sig2en(sts,fs):
 #     +['wgt'][myDomain]['mae']
 #                       ['prop']
 #                       ['rate']
+#                       ['dgm'] dist to glob max in dct
+#                       ['dlm'] dist to loc max in dct
 def rhy_sub(y,r,rhy,opt):
     opt_rhy = cp.deepcopy(opt['rhy'])
 
@@ -1215,6 +1224,9 @@ def rhy_sub(y,r,rhy,opt):
     ac = abs(rhy['c'])
     sac = sum(ac)
 
+    # freqs of max values
+    gpf, lpf = rhy['f_max'], rhy['f_lmax']
+
     # IDCT by coefficients with freq between lb and ub
     #   (needed for MAE and prop normalization. Otherwise
     #    weights depend on length of y)
@@ -1224,6 +1236,14 @@ def rhy_sub(y,r,rhy,opt):
 
     # over rate keys
     for x in r:
+
+        # distances to global and nearest local peak
+        dg = r[x] - gpf
+        dl = np.exp(10)
+        for z in lpf:
+            dd = r[x]-z
+            if abs(dd) < dl:
+                dl = dd
 
         # define catch band around respective event rate of x
         lb = r[x]-rb
@@ -1243,7 +1263,8 @@ def rhy_sub(y,r,rhy,opt):
         yrx = sif.idct_bp(rhy['c_orig'],j)
         ae = myl.mae(yr,yrx)
 
-        rhy['wgt'][x] = {'mae':ae, 'prop':prp, 'rate':r[x]}
+        rhy['wgt'][x] = {'mae':ae, 'prop':prp, 'rate':r[x],
+                         'dlm': dl, 'dgm': dg}
 
     return rhy
 

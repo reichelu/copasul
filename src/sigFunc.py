@@ -46,6 +46,8 @@ def wavread(f,opt={'do_preproc':1}):
 #      ['ub']     - upper cutoff frequency (if 0, no cutoff) <0>
 #                   Recommended e.g. for f0 DCT, so that only influence
 #                   of events with <= 10Hz on f0 contour is considered)
+#      ['peak_prct'] - <80> lower percentile threshold to be superseeded for
+#                   amplitude maxima in DCT spectrum
 # OUT:
 #   dct
 #      ['c_orig'] all coefs
@@ -59,9 +61,11 @@ def wavread(f,opt={'do_preproc':1}):
 #      ['sd'] y standard dev
 #      ['cbin'] array of sum(abs(coef)) in frequency bins
 #      ['fbin'] corresponding lower boundary freqs
+#      ['f_max'] frequency of global amplitude maximum
+#      ['f_lmax'] frequencies of local maxima (array of minlen 1)
 def dct_wrapper(y,opt):
     dflt={'wintyp':'kaiser','winparam':1,'nsm':3,'rmo':True,
-          'lb':0,'ub':0}
+          'lb':0,'ub':0,'peak_prct':80}
     opt = myl.opt_default(opt,dflt)
 
     # weight window
@@ -113,9 +117,58 @@ def dct_wrapper(y,opt):
     # frequency bins
     fbin, cbin = dct_fbin(fi,ci,opt)
 
+    # frequencies of global and local maxima in DCT spectrum
+    f_max, f_lmax = dct_peak(ci,fi,opt)
+
     # return
     return {'c_orig':c,'f_orig':f,'c':ci,'f':fi,'i':j,'sm':sm,'opt':opt,
-            'm':np.mean(y),'sd':np.std(y),'cbin':cbin,'fbin':fbin}
+            'm':np.mean(y),'sd':np.std(y),'cbin':cbin,'fbin':fbin,
+            'f_max':f_max, 'f_lmax':f_lmax}
+
+# returns local and max peak frequencies
+# IN:
+#  x: array of abs coef amplitudes
+#  f: corresponding frequencies
+# OUT:
+#  f_gm: freq of global maximu
+#  f_lm: array of freq of local maxima
+def dct_peak(x,f,opt):
+
+    x = abs(x)
+
+    ## global maximum
+    i = myl.find(x,'is','max')
+    f_gm = float(f[i])
+        
+    ## local maxima
+    px = np.percentile(x,opt['peak_prct'])
+    idx = myl.find(x,'>=',px)
+    # 2d array of neighboring indices
+    # e.g. [[0,1,2],[4,5],[8,9]]
+    ii = []
+    for i in myl.idx(idx):
+        if len(ii)==0 or idx[i] > ii[-1][-1]+1:
+            ii.append([idx[i]])
+        else:
+            ii[-1].append(idx[i])
+    
+    # get index of x maximum within each subsegment
+    # and return corresponding frequencies
+    f_lm = []
+    for si in ii:
+        i = si[myl.find(x[si],'is','max')]
+        if not np.isnan(i):
+            f_lm.append(f[i])
+
+    #print('i',ii)
+    #print('x',x)
+    #print('f',f)
+    #print('m',f_gm,f_lm)
+    #myl.stopgo()
+
+    return f_gm, f_lm
+
+            
 
 # pre-emphasis
 # s'[n] = s[n]-alpha*s[n-1]

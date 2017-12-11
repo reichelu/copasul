@@ -10,6 +10,7 @@ import os
 import copy as cp
 import sys
 import re
+import csv
 import copasul_resyn as core
 from pandas import DataFrame
 
@@ -647,15 +648,17 @@ def export_bnd(c,fo,opt):
 # segment- and file-level output
 def export_rhy(c,fo,opt,typ):
     # segment-level
-    cn = ['fi','ci','si','stm','t_on','t_off','tier','lab','dur']
+    cn = ['fi','ci','si','stm','t_on','t_off','tier','lab','dur','f_max','n_peak']
     # file-level
     typf = "{}_file".format(typ)
-    cnf = ['fi','ci','stm','dur']
+    cnf = ['fi','ci','stm','dur','f_max','n_peak']
     # spectral moments
     smo = opt['styl'][typ]['rhy']['nsm']
     for i in myl.idx_seg(1,smo,1):
         cn.append("sm{}".format(i))
         cnf.append("sm{}".format(i))
+    
+
     # influence of tier_rate (syl, AG etc) in tier (chunk etc) 
     # 'analysisSegment_influenceSegment_mae|prop|rate'
     # tier.tierRate -> TRUE, vs. double-inits on segment level
@@ -674,9 +677,13 @@ def export_rhy(c,fo,opt,typ):
                 cn.append("{}_prop".format(tk))
                 cn.append("{}_mae".format(tk))
                 cn.append("{}_rate".format(tk))
+                cn.append("{}_dlm".format(tk))
+                cn.append("{}_dgm".format(tk))
                 cnf.append("{}_prop".format(tk))
                 cnf.append("{}_mae".format(tk))
                 cnf.append("{}_rate".format(tk))
+                cnf.append("{}_dlm".format(tk))
+                cnf.append("{}_dgm".format(tk))
                 seen_r[tk]=True
             tierComb[tj][tk]=True
     # segment-level
@@ -699,10 +706,14 @@ def export_rhy(c,fo,opt,typ):
             for q in myl.idx_seg(1,smo,1):
                 df["sm{}".format(q)].append(c[ii][i][typf]['sm'][q-1])
 
+            # freq of glob amplitude maximum and num of local peaks
+            for q in ['f_max','n_peak']:
+                df[q].append(c[ii][i][typf][q])
+
             ## influence of tier_rates (syl, AG etc) in file and in other tier (chunk etc)
             ## file-level
             for rt in seen_r:
-                for kk in ['rate','mae','prop']:
+                for kk in ['rate','mae','prop','dlm','dgm']:
                     zz = "{}_{}".format(rt,kk)
                     if rt not in c[ii][i][typf]['wgt']:
                         df[zz].append(np.nan)
@@ -731,10 +742,12 @@ def export_rhy(c,fo,opt,typ):
                     # spec moms
                     for q in myl.idx_seg(1,smo,1):
                         d["sm{}".format(q)].append(c[ii][i][typ][j][k]['rhy']['sm'][q-1])
+                    for q in ['f_max','n_peak']:
+                        d[q].append(c[ii][i][typ][j][k]['rhy'][q])
                     # influence of tier_rates (syl, AG etc) in tier (chunk etc) 
                     for rt in seen_r:
                         #print(tt,rt) ##!!
-                        for kk in ['rate','mae','prop']:
+                        for kk in ['rate','mae','prop','dlm','dgm']:
                             zz = "{}_{}".format(rt,kk)
                             if rt in c[ii][i][typ][j][k]['rhy']['wgt']:
                                 d[zz].append(c[ii][i][typ][j][k]['rhy']['wgt'][rt][kk])
@@ -745,7 +758,7 @@ def export_rhy(c,fo,opt,typ):
                     # grouping
                     d = export_grp_upd(d,c[ii][i]['grp'])
 
-    #for x in list(d.keys()): print("{}: {}".format(x,len(d[x])))
+    #for x in list(df.keys()): print("{}: {}".format(x,len(df[x])))
 
     exp_to_file(d,fo,typ,fullPath=opt['fsys']['export']['fullpath'])
     exp_to_file(df,fo,typf,fullPath=opt['fsys']['export']['fullpath'])
@@ -928,6 +941,12 @@ def export_grp_upd(d,grp):
 def exp_to_file(d,fo,infx,checkFld='fi',facpat='',fullPath=False):
     if ((checkFld in d) and (len(d[checkFld])>0)):
         pd.DataFrame(d).to_csv("{}.{}.csv".format(fo,infx),na_rep='NA',index_label=False, index=False)
+        exp_R(d,"{}.{}".format(fo,infx),facpat,fullPath)
+
+
+def exp_to_file_quoteNonnum(d,fo,infx,checkFld='fi',facpat='',fullPath=False):
+    if ((checkFld in d) and (len(d[checkFld])>0)):
+        pd.DataFrame(d).to_csv("{}.{}.csv".format(fo,infx),na_rep='NA',index_label=False, index=False, quoting=csv.QUOTE_NONNUMERIC)
         exp_R(d,"{}.{}".format(fo,infx),facpat,fullPath)
 
 
