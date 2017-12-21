@@ -106,3 +106,5 @@
 	  - new config parameter peak_prct for DCT peak candidates
 	  - bugfix: styl.register == 'none' now works with
 	  navigate.do_clst_loc
+20171221: 0.6.4
+	  - informative error message for zero-only f0 input 
