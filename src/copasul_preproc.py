@@ -53,6 +53,9 @@ def pp_main(copa,f_log_in=''):
 
     # over files
     for ii in range(len(ff['f0'])):
+
+        #print(ff['f0'][ii]) #!c
+
         copa['data'][ii]={}
         # f0 and annotation file content
         f0_dat = myl.input_wrapper(ff['f0'][ii],opt['fsys']['f0']['typ'])
@@ -303,6 +306,10 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
         # for embedding in augment
         f0 = pp_zp(f0,glb[-1][1],opt,True)
         copa['data'][ii][i]['f0'] = {'t':f0[:,0], 'y':f0[:,1]}
+
+    ## error?
+    if np.max(y)==0:
+         myLog("ERROR! {} contains only zeros that will cause trouble later on.\nPlease remove f0, audio and annotation file from data and re-start the analysis.".format(ff['f0'][ii]),True)
 
     ## sync onsets of glob and loc to f0 #####
     if len(glb)>0:
@@ -574,6 +581,10 @@ def pp_f0_preproc(f0,t_max,opt):
     f0 = pp_zp(f0,t_max,opt)
     # detach time and f0
     t,y = f0[:,0], f0[:,1]
+    # do nothing with zero-only segments
+    # (-> will be reported as error later on)
+    if np.max(y)==0:
+        return y, t, y, 1
     # setting outlier to 0
     y = pp_outl(y,opt['preproc']['out'])
     # interpolation over 0
@@ -1453,7 +1464,8 @@ def pp_outl(y,opt):
     # ignore zeros
     opt['zi'] = True
     io = myl.outl_idx(y,opt);
-    y[io] = 0
+    if np.size(io)>0:
+        y[io] = 0
     return y
 
 

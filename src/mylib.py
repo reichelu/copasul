@@ -296,6 +296,24 @@ def windowing_idx(i,s):
 def intersect(a,b):
     return list(set(a) & set(b))
 
+# for flexible command line vs embedded call of some function
+# either: args contains a 'config' key, then opt is read from config file
+# or: args contains key <reqKey>, then opt is set to args
+# IN:
+#   args dict
+#   reqKey required key
+# OUT:
+#   opt dict read from args.config or equal args
+def args2opt(args,reqKey):
+    if 'config' in args:
+        opt = input_wrapper(args['config'],'json')
+    elif reqKey in args:
+        opt = args
+    else:
+        sys.exit("args cannot be transformed to opt")
+    return opt
+
+
 # printing arbitrary number of variables
 def pr(*args):
     for v in args:
@@ -387,6 +405,9 @@ def outl_idx(y,opt):
     else:
         i = range(np.size(y))
         z = np.array([])
+
+    if np.size(i)==0:
+        return ea()
 
     if opt['m'] == 'mean':
         m = np.mean(y.take(i))
@@ -593,9 +614,15 @@ def nan_repl(x,mp={}):
     return x
 
 # input wrapper, extendable, so far working for
-# 'json', 'pickle', 'TextGrid', 'tab'/'lol', 'par', 'xml', 'lol_txt',
-# 'seg_lab', 'list','csv'
+# 'json', 'pickle', 'TextGrid', 'tab'/'lol', 'par', 'xml', 'l_txt',
+# 'lol_txt', 'seg_lab', 'list','csv', 'copa_csv', 'pandas_csv'
 #   xml is restricted to copa_xml format 
+#   *csv: recommended: 'pandas_csv', since 'csv' treats all values as strings
+#   and 'copa_csv' is more explicit than 'pandas_csv' in type def but
+#   might get deprecated
+#   Current diffs between copa_csv and pandas_csv: idx columns as ci, fi etc 
+#   and  numeric speakerIds will be treated as integer in pandas_csv but as
+#   strings in cop_csv
 # IN:
 #    fileName
 #    typ
@@ -605,6 +632,7 @@ def nan_repl(x,mp={}):
 #    diff between lol and lol_txt:
 #    lol: numeric 2-dim np.array (text will be ignored)
 #    lol_txt: any 2-dim array
+#    l_txt: 1-dim array splitting input text at blanks
 #    seg_lab: on off label
 #    csv: returns dict with keys defined by column titles 
 #    csv: NA, NaN, Inf ... are kept as strings. In some
@@ -620,7 +648,7 @@ def input_wrapper(f,typ):
     # xml
     if typ=='xml':
         return i_copa_xml(f)
-    # csv into dict
+    # csv into dict (BEWARE: everything is treaten as strings!)
     if typ=='csv':
         o = {}
         for row in csv.DictReader(open(f,'r')):
@@ -629,6 +657,29 @@ def input_wrapper(f,typ):
                     o[a] = []
                 o[a].append(row[a])
         return o
+    # copa csv into dict (incl. type conversion)
+    if typ=='copa_csv':
+        o = {}
+        for row in csv.DictReader(open(f,'r')):
+            for a in row:
+                if a not in o:
+                    o[a] = []
+                if copa_categ_var(a):
+                    v = row[a]
+                else:
+                    try:
+                        v = float(row[a])
+                    except ValueError:
+                        if row[a] == 'NA':
+                            v = np.nan
+                        else:
+                            v = row[a]
+                o[a].append(v)
+        return o
+    # csv with pandas: automatic type guessing
+    if typ=='pandas_csv':
+        o = pd.read_csv(f)
+        return o.to_dict('list')
     # par
     if typ=='par_as_tab':
         return i_par(f)
@@ -638,6 +689,9 @@ def input_wrapper(f,typ):
         m = 'r'
     if (typ == 'lol' or typ == 'tab'):
         return lol(f)
+    # 1 dim list of blanksep items
+    if typ == 'l_txt':
+        return i_lol(f,sep='',frm='1d')
     if typ == 'lol_txt':
         return i_lol(f)
     if typ == 'seg_lab':
@@ -648,6 +702,19 @@ def input_wrapper(f,typ):
         elif typ=='pickle':
             return pickle.load(h)
     return False
+
+# decides whether name belongs to categorical variable 
+def copa_categ_var(x):
+    if ((x in lists('factors','set')) or
+        re.search('^(grp|lab|class|spk|tier)',x) or
+        re.search('_(grp|lab|class|tier)$',x) or
+        re.search('_(grp|lab|class|tier)_',x)):
+        return True
+    return False
+
+
+
+
 
 # [on off label] rows converted to 2-dim np.array and label list
 # IN:
@@ -743,6 +810,42 @@ def prob2entrop(p):
         h -= (p[x] * math.log(p[x],2))
     return h
 
+# information radius of two probability distributions
+# IN:
+#    p - dict: myType -> myProb from count2prob()
+#    q - same
+# OUT:
+#    r - information radius between p and q
+def prob2irad(p_in,q_in):
+    p = cp.deepcopy(p_in)
+    q = cp.deepcopy(q_in)
+
+    # mutual filling of probmodels
+    for e in set(p.keys()):
+        if e not in q:
+            q[e]=0
+    for e in set(q.keys()):
+        if e not in p:
+            p[e]=0
+
+    r = 0 
+    for e in set(p.keys()):
+        m = (p[e]+q[e])/2
+        if m==0:
+            continue
+        if p[e]==0:
+            a = q[e]*binlog(q[e]/m)
+        elif q[e]==0:
+            a = p[e]*binlog(p[e]/m)
+        else:
+            a = p[e]*binlog(p[e]/m)+q[e]*binlog(q[e]/m)
+        r += a
+    return r
+
+
+# shortcut to log2
+def binlog(x):
+    return math.log(x,2)
 
 
 # wrapper around counter() and count2prob()
@@ -1645,6 +1748,22 @@ def sig_preproc(y,opt={}):
 
     return y
 
+# returns low number as probability for unseen events
+def prob_oov():
+    return np.exp(-100)
+
+
+# assigns prob to event
+# IN:
+#  w - event
+#  p - prob dict (from list2prob())
+# OUT:
+#  pw - probability of w
+def assign_prob(w,p):
+    if w in p:
+        return p[w]
+    return prob_oov()
+
 
 # concats dir and stem of fsys-subdirectory
 # IN:
@@ -1755,7 +1874,7 @@ def i_list(f):
         h.close()
     return l
 
-# reads any text file as 2-dim list
+# reads any text file as 1-dim or 2-dim list
 # Remark: no np.asarray, thus element indexing is x[i][j],
 #         i.e. [i,j] does not work 
 # IN:
@@ -1763,9 +1882,11 @@ def i_list(f):
 #   sep separator (<''> -> whitespace split)
 #       regex need to be marked by 'r:sep'
 #       e.g.: 'r:\\t+' - split at tabs (double backslash needed!)
+#   frm <'2d'>|'1d'
 # OUT:
 #   lol x (sublists: rows splitted at whitespace)
-def i_lol(f,sep=''):
+#      or l x (rows concat to 1 list)
+def i_lol(f,sep='',frm='2d'):
     if re.search('^r:',sep):
         is_re = True
         sep = re.sub('^r:','',sep)
@@ -1786,7 +1907,11 @@ def i_lol(f,sep=''):
                 else:
                     x = z.split(sep)
             if len(x)>0:
-                d.append(x)
+                if frm=='2d':
+                    d.append(x)
+                else:
+                    for y in x:
+                        d.append(y)
         h.close()
     return d
 
@@ -2788,6 +2913,17 @@ def ext_true(d,k):
         return True
     return False
 
+# calls copasul in pipeline
+# IN:
+#   opt pipeline config
+#          must contain ['fsys']['config'][myKey]
+#          with location of copasul config file
+#   myKey key in opt['fsys']['config'] to be adressed
+# OUT:
+#   -
+def pipeline_copasul_call(opt,x):
+    copasul_call(opt['fsys']['config'][x])
+
 # OUT: list of default 10 item color circle + some additional ones
 def colors():
     return ['blue', 'orange', 'green', 'red','purple',
@@ -2809,3 +2945,37 @@ def timeSort(x,t):
                 x[j] = x[i]
                 x[i] = b
     return x
+
+# returns True if input string is punctuation mark
+def is_punc(s):
+    if re.search('^[<>,!\|\.\?:\-\(\);\"\']+$',s):
+        return True
+    return False
+
+# task: 'expand'|'shorten'
+#   from/to iso<->fullform
+# so far for all languages supported by snowball stemmer
+def lng_map(task='expand'):
+    lm = {'nld':'dutch',
+          'dan':'danish',
+          'eng':'english',
+          'fin':'finnish',
+          'fra':'french',
+          'deu':'german',
+          'hun':'hungarian',
+          'ita':'italian',
+          'nor':'norwegian',
+          'porter':'porter',
+          'por':'portuguese',
+          'ron':'romanian',
+          'rus':'russian',
+          'spa':'spanish',
+          'swe':'swedish'}
+    if task=='expand':
+        return lm
+    else:
+        lmr = {}
+        for x in lm:
+            lmr[lm[x]]=x
+        return lmr
+
