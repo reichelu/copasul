@@ -87,7 +87,10 @@ def styl_gnl_file(copa,ii,fld,opt):
             opt['fs']=myFs
 
         # file wide
-        copa['data'][ii][i]["{}_file".format(fld)] = styl_std_feat(y,opt)
+        yz = "{}_file".format(fld)
+        copa['data'][ii][i][yz] = styl_std_feat(y,opt)
+        copa['data'][ii][i][yz] = styl_std_quot(y,opt,copa['data'][ii][i][yz])
+
         # over tiers
         for j in myl.numkeys(copa['data'][ii][i][fld]):
             # over segments (+ normalization ['*_nrm'])
@@ -95,6 +98,7 @@ def styl_gnl_file(copa,ii,fld,opt):
             for k in nk:
                 # analysis window
                 yi = styl_yi(copa['data'][ii][i][fld][j][k]['t'],myFs,y)
+
                 # for interval tier input; for styl_std_feat duration calculation
                 if len(copa['data'][ii][i][fld][j][k]['to'])>1:
                     to = copa['data'][ii][i][fld][j][k]['to'][0:2]
@@ -106,6 +110,8 @@ def styl_gnl_file(copa,ii,fld,opt):
                 yin = styl_yi(tn,myFs,y)
                 # add normalization _nrm
                 sf = styl_std_nrm(sf,y[yin],opt,tn)
+                # quotients/shape
+                sf = styl_std_quot(y[yi],opt,sf)
                 # add spectral balance and rmsd for en
                 if (opt['type']=='en'):
                     yi_raw = styl_yi(copa['data'][ii][i][fld][j][k]['t'],fs_sig,y_raw)
@@ -119,6 +125,83 @@ def styl_gnl_file(copa,ii,fld,opt):
                     sf['rms_nrm'] = rms_y/rms_yn
                 copa['data'][ii][i][fld][j][k]['std'] = sf
     return copa
+
+# calculates quotients and 2nd order shape coefs for f0/energy contours
+# IN:
+#   y: f0 or energy contout
+#   opt: config['styl']
+#   r: <{}> dict to be updated
+# OUT:
+#   r: output dict + keys
+#     qi mean_init/mean_nonInit
+#     qf mean_fin/mean_nonFin
+#     qb mean_init/mean_fin
+#     qm mean_max(initFin)/mean_nonMax
+#     c0 offset
+#     c1 slope
+#     c2 shape
+def styl_std_quot(y,opt,r={}):
+    # backward compatibility
+    if 'gnl' not in opt:
+        opt['gnl'] = {'win':0.3}
+
+    # init
+    for x in ['qi','qf','qm','qb','c0','c1','c2']:
+        r[x] = np.nan
+    
+    # final idx in y
+    yl = len(y)
+    
+    # window length (smpl)
+    wl = min(yl,int(opt['fs']*opt['gnl']['win']))
+
+    # initial and final segment
+    y_ini = y[0:wl],
+    y_nin = y[wl:yl]
+    y_fin = y[yl-wl:yl]
+    y_nfi = y[0:yl-wl]
+
+    # robustness: non-empty slices
+    if len(y_ini)==0:
+        y_ini = [y[0]]
+    if len(y_nin)==0:
+        y_nin = [y[-1]]
+    if len(y_fin)==0:
+        y_fin = [y[-1]]
+    if len(y_nfi)==0:
+        y_nfi = [y[0]]
+
+    # means
+    mi = np.mean(y_ini)
+    mni = np.mean(y_nin)
+    mf = np.mean(y_fin)
+    mnf = np.mean(y_nfi)
+    if mi>mf:
+        mm = mi
+        mnm = mni
+    else:
+        mm = mf
+        mnm = mnf
+
+    # quotients
+    if mni>0:
+        r['qi'] = mi/mni
+    if mnf>0:
+        r['qf'] = mf/mnf
+    if mf>0:
+        r['qb'] = mi/mf
+    if mnm>0:
+        r['qm'] = mm/mnm
+    
+    # polyfit
+    t = myl.nrm_vec(myl.idx_a(len(y)),{'mtd':'minmax','rng':[0,1]})
+    c = styl_polyfit(t,y,2)
+    r['c0'] = c[2]
+    r['c1'] = c[1]
+    r['c2'] = c[0]
+
+    return r
+
 
 # adds normalized feature values to std feat dict
 # IN:

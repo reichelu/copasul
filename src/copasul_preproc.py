@@ -289,12 +289,17 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
         lab_ag = []
         lab_acc = lab_loc_acc
 
-    # no loc segs -> glob
+    # no loc segs
     if len(loc)==0:
-        loc=cp.deepcopy(glb)
-        loc_ut=cp.deepcopy(glb_ut)
-        lab_ag=cp.deepcopy(lab_glb)
+        lab_ag = []
         lab_acc = []
+
+    # no loc segs -> cp glob segs, deprecated!
+    #if len(loc)==0:
+    #    loc=cp.deepcopy(glb)
+    #    loc_ut=cp.deepcopy(glb_ut)
+    #    lab_ag=cp.deepcopy(lab_glb)
+    #    lab_acc = []
 
     ## F0 (2) ################################
     ## preproc + filling copa.f0 #############
@@ -404,7 +409,6 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
         copa['data'][ii][i]['loc'][jj]['t'] = locSl
         copa['data'][ii][i]['loc'][jj]['to'] = loc_ut[j,:]
         copa['data'][ii][i]['loc'][jj]['tn'] = loc_tn
-        ##!!loc_t = myl.push(loc_t,[locSl[0],locSl[1]])
         loc_t = np.append(loc_t,locSl[2])
         if (ri[j]>-1):
             copa['data'][ii][i]['glob'][ri[j]]['ri'] = np.concatenate((copa['data'][ii][i]['glob'][ri[j]]['ri'],[jj]),axis=0)
@@ -796,8 +800,6 @@ def pp_tiernames(fsys,fld,typ,ci,tn_opt={}):
     for x in xx:
         # append channel idx for tiers generated in augmentation step
         # add bnd infix for syllable augmentation
-        ##!!ci xc = "{}_{}".format(x,ci)
-        ##!!ci xbc = "{}_bnd_{}".format(x,ci)
         xc = "{}_{}".format(x,int(ci+1))
         if 'ignore_sylbnd' not in tn_opt.keys():
             xbc = "{}_bnd_{}".format(x,int(ci+1))

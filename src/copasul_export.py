@@ -790,7 +790,7 @@ def export_gnl(c,fo,opt,typ):
     typf = "{}_file".format(typ)
     # segment-/file-level
     cn = ['m','sd','med','iqr','max','min','dur']
-    cnf = ['m','sd','med','iqr','max','min','dur']
+    cnf = cp.deepcopy(cn)
     # en: rms, *_nrm, and sb (*_nrm and sb for segment level only) 
     # f0: *_nrm, bv for file level only
     for x in cp.deepcopy(cn):
@@ -802,7 +802,13 @@ def export_gnl(c,fo,opt,typ):
         cn.append('sb')
     else:
         cnf.append('bv')
-        
+    
+    # quotient variables (not nrm)
+    for x in ['qi','qf','qb','qm','c0','c1','c2']:
+        cn.append(x)
+        cnf.append(x)
+
+    # linking variables
     for x in ['fi','ci','si','stm','t_on','t_off','tier','lab']:
         cn.append(x)
     for x in ['fi','ci','stm']:
@@ -1010,6 +1016,36 @@ def copa_contains(c,dom,ft):
         return True
     return False
 
-    
- 
+#### called by external scripts ##############
+
+# returns abs value if feature describes assymmetric aspects
+# IN:
+#  v: featval
+#  n: featname
+#  fset: feature set
+#  sel_fset: which fsets to consider
+# OUT:
+#  v or abs(v)
+#
+# assym features:
+#   loc: c1, c3, bl|ml|tl|rng_c1|r|rate|d_init|d_fin|sd
+#   glob: bl|ml|tl|rng_c1|rate
+def selAbs(v,n,fset,sel=('glob','loc','bnd')):
+    if fset not in sel:
+        #print('-> {}'.format(v))
+        return v
+    # loc
+    if re.search('^c[13579]$',n):
+        return abs(v)
+    # gnl
+    if re.search('(f0|en)_c[13]',n):
+        return abs(v)
+    # glob/loc
+    if re.search('^([bmt]l|rng)_(r|c1|rate|d_(init|fin)|sd)$',n):
+        return abs(v)
+    # bnd
+    if re.search('_([bmt]l|rng)_r$',n):
+        return abs(v)
+    return v
+        
  
