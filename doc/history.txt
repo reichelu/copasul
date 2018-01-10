@@ -108,3 +108,11 @@
 	  navigate.do_clst_loc
 20171221: 0.6.4
 	  - informative error message for zero-only f0 input 
+20180110: 0.7.1
+	  - new features added to gnl feature set for both energy and f0:
+	  qi, qf, qb, qm, c0, c1, c2
+	  - copasul_preproc.pp_channel(): for feature sets loc, and loc_ext
+	  missing local segments are not anymore replaced by the corresponding
+	  global segment. So far a global segment without any contained local
+	  one was treated as a global segment containing one local one of the
+	  same size.
