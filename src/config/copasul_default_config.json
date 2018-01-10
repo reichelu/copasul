@@ -77,6 +77,9 @@
 	    "win": 2,
 	    "cross_chunk": 1
 	},
+	"gnl": {
+	    "win": 0.3
+	},
 	"gnl_en": {
 	    "alpha": 0.95,
 	    "sts": 0.01,
