@@ -63,6 +63,12 @@ def wavread(f,opt={'do_preproc':1}):
 #      ['fbin'] corresponding lower boundary freqs
 #      ['f_max'] frequency of global amplitude maximum
 #      ['f_lmax'] frequencies of local maxima (array of minlen 1)
+#      ['c_cog'] the coef amplitude of the cog freq (sm[0])
+# PROBLEMS:
+#   - if segment is too short (< 5 samples) lowest freqs associated to
+#     DCT components are too high for ub, that is dct_trunc() returns
+#     empty array.
+#     -> np.nan assigned to respective variables
 def dct_wrapper(y,opt):
     dflt={'wintyp':'kaiser','winparam':1,'nsm':3,'rmo':True,
           'lb':0,'ub':0,'peak_prct':80}
@@ -72,11 +78,17 @@ def dct_wrapper(y,opt):
     w = sig_window(opt['wintyp'],len(y),opt['winparam'])
     y = y*w
 
+    #print(1,len(y))
+
     # centralize
     y = y-np.mean(y)
 
+    #print(2,len(y))
+    
     # DCT coefs
     c = sf.dct(y,norm='ortho')
+
+    #print(3,len(c))
 
     # indices (starting with 0)
     ly = len(y)
@@ -88,6 +100,18 @@ def dct_wrapper(y,opt):
     # band pass truncation of coefs
     # indices of coefs with lb <= freq <= ub
     i = dct_trunc(f,ci,opt)
+
+    #print('f ci i',f,ci,i)
+
+    # analysis segment too short -> DCT freqs above ub
+    if len(i)==0:
+        sm = myl.ea()
+        while len(sm) <= opt['nsm']:
+            sm = np.append(sm,np.nan)
+        return {'c_orig':c,'f_orig':f,'c':myl.ea(),'f':myl.ea(),'i':[],'sm':sm,'opt':opt,
+                'm':np.nan,'sd':np.nan,'cbin':myl.ea(),'fbin':myl.ea(),
+                'f_max':np.nan, 'f_lmax':myl.ea(), 'c_cog': np.nan}
+
 
     # mean abs error from band-limited IDCT
     #mae = dct_mae(c,i,y)
@@ -113,60 +137,120 @@ def dct_wrapper(y,opt):
         sm = specmom(ci,fi,opt['nsm'])
     else:
         sm = np.zeros(opt['nsm'])
-    
+
     # frequency bins
     fbin, cbin = dct_fbin(fi,ci,opt)
 
     # frequencies of global and local maxima in DCT spectrum
-    f_max, f_lmax = dct_peak(ci,fi,opt)
+    f_max, f_lmax, px = dct_peak(ci,fi,sm[0],opt)
 
     # return
     return {'c_orig':c,'f_orig':f,'c':ci,'f':fi,'i':j,'sm':sm,'opt':opt,
             'm':np.mean(y),'sd':np.std(y),'cbin':cbin,'fbin':fbin,
-            'f_max':f_max, 'f_lmax':f_lmax}
+            'f_max':f_max, 'f_lmax':f_lmax, 'c_cog': px}
 
 # returns local and max peak frequencies
 # IN:
 #  x: array of abs coef amplitudes
 #  f: corresponding frequencies
+#  cog: center of gravity
 # OUT:
 #  f_gm: freq of global maximu
 #  f_lm: array of freq of local maxima
-def dct_peak(x,f,opt):
+#  px: threshold to be superseeded (derived from prct specs)
+def dct_peak(x,f,cog,opt):
 
-    x = abs(x)
+    x = abs(cp.deepcopy(x))
 
     ## global maximum
     i = myl.find(x,'is','max')
+    if len(i)>1:
+        i=int(np.mean(i))
+
     f_gm = float(f[i])
         
     ## local maxima
-    px = np.percentile(x,opt['peak_prct'])
+    # threshold to be superseeded
+    px = dct_px(x,f,cog,opt)
     idx = myl.find(x,'>=',px)
-    # 2d array of neighboring indices
-    # e.g. [[0,1,2],[4,5],[8,9]]
+    # 2d array of neighboring+1 indices
+    # e.g. [[0,1,2],[5,6],[9,10]]
     ii = []
+    # min freq distance between maxima
+    fd_min = 1
     for i in myl.idx(idx):
-        if len(ii)==0 or idx[i] > ii[-1][-1]+1:
+        if len(ii)==0:
             ii.append([idx[i]])
+        elif idx[i]>ii[-1][-1]+1:
+            xi = x[ii[-1]]
+            fi = f[ii[-1]]
+            j = myl.find(xi,'is','max')
+            #print('xi',xi,'fi',fi,'f',f[idx[i]])
+            if len(j)>0 and f[idx[i]]>fi[j[0]]+fd_min:
+                #print('->1')
+                ii.append([idx[i]])
+            else:
+                #print('->2')
+                ii[-1].append(idx[i])
+            #myl.stopgo() #!c
         else:
             ii[-1].append(idx[i])
-    
+
     # get index of x maximum within each subsegment
     # and return corresponding frequencies
     f_lm = []
     for si in ii:
-        i = si[myl.find(x[si],'is','max')]
+        zi = myl.find(x[si],'is','max')
+        if len(zi)>1:
+            zi=int(np.mean(zi))
+        i = si[zi]
         if not np.isnan(i):
             f_lm.append(f[i])
 
+    #print('px',px)
     #print('i',ii)
     #print('x',x)
     #print('f',f)
     #print('m',f_gm,f_lm)
     #myl.stopgo()
 
-    return f_gm, f_lm
+    return f_gm, f_lm, px
+
+# return center-of-gravity related amplitude
+# IN:
+#    x: array of coefs
+#    f: corresponding freqs
+#    cog: center of gravity freq
+#    opt
+# OUT:
+#    coef amplitude related to cog 
+def dct_px(x,f,cog,opt):
+
+    x = abs(cp.deepcopy(x))
+
+    # cog outside freq range
+    if cog <= f[0]:
+        return x[0]
+    elif cog >= f[-1]:
+        return x[-1]
+    # find f-indices adjacent to cog
+    for i in range(len(f)-1):
+        if f[i] == cog:
+            return x[i]
+        elif f[i+1] == cog:
+            return x[i+1]
+        elif f[i] < cog and f[i+1] > cog:
+            # interpolate
+            #xi = np.interp(cog,f[i:i+2],x[i:i+2])
+            #print('cog:',cog,'xi',f[i:i+2],x[i:i+2],'->',xi)
+            return np.interp(cog,f[i:i+2],x[i:i+2])
+    return np.percentile(x,opt['peak_prct'])
+    
+            
+
+
+
+
 
             
 
