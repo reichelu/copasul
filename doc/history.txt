@@ -116,3 +116,6 @@
 	  global segment. So far a global segment without any contained local
 	  one was treated as a global segment containing one local one of the
 	  same size.
+20180112: 0.7.2
+	  - sigFunc.dct_peak(): maximum finder now robust against multiple
+	  maxima
