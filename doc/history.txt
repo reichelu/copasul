@@ -119,3 +119,10 @@
 20180112: 0.7.2
 	  - sigFunc.dct_peak(): maximum finder now robust against multiple
 	  maxima
+20180118: 0.7.3
+	  - default values for outlier removal changed
+	  preproc:out:f = 2 (unchanged)
+	  preproc:out:m = 'mean'
+	  - median-based outlier definition changed: now
+	  Tukey's fences used, i.e. outliers defined wrt
+	  1st and 3rd quartiles
