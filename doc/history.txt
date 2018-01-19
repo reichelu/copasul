@@ -126,3 +126,6 @@
 	  - median-based outlier definition changed: now
 	  Tukey's fences used, i.e. outliers defined wrt
 	  1st and 3rd quartiles
+20180119: 0.7.4
+	  - event tier support for global segments:
+	  time points are treated as right boundaries
