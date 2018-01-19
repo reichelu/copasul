@@ -394,34 +394,47 @@ def outl_rm(y,opt):
 # IN:
 # y - numeric array
 # opt - 'f' -> factor of min deviation
-#       'm' -> from 'mean' or 'median'
+#       'm' -> from 'mean', 'median' or 'fence'
+#           (mean: m +/- f*sd,
+#            median: med +/- f*iqr,
+#            fence: q1-f*iqr, q3+f*iqr)
 #       'zi' -> true|false - ignore zeros in m and outlier calculation
 # OUT:
 # io - indices of outliers
 def outl_idx(y,opt):
     if opt['zi']==True:
         i = (y!=0).nonzero()
-        z = (y==0).nonzero()
     else:
         i = range(np.size(y))
-        z = np.array([])
+
+    f=opt['f']
 
     if np.size(i)==0:
         return ea()
 
+    # getting lower and upper boundary lb, ub
     if opt['m'] == 'mean':
+        # mean +/- f*sd
         m = np.mean(y.take(i))
         r = np.std(y.take(i))
+        lb, ub = m-f*r, m+f*r
     else:
         m = np.median(y.take(i))
-        q75, q25 = np.percentile(y.take(i), [75,25])
-        r = q75 - q25
-
-    f=opt['f']
+        q1, q3 = np.percentile(y.take(i), [25,75])
+        r = q3 - q1
+        if opt['m'] == 'median':
+            # median +/- f*iqr
+            lb, ub = m-f*r, m+f*r
+        else:
+            # Tukey's fences: q1-f*iqr , q3+f*iqr
+            lb, ub = q1-f*r, q3+f*r
+        
     if opt['zi']==False:
-        io = ((y>m+f*r) & (y<m-f*r)).nonzero()
+        io = ((y>ub) | (y<lb)).nonzero()
     else:
-        io = ((y>0) & ((y>m+f*r) | (y<m-f*r))).nonzero()
+        io = ((y>0) & ((y>ub) | (y<lb))).nonzero()
+
+    #stopgo("m: {}, lb: {}, ub: {}, n: {}".format(trunc2(m),trunc2(lb),trunc2(ub),len(io[0])))
 
     return io
 
@@ -611,6 +624,25 @@ def nan_repl(x,mp={}):
     x = np.array(x)
     for z in mp:
         x[ x==z ] = mp[z]
+    return x
+
+# replaces NaN and INF by column median values
+# IN:
+#   x: vector
+# OUT:
+#   y: vector with replaced NaN
+def nan2mean(x):
+    inan = find(x,'is','nan')
+    iinf = find(x,'is','inf')
+    if max(len(inan),len(iinf))==0:
+        return x
+    ifi = find(x,'is','finite')
+    m = np.median(x[ifi])
+    if len(inan)>0:
+        x[inan]=m
+    if len(iinf)>0:
+        x[iinf]=m
+    
     return x
 
 # input wrapper, extendable, so far working for
@@ -1187,12 +1219,18 @@ def tg_tab2tier(t,lab,specs):
 
 # add tier to TextGrid
 # IN:
-#   tg dict from i_tg()
+#   tg dict from i_tg(); can be empty dict (!!but header[xmin|xmax] not set!!)
 #   tier subdict to be added:
 #       same dict form as in i_tg() output, below 'myItemIdx'
 #   opt 
 #      ['repl'] <True> - replace tier of same name 
 def tg_add(tg,tier,opt={'repl':True}):
+
+    # from scratch
+    if 'item_name' not in tg:
+        tg = {'name':'', 'format':'long', 'item_name':{}, 'item':{},
+              'head':{'size':0,'xmin':0,'xmax':0,'type':'ooTextFile'}}
+
     # tier already contained?
     if (opt['repl']==True and (tier['name'] in tg['item_name'])):
         i = tg['item_name'][tier['name']]
@@ -2979,3 +3017,95 @@ def lng_map(task='expand'):
             lmr[lm[x]]=x
         return lmr
 
+# returns condition entropy H(y|x) for input lists x and y
+# IN:
+#  x
+#  y
+# OUT:
+#  H(y|x)
+def lists2condEntrop(x,y):
+    c = lists2count(x,y)
+    return count2condEntrop(c)
+
+# IN:
+#   c: output of lists2count()
+#     e.g. c['joint'][x][y]
+# OUT:
+#   H(Y|X) (beware order!)
+def count2condEntrop(c):
+    h = 0
+    for x in c['joint']:
+        nx = c['margin'][x]
+        if nx==0:
+            continue
+        pys = 0
+        for y in c['joint'][x]:
+            py = c['joint'][x][y]/nx
+            if py==0:
+                continue
+            pys += (py*binlog(py))
+        h -= ((nx/c['N'])*pys)
+    return h
+
+# returns redundancy given two input lists
+# IN:
+#  x
+#  y
+# OUT:
+#  r = I(x;y)/(H(x)+H(y)
+def lists2redun(x,y):
+    ixy = count2mi(lists2count(x,y))
+    hx = list2entrop(x)
+    hy = list2entrop(y)
+    return ixy/(hx+hy)
+
+# returns mutual infor of 2 input lists
+# IN:
+#   x: list
+#   y: list
+# OUT:
+#   mi: mutual info
+def lists2mi(x,y):
+    return count2mi(lists2count(x,y))
+
+# returns dict with 2 layers for cooc counts in 2 input lists
+# IN:
+#   x
+#   y (same lengths!)
+# OUT:
+#   c['joint'][x][y]=myCount f.a. x,y in <xs, ys>
+#    ['margin'][x]=myCount
+#    ['N']: len(x)
+def lists2count(x,y):
+    c, n = {'joint':{},'margin':{}}, 0
+    for i in idx_a(len(x)):
+        for z in [x[i],y[i]]:
+            if z not in c['margin']:
+                c['margin'][z]=0
+        if x[i] not in c['joint']:
+            c['joint'][x[i]]=dict()
+        if y[i] not in c['joint'][x[i]]:
+            c['joint'][x[i]][y[i]]=0
+        c['joint'][x[i]][y[i]] += 1
+        c['margin'][x[i]] += 1
+        c['margin'][y[i]] += 1
+    c['N'] = len(x)
+    return c
+
+# mutual info based on lists2count() object
+# IN:
+#   c: output of lists2count()
+# OUT:
+#   mi: mutual info
+def count2mi(c):
+    mi=0
+    n = c['N']
+    for x in c['joint']:
+        for y in c['joint'][x]:
+            pxy = c['joint'][x][y]/n
+            px = c['margin'][x]/n
+            py = c['margin'][y]/n
+            if min(px,py,pxy)==0:
+                continue
+            mi += (pxy * binlog(pxy/(py*py)))
+    return mi

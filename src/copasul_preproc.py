@@ -233,7 +233,7 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
     tn = pp_tiernames(opt['fsys'],'chunk','tier',i)
     if len(tn)>0:
         stm = copa['data'][ii][i]['fsys']['chunk']['stm']
-        chunk, chunk_ut, lab_chunk = pp_read(annot_dat,opt['fsys']['chunk'],tn[0],stm)
+        chunk, chunk_ut, lab_chunk = pp_read(annot_dat,opt['fsys']['chunk'],tn[0],stm,'chunk')
     else:
         chunk = myl.ea()
     # no chunks -> file
@@ -246,9 +246,15 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
     tn = pp_tiernames(opt['fsys'],'glob','tier',i)
     if len(tn)>0:
         stm = copa['data'][ii][i]['fsys']['glob']['stm']
-        glb, glb_ut, lab_glb = pp_read(annot_dat,opt['fsys']['chunk'],tn[0],stm)
+        glb, glb_ut, lab_glb = pp_read(annot_dat,opt['fsys']['chunk'],tn[0],stm,'glob')
+        
     else:
         glb = myl.ea()
+
+    # point -> segment tier
+    if len(glb)>0 and np.size(glb,1)==1:
+        glb, glb_ut, lab_glb = pp_point2segment(glb,glb_ut,lab_glb,chunk,chunk_ut,opt['fsys']['chunk'])
+
     # no glob segs -> chunks
     if len(glb)==0:
         glb=cp.deepcopy(chunk)
@@ -261,12 +267,12 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
     tn_ag = pp_tiernames(opt['fsys'],'loc','tier_ag',i)
     stm = copa['data'][ii][i]['fsys']['loc']['stm']
     if len(tn_ag)>0:
-        loc_ag, loc_ag_ut, lab_loc_ag = pp_read(annot_dat,opt['fsys']['chunk'],tn_ag[0],stm)
+        loc_ag, loc_ag_ut, lab_loc_ag = pp_read(annot_dat,opt['fsys']['chunk'],tn_ag[0],stm,'loc')
         tn_loc.add(tn_ag[0])
     else:
         loc_ag, loc_ag_ut, lab_loc_ag = pp_read_empty()
     if len(tn_acc)>0:
-        loc_acc, loc_acc_ut, lab_loc_acc = pp_read(annot_dat,opt['fsys']['chunk'],tn_acc[0],stm)
+        loc_acc, loc_acc_ut, lab_loc_acc = pp_read(annot_dat,opt['fsys']['chunk'],tn_acc[0],stm,'loc')
         tn_loc.add(tn_acc[0])
     else:
         loc_acc, loc_acc_ut, lab_loc_acc = pp_read_empty()
@@ -441,7 +447,7 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
             #   non-existent names
             if not pp_tier_in_annot(tn,annot_dat,opt['fsys'][ft]['typ']):
                 continue
-            t, to, lab = pp_read(annot_dat,opt['fsys'][ft],tn)
+            t, to, lab = pp_read(annot_dat,opt['fsys'][ft],tn,'','bdg')
             # for later sync with loc seg, if required
             #if np.ndim(t)==1:
             #    print('yep!',tn)
@@ -516,6 +522,57 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
     #sys.exit() #!
     return copa
 
+# transforms glob point into segment tier
+#   - points are considered to be right segment boundaries
+#   - segments do not cross chunk boundaries
+#   - pause labeled points are skipped
+# IN:
+#   pnt: [[timePoint]...] of global segment right boundaries
+#   pnt_ut [[timePoint]...] same with orig time
+#   pnt_lab: [label ...] f.a. timePoint
+#   chunk [[on off] ...] of chunks not to be crossed
+#   chunk_ut [[on off] ...] same with orig time
+#   opt with key 'lab_pau':
+# OUT:
+#   seg [[on off]...] from pnt
+#   seg_ut [[on off]...] from pnt_ut
+#   seg_lab [lab ...] from pnt_lab
+def pp_point2segment(pnt,pnt_ut,pnt_lab,chunk,chunk_ut,opt): #!g
+
+    # output
+    seg, seg_ut, seg_lab = myl.ea(), myl.ea(), []
+
+    # phrase onset, current chunk idx
+    t_on, t_on_ut, c_on = chunk[0,0], chunk_ut[0,0], 0
+
+    for i in myl.idx_a(len(pnt)):
+
+        # pause -> only shift onset
+        if pp_is_pau(pnt_lab[i],opt['lab_pau']):
+            t_on, t_on_ut = pnt[i,0], pnt_ut[i,0]
+            c_on = myl.first_interval(t_on,chunk)
+            continue
+
+        # current offset
+        t_off, t_off_ut = pnt[i,0], pnt_ut[i,0]
+
+        # if needed right shift onset to chunk start
+        c_off = myl.first_interval(t_off,chunk)
+
+        if min(c_on,c_off)>-1 and c_off > c_on:
+            t_on, t_on_ut = chunk[c_off,0], chunk_ut[c_off,0]
+
+        # update output
+        seg = myl.push(seg,[t_on, t_off])
+        seg_ut = myl.push(seg_ut,[t_on_ut, t_off_ut])
+        seg_lab.append(pnt_lab[i])
+
+        # update time stamps
+        t_on = t_off
+        t_on_ut = t_off_ut
+        c_on = c_off
+
+    return seg, seg_ut, seg_lab
 
 # normalization window for local segment
 # - centered on locseg center
@@ -1225,13 +1282,14 @@ def pp_tier_class(tn,annot,typ):
 #         opt['fsys']['augment'][myDomain]  (relevant subdicts copied there in copasul_analysis:opt_init())
 #   tn  - tierName to select content (only relevant for xml and TextGrid)
 #   fn - fileName for error messages
+#   call - 'glob'|'loc' etc for customized settings (e.g. pauses are not skipped for glob point tier input)
 # OUT:
 #   d  - 2-d array [[on off]...] or [[timeStamp] ...] values truncated as %.2f
 #   d_ut - same as d with original untruncated time values
 #   lab - list of labels (empty for 'tab' input)
 # REMARK:
 #   for TextGrid interval tier input, pause labelled segments are skipped
-def pp_read(an,opt,tn='',fn=''):
+def pp_read(an,opt,tn='',fn='',call=''):
 
     lab = []
 
@@ -1276,7 +1334,11 @@ def pp_read(an,opt,tn='',fn=''):
             return d,d,lab
 
         for i in myl.numkeys(t[kk]):
-            if pp_is_pau(t[kk][i][kt],opt['lab_pau']): continue
+            if pp_is_pau(t[kk][i][kt],opt['lab_pau']):
+                # keep pauses for glob point tier input since used
+                # for later transformation into segment tiers
+                if not (kk=='points' and call=='glob'):
+                    continue
             lab.append(t[kk][i][kt])
             if kk=='intervals':
                 d = myl.push(d,[float(t[kk][i]['xmin']),float(t[kk][i]['xmax'])])
@@ -1303,7 +1365,7 @@ def pp_read(an,opt,tn='',fn=''):
 #   f0: [[time f0InChannelI]...]
 #   f0_ut: same without %.2f trunc values
 def pp_read_f0(f0_dat,opt,i):
-    f0, f0_ut, dummy_lab_f0 = pp_read(f0_dat,opt,'')
+    f0, f0_ut, dummy_lab_f0 = pp_read(f0_dat,opt)
     # extract channel from f0 [t f0FromChannelI]
     # i+1 since first column is time
     f0 = f0[:,[0,i+1]]
@@ -1465,7 +1527,7 @@ def pp_zp(f0,t_max,opt,extrap=False):
 def pp_outl(y,opt):
     # ignore zeros
     opt['zi'] = True
-    io = myl.outl_idx(y,opt);
+    io = myl.outl_idx(y,opt)
     if np.size(io)>0:
         y[io] = 0
     return y
