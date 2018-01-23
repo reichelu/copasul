@@ -38,10 +38,10 @@
 	},
 	"out": {
 	    "f": 2,
-	    "m": "median"
+	    "m": "mean"
 	},
-	"nrm_win": 1,
-	"point_win": 0.5,
+	"nrm_win": 0.6,
+	"point_win": 0.3,
 	"loc_sync": 0
     },
     "styl": {
@@ -74,7 +74,7 @@
 		"bl": 10,
 		"tl": 90
 	    },
-	    "win": 2,
+	    "win": 1,
 	    "cross_chunk": 1
 	},
 	"gnl": {
@@ -167,7 +167,7 @@
     },
     "augment": {
 	"chunk": {
-	    "e_rel": 0.0767,
+	    "e_rel": 0.1,
 	    "l": 0.1524,
 	    "l_ref": 5,
 	    "n": -1,
@@ -321,7 +321,7 @@
 	    ]
 	},
 	"pho": {
-	    "vow": "[AEIOUYaeiou29}]"
+	    "vow": "[AEIOUYaeiouy29}]"
 	},
 	"glob": {
 	    "tier": ""
