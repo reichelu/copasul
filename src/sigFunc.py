@@ -542,8 +542,19 @@ def pau_detector_sub(y,opt):
     ml = opt['l']*opt['fs']
     # global rmse and pause threshold
     e_rel = cp.deepcopy(opt['e_rel'])
-    e_glob = myl.rmsd(y)
+    
+    # global rmse
+    # as fallback in case reference window is likely to be pause
+    # almost-zeros excluded (cf percentile) since otherwise pauses
+    # show a too high influence, i.e. lower the reference too much
+    # so that too few pauses detected
+    #e_glob = myl.rmsd(y)
+    ya = abs(y)
+    qq = np.percentile(ya,[50])
+    e_glob = myl.rmsd(ya[ya>qq[0]])
+    
     t_glob = opt['e_rel']*e_glob
+
     # stepsize
     sts=max([1,math.floor(0.05*opt['fs'])])
     # energy calculation in analysis and reference windows
@@ -562,13 +573,13 @@ def pau_detector_sub(y,opt):
             # window
             yi = myl.windowing_idx(i,wopt_en)
             e_y = myl.rmsd(y[yi])
-            # reference window
+            # energy in reference window
             e_r = myl.rmsd(y[myl.windowing_idx(i,wopt_ref)])
+            # take overall energy as reference if reference window is pause
             if (e_r <= t_glob):
                 e_r = e_glob
             # if rmse in window below threshold
-            if e_y <= e_r*opt['e_rel']:
-                #print(i,e_y,e_r)
+            if e_y <= e_r*e_rel:
                 if len(t)-1==j:
                     # values belong to already detected pause
                     if len(t)>0 and yi[0]<t[j,1]:

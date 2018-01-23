@@ -45,9 +45,7 @@ def aug_main(copa,f_log_in):
     global f_log
     f_log = f_log_in
     opt = copa['config']
-    #print(opt['augment']['glob']) ##!!
-    #print(opt['styl']['bnd']) ##!!
-    #myl.stopgo() ##!!
+
     # wav files
     ff_wav = myl.file_collector(opt['fsys']['aud']['dir'],
                                 opt['fsys']['aud']['ext'])
@@ -64,8 +62,6 @@ def aug_main(copa,f_log_in):
     # over wav files
     timeStamp = myl.isotime()
     for i in myl.idx_a(len(ff_wav)):
-
-        #if ff_annot[i] != '/homes/reichelu/data/inton_ap/data/deu/TextGrid/deu_deu005_g145axx0-015-BAC.TextGrid': continue ##!!t
 
         # add to existing file or generation from scratch
         annot, fstm, fo = aug_annot_init(ff_annot,ff_wav,i,opt,timeStamp)
@@ -464,8 +460,6 @@ def aug_sub(f,f_f0,annot,fstm,opt,add_mat):
     opt_chunk['fs']=fs
     opt_chunk['force_chunk']=True
     
-    
-
     # over channels
     for i in range(ncol):
         ## Signal preprocessing ######################
@@ -1167,7 +1161,7 @@ def aug_loc_fv(ty,y,bv,annot,opt,i,fstm,f,lng,add_mat,spec):
     t, to, lab = copp.pp_read(annot,opt['fsys']['loc'],tn,fstm)
 
     if len(t)==0: myLog(msg[5],True)
-
+    
     ## AG tier (not oblig)
     # used to reduce syllable candidates
     atn = aug_tn('tier_ag',spec,annot,opt,i,'loc')
@@ -1178,7 +1172,7 @@ def aug_loc_fv(ty,y,bv,annot,opt,i,fstm,f,lng,add_mat,spec):
         at, ato, lab_pt = t_file_parent(lng)
     elif len(atn)>0:
         at, ato, alab = copp.pp_read(annot,opt['fsys']['loc'],atn,fstm)
-    if len(t)==0: 
+    else:
         at, ato, alab = copp.pp_read_empty()
 
     ## syllable pre-selection or copy from analysis point tier
