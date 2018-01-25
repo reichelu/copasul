@@ -136,4 +136,5 @@
 	  fallback RMS over entire channel content now calculated on
 	  abs amplitude values > median. This prevents too many extracted
 	  chunks in signals that consist mainly of speech pauses.
-
+20180125: 0.7.6
+	  - chunking: silence margins can be set at chunk starts and ends
