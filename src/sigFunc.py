@@ -409,6 +409,7 @@ def sig_window(typ,l=1,par=''):
 #      ['min_pau_l'] - min pause length <0.5> sec
 #      ['min_chunk_l'] - min inter-pausal chunk length <0.2> sec
 #      ['force_chunk'] - <False>, if True, pause-only is replaced by chunk-only
+#      ['margin'] - <0> time to reduce pause on both sides (sec; if chunks need init and final silence)
 # OUT:
 #    pau['tp'] 2-dim array of pause [on off] (in sec)
 #       ['tpi'] 2-dim array of pause [on off] (indices in s = sampleIdx-1 !!)
@@ -419,7 +420,8 @@ def pau_detector(s,opt={}):
     if 'fs' not in opt:
         sys.exit('pau_detector: opt does not contain key fs.')
     dflt = {'e_rel':0.0767,'l':0.1524,'l_ref':5,'n':-1,'fbnd':False,'ons':0,'force_chunk':False,
-            'min_pau_l':0.4,'min_chunk_l':0.2,'flt':{'btype':'low','f':np.asarray([8000]),'ord':5}}
+            'min_pau_l':0.4,'min_chunk_l':0.2,'margin':0,
+            'flt':{'btype':'low','f':np.asarray([8000]),'ord':5}}
     opt = myl.opt_default(opt,dflt)
     opt['flt']['fs'] = opt['fs']
 
@@ -533,6 +535,7 @@ def pau2chunk(t,l):
 #    t [on off]
 #    e_ratio
 def pau_detector_sub(y,opt):
+
     ## settings
     # reference window span
     rl = math.floor(opt['l_ref']*opt['fs'])
@@ -580,25 +583,55 @@ def pau_detector_sub(y,opt):
                 e_r = e_glob
             # if rmse in window below threshold
             if e_y <= e_r*e_rel:
+                yis = yi[0]
+                yie = yi[-1]
                 if len(t)-1==j:
                     # values belong to already detected pause
-                    if len(t)>0 and yi[0]<t[j,1]:
-                        t[j,1]=yi[-1]
+                    if len(t)>0 and yis<t[j,1]:
+                        t[j,1]=yie
                         # evtl. needed to throw away superfluous
                         # pauses with high e_ratio
                         e_ratio[j]=np.mean([e_ratio[j],e_y/e_r])
                     else:
-                        t = myl.push(t,[yi[0], yi[-1]])
+                        t = myl.push(t,[yis, yie])
                         e_ratio = myl.push(e_ratio,e_y/e_r)
                         j=j+1
                 else:
-                    t=myl.push(t,[yi[0], yi[-1]])
+                    t=myl.push(t,[yis, yie])
                     e_ratio = myl.push(e_ratio,e_y/e_r)
         # (more than) enough pauses detected?
         if len(t) >= opt['n']: break
         e_rel = e_rel+0.1
 
-    return t, e_ratio
+    if opt['margin']==0 or len(t)==0:
+        return t, e_ratio
+
+    # shorten pauses by margins
+    mar=int(opt['margin']*opt['fs'])
+    tm, erm = myl.ea(), myl.ea()
+    for i in myl.idx_a(len(t)):
+        # only slim non-init and -fin pauses
+        if i>0:
+            ts = t[i,0]+mar
+        else:
+            ts = t[i,0]
+        if i < len(t)-1:
+            te = t[i,1]-mar
+        else:
+            te = t[i,1]
+
+        # pause disappeared
+        if te <= ts:
+            # ... but needs to be kept
+            if opt['n']>0:
+                tm = myl.push(tm,[t[i,0],t[i,1]])
+                erm = myl.push(erm,e_ratio[i])
+            continue
+        # pause still there
+        tm = myl.push(tm,[ts,te])
+        erm = myl.push(erm,e_ratio[i])
+    
+    return tm, erm
 
 def pau_detector_red(t,e_ratio,opt):
     # keep boundary pauses
