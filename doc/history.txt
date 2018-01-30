@@ -138,3 +138,6 @@
 	  chunks in signals that consist mainly of speech pauses.
 20180125: 0.7.6
 	  - chunking: silence margins can be set at chunk starts and ends
+20180130: 0.7.7
+	  - output tables: column separator now can freely be chosen
+	  (default ',')
