@@ -3,6 +3,7 @@
 # author: Uwe Reichel, Budapest, 2016
 
 import os
+import shutil as sh
 import sys
 import numpy as np
 import pandas as pd
@@ -658,6 +659,7 @@ def nan2mean(x):
 # IN:
 #    fileName
 #    typ
+#    opt <{}> additional options
 # OUT:
 #    containedVariable
 # REMARK:
@@ -670,7 +672,12 @@ def nan2mean(x):
 #    csv: NA, NaN, Inf ... are kept as strings. In some
 #        context need to be replaced by np.nan... (e.g. machine learning)
 #        use myl.nan_repl() for this purpose
-def input_wrapper(f,typ):
+def input_wrapper(f,typ,opt={}):
+    # col separator
+    if 'sep' in opt:
+        sep = opt['sep']
+    else:
+        sep = ','
     # 1-dim list of rows
     if typ=='list':
         return i_list(f)
@@ -683,7 +690,7 @@ def input_wrapper(f,typ):
     # csv into dict (BEWARE: everything is treaten as strings!)
     if typ=='csv':
         o = {}
-        for row in csv.DictReader(open(f,'r')):
+        for row in csv.DictReader(open(f,'r'),delimiter=sep):
             for a in row:
                 if a not in o:
                     o[a] = []
@@ -692,7 +699,7 @@ def input_wrapper(f,typ):
     # copa csv into dict (incl. type conversion)
     if typ=='copa_csv':
         o = {}
-        for row in csv.DictReader(open(f,'r')):
+        for row in csv.DictReader(open(f,'r'),delimiter=sep):
             for a in row:
                 if a not in o:
                     o[a] = []
@@ -710,7 +717,7 @@ def input_wrapper(f,typ):
         return o
     # csv with pandas: automatic type guessing
     if typ=='pandas_csv':
-        o = pd.read_csv(f)
+        o = pd.read_csv(f,sep=sep)
         return o.to_dict('list')
     # par
     if typ=='par_as_tab':
@@ -745,7 +752,26 @@ def copa_categ_var(x):
     return False
 
 
+# dynamically adjusts 'fsys' part on copa options based on input
+# requires uniform config format as in wrapper_py/config/ids|hgc.json
+# IN:
+#   task: subfield in opt[fsys][config] pointing to copa opt json file
+#   opt: in which to find this subfield
+# OUT:
+#   copa_opt: copasul options with adjusted fsys specs
+def copa_opt_dynad(task,opt):
 
+    # read copa config file
+    copa_opt = input_wrapper(opt['fsys']['config'][task],'json')
+
+    # adjust fsys specs according to opt
+    for d in ['aud','f0','annot','export','pic']:
+        if d in opt['fsys']['data']:
+            copa_opt['fsys'][d]['dir'] = opt['fsys']['data'][d]
+    copa_opt['fsys']['export']['stm'] = opt['fsys']['data']['stm']
+    copa_opt['fsys']['pic']['stm'] = opt['fsys']['data']['stm']
+    
+    return copa_opt
 
 
 # [on off label] rows converted to 2-dim np.array and label list
@@ -1224,6 +1250,8 @@ def tg_tab2tier(t,lab,specs):
 #       same dict form as in i_tg() output, below 'myItemIdx'
 #   opt 
 #      ['repl'] <True> - replace tier of same name 
+# OUT:
+#   tg updated
 def tg_add(tg,tier,opt={'repl':True}):
 
     # from scratch
@@ -1337,6 +1365,19 @@ def par2tg(par_in):
     par = cp.deepcopy(par_in)
     del par['header']
     return inter2tg(par)
+
+
+# returns item-related subkeys: 'intervals', 'text' or 'points', 'mark'
+# IN:
+#   t tier
+# OUT:
+#   x key1
+#   y key2
+def tg_item_keys(t):
+    if 'intervals' in t:
+        return 'intervals', 'text'
+    return 'points', 'mark'
+
 
 # wrapper around tg2inter() + adding 'header' item / 'class' key
 # WARNING: information loss! MAU tier does not contain any wordIdx reference!
@@ -2608,11 +2649,16 @@ def trs_pattern(x,pat,lng):
 def root_path():
     return os.path.abspath(os.sep)
 
+
+
+
 # wrapper around g2p (local or webservice)
 # IN:
 #   opt dict
 #     all parameters accepted by g2p.pl
-#    + local True|False (if False, webservice is called)     
+#    + local True|False (if False, webservice is called)
+# OUT:
+#   success True|False
 def g2p(opt):
 
     if opt['local']:
@@ -2635,7 +2681,30 @@ def g2p(opt):
     if not opt['local']:
         cmd += " 'http://clarin.phonetik.uni-muenchen.de/BASWebServices/services/runG2P'"
 
-    webservice_output(cmd,opt)
+    return webservice_output(cmd,opt)
+
+
+# call any BAS webservice and write result in output file
+# IN:
+#   opt:
+#     'tool' -> service url
+#     'param' -> parameter dict (param names as required by webservice)
+#              !! files to be uploaded already need to have initial @
+#   o: output file name
+# OUT:
+#   success: True|False
+#   file: sevice output into o
+def bas_webservice(opt,o):
+    cmd = "curl -v -X POST -H 'content-type: multipart/form-data'"
+    
+    # concatenate curl call
+    for x in opt['param']:
+        cmd += " -F {}={}".format(x,opt['param'][x])
+    cmd += " {}".format(opt['tool'])
+
+    # call webservice + output results
+    return webservice_output(cmd,{'out':o, 'local':False})
+
 
 
 
@@ -2659,6 +2728,7 @@ def g2p(opt):
 #     .noinitialfinalsilence <false>
 #     .local <False>; if true maus is called not as webservice
 # OUT:
+#     sucess True|False
 #     par file written to opt.par_out
 def webmaus(opt):
     opt = opt_default(opt,{'outformat':'mau-append',
@@ -2713,12 +2783,24 @@ def webmaus(opt):
     else:
         cmd += " 'http://clarin.phonetik.uni-muenchen.de/BASWebServices/services/runMAUS'"
 
-    webservice_output(cmd,opt)
+    return webservice_output(cmd,opt)
 
 
 # collect output from g2p or MAUS
 # write into file opt['out'], resp opt['o']
+# IN:
+#   cmd: service call string
+#   opt:
+#     fatal -> <True>|False exit if unsuccesful 
+#     local -> True|False
+#     o(ut) -> outPutFile
+# OUT:
+#   (if not exited)
+#     True if succesful, else false
 def webservice_output(cmd,opt):
+
+    opt = opt_default(opt,{'fatal':True})
+
     print(cmd)
     ans = subprocess.check_output(cmd, shell=True, universal_newlines=True)
     print(ans)
@@ -2731,11 +2813,19 @@ def webservice_output(cmd,opt):
     m = re.search('<downloadLink>(?P<res>(.+?))<\/downloadLink>',ans)
 
     if m is None:
-        sys.exit("error: {}".format(ans))
+        if opt['fatal']:
+            sys.exit("error: {}".format(ans))
+        else:
+            print("error: {}".format(ans))
+            return False
 
     res = m.group('res')
     if res is None:
-        sys.exit("error: {}".format(ans))
+        if opt['fatal']:
+            sys.exit("error: {}".format(ans))
+        else:
+            print("error: {}".format(ans))
+            return False
 
     # unifying across maus and g2p
     if 'out' in opt:
@@ -2745,7 +2835,7 @@ def webservice_output(cmd,opt):
 
     os.system("wget {} -O {}".format(res,o))
 
-    return
+    return True
 
 
 # reads eaf files
@@ -2864,6 +2954,14 @@ def string_std(s):
     s = re.sub('^\s+','',s)
     s = re.sub('\s+$','',s)
     return s
+
+# empty directory by removing + regenerating
+def purge_dir(d):
+    if os.path.isdir(d):
+        sh.rmtree(d)
+        os.makedirs(d)
+
+    return True
 
 
 # remove nan from array
@@ -3109,3 +3207,26 @@ def count2mi(c):
                 continue
             mi += (pxy * binlog(pxy/(py*py)))
     return mi
+
+# wrapper around Praat f0 extractor
+# example call: wrapper_py/hgc.py
+# needs opt of format config/hgc.json
+# F0 extraction
+# IN:
+#   opt
+# OUT:
+#   f0 files
+def make_f0(opt):
+    pth = opt['fsys']['data']
+    par = opt['param']['f0']
+
+    # clean up f0 subdir
+    sh.rmtree(pth['f0'])
+    os.makedirs(pth['f0'])
+
+
+    os.system("praat {} 0.01 {} {} {} {} wav f0".format(par['tool'],
+                                                        par['param']['min'],
+                                                        par['param']['max'],
+                                                        pth['aud'],pth['f0']))
+    return True

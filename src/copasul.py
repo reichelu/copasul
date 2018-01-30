@@ -23,13 +23,15 @@ import re
 # IN:
 #   args dict
 #       ['config']: string myConfigFile.json
+#                   or dict of config file content
+#       ['opt']: config dict for embedded calls
 #       ['copa']: copa dict, facultatively. Will be read from file
 #                 if not provided
 # OUT:
 #   copa dict; see documentation
 def copasul(args={}):
 
-    ##### json config input, copa init ####################
+    ##### config input, copa init ###########################
     if 'config' not in args:
         # predefined config file
         #myCwd = os.getcwd()
@@ -234,7 +236,7 @@ if __name__ == "__main__":
     #myCwd = os.getcwd()
     myCwd = coro.copa_root()
     ##### command line input ####################################
-    parser = argparse.ArgumentParser(description="copasul.py -- Intonation analysis tool version 0.7.6")
+    parser = argparse.ArgumentParser(description="copasul.py -- Intonation analysis tool version 0.7.7")
     parser.add_argument('-c','--config', help='myConfigFile.json', required=True)
     args = vars(parser.parse_args())
     copa = copasul(args)

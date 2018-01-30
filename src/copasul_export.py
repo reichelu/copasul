@@ -142,7 +142,7 @@ def export_summary(copa):
             
             found_csv = True
 
-            d = myl.input_wrapper(f,'csv')
+            d = myl.input_wrapper(f,'csv',{'sep':opt['fsys']['export']['sep']})
             fileIdx = myl.uniq(d['fi'])
             channelIdx = myl.uniq(d['ci'])
             d = pd.DataFrame(d)
@@ -156,7 +156,8 @@ def export_summary(copa):
 
     # from suma to export dict
     fp = opt['fsys']['export']['fullpath']
-    suma2exp(suma,fo,fp)
+    sep = opt['fsys']['export']['sep']
+    suma2exp(suma,fo,fp,sep)
 
 # update suma dict (see export_summary())
 # IN:
@@ -260,6 +261,7 @@ def upd_suma_feat(suma,fs,ds,fi,ci,fac,u,x,t):
 #   suma summary dict (see export_summary())
 #   fo output stem
 #   fp fullPath for csv reference in R output True|False from opt
+#   sep column separator
 # OUT:
 #   csv and R file; 1 row per file
 # VAR:
@@ -268,7 +270,7 @@ def upd_suma_feat(suma,fs,ds,fi,ci,fac,u,x,t):
 #   'ci' -> [channelIndices]
 #   myGrouping -> [fileLevel grouping vars]
 #   myFeatSet_myFeat_myMeas -> [featureValMeansAndVars]  
-def suma2exp(suma,fo,fp):
+def suma2exp(suma,fo,fp,sep):
     exp = suma2exp_init(suma)
     # incremental d update
     for fi in myl.numkeys(suma):
@@ -278,7 +280,7 @@ def suma2exp(suma,fo,fp):
     # remove redundant grouping columns
     exp = exp_rm_redun(exp)
 
-    exp_to_file(exp,fo,'summary',checkFld='fi',facpat='',fullPath=fp)
+    exp_to_file(exp,fo,'summary',checkFld='fi',facpat='',fullPath=fp,sep=sep)
 
 
 
@@ -391,7 +393,10 @@ def export_csv(copa):
     # backward compatibility
     if 'fullpath' not in opt['fsys']['export']:
         opt['fsys']['export']['fullpath'] = False
+    if 'sep' not in opt['fsys']['export']:
+        opt['fsys']['export']['sep']=','
 
+    # export directory
     if not os.path.isdir(opt['fsys']['export']['dir']):
         os.mkdir(opt['fsys']['export']['dir'])
 
@@ -475,7 +480,8 @@ def export_glob(c,fo,opt):
 
     #for x in list(d.keys()): print("{}: {}".format(x,len(d[x]))) #!c
 
-    exp_to_file(d,fo,'glob',fullPath=opt['fsys']['export']['fullpath'])
+    exp_to_file(d,fo,'glob',fullPath=opt['fsys']['export']['fullpath'],
+                sep=opt['fsys']['export']['sep'])
 
     return
 
@@ -583,7 +589,8 @@ def export_loc(c,fo,opt):
 
     # for x in list(d.keys()): print("{}: {}".format(x,len(d[x])))
 
-    exp_to_file(d,fo,'loc',fullPath=opt['fsys']['export']['fullpath'])
+    exp_to_file(d,fo,'loc',fullPath=opt['fsys']['export']['fullpath'],
+                sep=opt['fsys']['export']['sep'])
 
     return
 
@@ -637,7 +644,8 @@ def export_bnd(c,fo,opt):
   
     # for x in list(d.keys()): print("{}: {}".format(x,len(d[x])))
 
-    exp_to_file(d,fo,'bnd',fullPath=opt['fsys']['export']['fullpath'])
+    exp_to_file(d,fo,'bnd',fullPath=opt['fsys']['export']['fullpath'],
+                sep=opt['fsys']['export']['sep'])
 
     return
 
@@ -760,8 +768,8 @@ def export_rhy(c,fo,opt,typ):
 
     #for x in list(df.keys()): print("{}: {}".format(x,len(df[x])))
 
-    exp_to_file(d,fo,typ,fullPath=opt['fsys']['export']['fullpath'])
-    exp_to_file(df,fo,typf,fullPath=opt['fsys']['export']['fullpath'])
+    exp_to_file(d,fo,typ,fullPath=opt['fsys']['export']['fullpath'],sep=opt['fsys']['export']['sep'])
+    exp_to_file(df,fo,typf,fullPath=opt['fsys']['export']['fullpath'],sep=opt['fsys']['export']['sep'])
     return {'seg':d, 'file':df}
 
 # return list of rate tier names for tier t
@@ -859,8 +867,8 @@ def export_gnl(c,fo,opt,typ):
 
     # for x in list(d.keys()): print("{}: {}".format(x,len(d[x])))
 
-    exp_to_file(d,fo,typ,fullPath=opt['fsys']['export']['fullpath'])
-    exp_to_file(df,fo,typf,fullPath=opt['fsys']['export']['fullpath'])
+    exp_to_file(d,fo,typ,fullPath=opt['fsys']['export']['fullpath'],sep=opt['fsys']['export']['sep'])
+    exp_to_file(df,fo,typf,fullPath=opt['fsys']['export']['fullpath'],sep=opt['fsys']['export']['sep'])
     return {'seg':d, 'file':df}
 
 #### merge export tables ####################################
@@ -898,8 +906,20 @@ def export_merge(fo,infx,dd,opt):
                 n = y
             d[n] = dd[x]['seg'][y]
     
-    exp_to_file(df,fo,"{}_file".format(infx),fullPath=opt['fsys']['export']['fullpath'])
-    exp_to_file(d,fo,infx,fullPath=opt['fsys']['export']['fullpath'])
+    #for x in list(d.keys()): print("{}: {}".format(x,len(d[x]))) #!c
+
+    # check for same length (not provided, if not same number of tiers used for gnl_f0|en)
+    nl=-1
+    for x in list(d.keys()):
+        if nl<0:
+            nl = len(d[x])
+        if len(d[x]) != nl:
+            return
+
+    exp_to_file(df,fo,"{}_file".format(infx),fullPath=opt['fsys']['export']['fullpath'],
+                sep=opt['fsys']['export']['sep'])
+    exp_to_file(d,fo,infx,fullPath=opt['fsys']['export']['fullpath'],
+                sep=opt['fsys']['export']['sep'])
     return
 
 
@@ -944,16 +964,17 @@ def export_grp_upd(d,grp):
 #   facpat: <''> pattern additionally to treat as factor
 #   fullPath: <False> whether or not to write full path of csv file in
 #             R template
-def exp_to_file(d,fo,infx,checkFld='fi',facpat='',fullPath=False):
+#   sep: <','> column separator
+def exp_to_file(d,fo,infx,checkFld='fi',facpat='',fullPath=False,sep=','):
     if ((checkFld in d) and (len(d[checkFld])>0)):
-        pd.DataFrame(d).to_csv("{}.{}.csv".format(fo,infx),na_rep='NA',index_label=False, index=False)
-        exp_R(d,"{}.{}".format(fo,infx),facpat,fullPath)
+        pd.DataFrame(d).to_csv("{}.{}.csv".format(fo,infx),na_rep='NA',index_label=False, index=False, sep=sep)
+        exp_R(d,"{}.{}".format(fo,infx),facpat,fullPath,sep)
 
 
-def exp_to_file_quoteNonnum(d,fo,infx,checkFld='fi',facpat='',fullPath=False):
+def exp_to_file_quoteNonnum(d,fo,infx,checkFld='fi',facpat='',fullPath=False,sep=','):
     if ((checkFld in d) and (len(d[checkFld])>0)):
-        pd.DataFrame(d).to_csv("{}.{}.csv".format(fo,infx),na_rep='NA',index_label=False, index=False, quoting=csv.QUOTE_NONNUMERIC)
-        exp_R(d,"{}.{}".format(fo,infx),facpat,fullPath)
+        pd.DataFrame(d).to_csv("{}.{}.csv".format(fo,infx),na_rep='NA',index_label=False, index=False, quoting=csv.QUOTE_NONNUMERIC, sep=sep)
+        exp_R(d,"{}.{}".format(fo,infx),facpat,fullPath,sep)
 
 
 # R table read export
@@ -962,7 +983,8 @@ def exp_to_file_quoteNonnum(d,fo,infx,checkFld='fi',facpat='',fullPath=False):
 #  fo file stem
 #  facpat pattern additionally to treat as factor
 #  fullPath <False> should csv file be addressed by full path or file name only
-def exp_R(d,fo,facpat='',fullPath=False):
+#  sep: <','> column separator
+def exp_R(d,fo,facpat='',fullPath=False,sep=','):
     # fo +/- full path
     if fullPath:
         foo = fo
@@ -970,7 +992,7 @@ def exp_R(d,fo,facpat='',fullPath=False):
         foo = os.path.basename(fo)
     # factors (next to grp_*, lab_*)
     fac = myl.lists('factors','set')
-    o = ["d<-read.table(\"{}.csv\",header=T,fileEncoding=\"UTF-8\",sep =\",\",".format(foo),"\tcolClasses=c("]
+    o = ["d<-read.table(\"{}.csv\",header=T,fileEncoding=\"UTF-8\",sep =\"{}\",".format(foo,sep),"\tcolClasses=c("]
     for x in sorted(d.keys()):
         #if ((x in fac) or re.search('^(grp|lab|class)',x)):typ = 'factor'
         if ((x in fac) or re.search('^(grp|lab|class|spk|tier)',x) or
