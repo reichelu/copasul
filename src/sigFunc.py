@@ -706,9 +706,13 @@ def pau_detector_red(t,e_ratio,opt):
 #            if alpha>0 it is interpreted as lower freq threshold for pre-emp
 # OUT:
 #   sb: spectral tilt
-def splh_spl(sig,fs,opt={}):
+def splh_spl(sig,fs,opt_in={}):
+    opt = cp.deepcopy(opt_in)
     opt = myl.opt_default(opt,{'win':len(sig),'ub':-1,'domain':'freq',
                                'alpha':0.95})
+
+    #print(opt)
+    #myl.stopgo()
 
     ## cut out center window ##################################
     ls = len(sig)
@@ -737,6 +741,7 @@ def splh_spl(sig,fs,opt={}):
         yp = pre_emphasis(y,opt['alpha'],fs,False)
         y_db = 20*np.log10(myl.rmsd(y)/p_ref)
         yp_db = 20*np.log10(myl.rmsd(yp)/p_ref)
+        #print(yp_db - y_db)
         return yp_db - y_db
 
     ## pre-emp in frequency domain ##############################
