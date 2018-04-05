@@ -141,3 +141,25 @@
 20180130: 0.7.7
 	  - output tables: column separator now can freely be chosen
 	  (default ',')
+20180324: 0.7.8
+          - copasul_styl.styl_std_quot() now robust against empty
+	  input vectors
+	  - copasul_augment.pau_detector_red(): bugfix for opt['fbnd']==True
+20180405: 0.7.9
+	  - pre-emphasis for spectral balance calculation now possible
+	  in time and frequency domain (the latter according to Fant et al,
+	  2000)
+	  - new sub-dictionary opt['styl']['gnl_en']['sb'] for spectral
+	  balance settings:
+	  'domain': 'time' or 'freq'; in which domain to do pre-emphasis
+	  and SPLH-SPL calculation
+	  'alpha': for time-domain pre-emphasis. If >1 it is interpreted as
+	  the lower boundary frequency from whoch on pre-emphasis is
+	  to be carried out.
+	  'win': length of center window in sec within which spectral
+	  balance is to be calculated; default: -1 (length of segment)
+	  'ub': upper frequency boundary in Hz for balance calclulation
+	  (best to be set to a value relevant for vowels; default: -1, i.e.
+	  no low-pass filtering) 
+	  - styl:gnl\_en:alpha is deprecated and replaced by
+	  styl:gnl\_en:sb:alpha
