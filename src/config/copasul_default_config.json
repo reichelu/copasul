@@ -81,7 +81,12 @@
 	    "win": 0.3
 	},
 	"gnl_en": {
-	    "alpha": 0.95,
+	    "sb": {
+		"domain": "freq",
+		"win": 0.03,
+		"ub": -1,
+		"alpha": 0.95
+	    },
 	    "sts": 0.01,
 	    "win": 0.05,
 	    "wintyp": "hamming",
