@@ -1,4 +1,4 @@
-1#!/usr/bin/env python3
+#!/usr/bin/env python3
 
 # author: Uwe Reichel, Budapest, 2016
 
@@ -15,6 +15,7 @@ import copy as cp
 # calling plot_main for selected feature sets
 # do clst first (single plot)
 def plot_browse(copa):
+
     c = copa['data']
     opt = copa['config']
     o = opt['plot']['browse']
@@ -115,8 +116,13 @@ def plot_browse_channel(copa,typ,s,ii,i):
                 plot_main(obj,copa['config'])
         else:
             myLoc = plot_loc(c,ii,i,dom,j,myStm)
+            if 'lab' in c[ii][i][dom][j]:
+                myLab = c[ii][i][dom][j]['lab']
+            else:
+                myLab = ''
             obj = {'call':'browse','state':'final','fit':copa,'type':'complex',
-                   'set':s,'i':[ii,i,j],'infx':"{}-{}-{}".format(ii,i,j),'local':myLoc}
+                   'set':s,'i':[ii,i,j],'infx':"{}-{}-{}".format(ii,i,j),'local':myLoc,
+                   'lab': myLab, 't_glob': c[ii][i]['glob'][j]['to'], 'stm': myStm}
             plot_main(obj,copa['config'])
 
     return
@@ -150,13 +156,14 @@ def plot_loc(c,ii,i,dom,j,myStm):
 #   opt copa['config']
 def plot_main(obj,opt):
     po = opt['plot']
+
     if plot_doNothing(obj,opt): return
 
     if obj['call']=='browse':
+
         # display location
         if 'local' in obj:
             print(obj['local'])
-
         elif 'infx' in obj:
             print(obj['infx'])
 
@@ -215,8 +222,50 @@ def plot_doNothing(obj,opt):
     # to be plotted stored in copa
     if obj['state']=='final' and obj['set']=='bnd':
         return True
+    
+    # customized func to skip specified data portions
+    # ! comment if not needed !
+    #return plot_doNothing_custom_senta_coop(obj,opt)
+
     return False
 
+def plot_doNothing_custom_senta_coop(obj,opt):
+    stm, t =  '16-02-116-216-Coop', 33.4
+    if not obj['stm'] == stm:
+        return True
+    if obj['t_glob'][0] < t:
+        return True
+    return False
+
+
+def plot_doNothing_custom_senta_comp(obj,opt):
+    if not obj['stm'] == '10-04-110-210-Comp':
+        return True
+    if obj['t_glob'][0] < 98.3:
+        return True
+    return False
+
+
+def plot_doNothing_custom2(obj,opt):
+    cond = 'Coop'
+    if not re.search(cond,obj['local']):
+        return True
+    if not re.search('RW',obj['lab']):
+        return True
+    return False
+
+def plot_doNothing_custom(obj,opt):
+    if not re.search('hun003',obj['local']):
+        return True
+
+    return False
+
+# to be customized by user: criteria to skip certain segments
+def plot_doNothing_custom1(obj,opt):
+    if (('local' in obj) and (not re.search('fra',obj['local']))):
+        return True
+
+    return False
 
 # plot 3 declination objects underlying boundary features
 def plot_styl_bnd(obj,opt):
@@ -354,13 +403,22 @@ def copa_grp_key(grp,c,dom,ii,i,j):
 
 
 # init new figure with onclick->next, keypress->exit
+# figsize can be customized
+# IN:
+#   fs tuple <()>
+# OUT:
+#   figure object
 # OUT:
 #   figureHandle
-def plot_newfig():
-    fig = plt.figure()
+def plot_newfig(fs=()):
+    if len(fs)==0:
+        fig = plt.figure()
+    else:
+        fig = plt.figure(figsize=fs)
     cid1 = fig.canvas.mpl_connect('button_press_event', onclick_next)
     cid2 = fig.canvas.mpl_connect('key_press_event', onclick_exit)
     return fig
+
 
 def plot_newfig_big():
     fig = plt.figure(figsize=(15,15))
@@ -414,6 +472,7 @@ def plot_styl_complex(obj,opt):
         tl = ls['t'][0:2]
         ttl = np.linspace(tl[0],tl[1],len(ls['acc']['y']))
         if obj['set']=='superpos':
+
             # add/denormFor register
             if re.search('^(bl|ml|tl)$',opt['styl']['register']):
                 # part in local segment
@@ -540,7 +599,10 @@ def plot_styl_rhy(obj,opt):
     else:
         doco = False
     
-    fig, spl = plt.subplots(len(rhy['wgt'].keys()),1)
+    #if 'SYL_2' in rhy['wgt']:    #!csl
+    #    del rhy['wgt']['SYL_2']  #!csl
+
+    fig, spl = plt.subplots(len(rhy['wgt'].keys()),1,squeeze=False)
     cid1 = fig.canvas.mpl_connect('button_press_event', onclick_next)
     cid2 = fig.canvas.mpl_connect('key_press_event', onclick_exit)
     fig.subplots_adjust(hspace=0.8)
@@ -551,25 +613,36 @@ def plot_styl_rhy(obj,opt):
     # tiers
     for x in sorted(rhy['wgt'].keys()):
         if doco:
-            spl[i].stem(rhy['f'],abs(rhy['c'])/c_sum)
+            spl[i,0].stem(rhy['f'],abs(rhy['c'])/c_sum)
         else:
-            mla,sla,bla = spl[i].stem(rhy['f'],abs(rhy['c'])/c_sum, '-.')
+            mla,sla,bla = spl[i,0].stem(rhy['f'],abs(rhy['c'])/c_sum, '-.')
             plt.setp(sla, 'color', 'k', 'linewidth', 2)
 
-        spl[i].title.set_text(x)
+        tit = x
+        #tit = 'influence on f0' #!csl
+        #spl[i,0].title.set_text(tit, fontsize=18)
+        spl[i,0].set_title(tit, fontsize=18)
         r = rhy['wgt'][x]['rate']
         b = [max([0,r-rb]), r+rb]
         w = myl.intersect(myl.find(rhy['f'],'>=',b[0]),
                           myl.find(rhy['f'],'<=',b[1]))
         if len(w)==0:
             continue
-        ml,sl,bl = spl[i].stem(rhy['f'][w],abs(rhy['c'][w])/c_sum)
+        ml,sl,bl = spl[i,0].stem(rhy['f'][w],abs(rhy['c'][w])/c_sum)
         if doco:
             plt.setp(sl, 'color', 'r', 'linewidth', 3)
         else:
             plt.setp(sl, 'color', 'k', 'linewidth', 4)
-        spl[i].set_xlabel('f (Hz)')
-        spl[i].set_ylabel('|coef|')
+
+        if 'f_lmax' in rhy:
+            for fm in rhy['f_lmax']:
+                spl[i,0].plot([fm,fm],[0,rhy['c_cog']/c_sum],'-g',linewidth=5)
+            spl[i,0].plot([rhy['sm'][0],rhy['sm'][0]],[0,rhy['c_cog']/c_sum],'-c',linewidth=5)
+
+        #plt.ylim([0,0.4]) #!csl
+
+        spl[i,0].set_xlabel('f (Hz)', fontsize=18)
+        spl[i,0].set_ylabel('|coef|', fontsize=18)
         i+=1
 
     plt.show()

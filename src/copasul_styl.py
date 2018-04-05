@@ -12,6 +12,7 @@ import copy as cp
 import sigFunc as sif
 import sys
 import re
+import math
 
 ###############################################################
 #### general f0 and en features (mean and sd) #################
@@ -63,6 +64,8 @@ def styl_gnl_file(copa,ii,fld,opt):
     else:
         myFs = copa['config']['fs']
 
+    #print(copa['data'][ii][iii[0]]['fsys']['annot'])
+
     # over channels
     for i in myl.numkeys(copa['data'][ii]):
         if opt['type']=='f0':
@@ -75,7 +78,8 @@ def styl_gnl_file(copa,ii,fld,opt):
             else:
                 y_raw = y_raw_in
             # preemphasis for spectral balance calculation
-            y_raw_pe = sif.pre_emphasis(y_raw,opt)
+            # deprec
+            #y_raw_pe = sif.pre_emphasis(y_raw,opt['alpha'],fs_sig)
             t_raw = myl.smp2sec(myl.idx_seg(1,len(y_raw)),fs_sig,0)
             # signal fs for energy extraction
             opt['fs']=fs_sig
@@ -118,13 +122,35 @@ def styl_gnl_file(copa,ii,fld,opt):
                     yin_raw = styl_yi(tn,fs_sig,y_raw)
                     rms_y = myl.rmsd(y_raw[yi_raw])
                     rms_yn = myl.rmsd(y_raw[yin_raw])
-                    sb = myl.rmsd(y_raw_pe[yi_raw])-rms_y
+                    #sb = myl.rmsd(y_raw_pe[yi_raw])-rms_y
+                    #sb = splh_spl_deprec(y_raw[yi_raw],y_raw_pe[yi_raw])
+                    sb = sif.splh_spl(y_raw[yi_raw],fs_sig,opt['sb'])
                     if rms_yn==0: rms_yn==1
                     sf['sb'] = sb
                     sf['rms'] = rms_y
                     sf['rms_nrm'] = rms_y/rms_yn
                 copa['data'][ii][i][fld][j][k]['std'] = sf
     return copa
+
+# spectral balance SPLH-SPL
+# IN:
+#   y: raw signal
+#   ype: pre-emphasized signal
+# OUT:
+#   sb: SPLH-SPL
+# see https://de.wikipedia.org/wiki/Schalldruckpegel
+def splh_spl_deprec(y,ype):
+
+    p_ref = 2*10**(-5)
+    # SPL (p_eff is rmsd)
+    p = 20*math.log(myl.rmsd(y)/p_ref,10)
+    pe = 20*math.log(myl.rmsd(ype)/p_ref,10)
+    if p <= 0 or pe <= 0:
+        return np.nan
+    sb = pe-p
+    #print('pe',pe,'p',p,10,'sb',sb) #!pe
+    #myl.stopgo() #!pe
+    return sb
 
 # calculates quotients and 2nd order shape coefs for f0/energy contours
 # IN:
@@ -149,12 +175,19 @@ def styl_std_quot(y,opt,r={}):
     for x in ['qi','qf','qm','qb','c0','c1','c2']:
         r[x] = np.nan
     
+    if len(y)==0:
+        return r
+
+    # normalize to [0 1]
+    #y = cp.deepcopy(y)
+    #y = myl.nrm_vec(y,{'mtd':'minmax','rng':[0,1]})
+
     # final idx in y
     yl = len(y)
     
     # window length (smpl)
     wl = min(yl,int(opt['fs']*opt['gnl']['win']))
-
+    
     # initial and final segment
     y_ini = y[0:wl],
     y_nin = y[wl:yl]
@@ -176,12 +209,6 @@ def styl_std_quot(y,opt,r={}):
     mni = np.mean(y_nin)
     mf = np.mean(y_fin)
     mnf = np.mean(y_nfi)
-    if mi>mf:
-        mm = mi
-        mnm = mni
-    else:
-        mm = mf
-        mnm = mnf
 
     # quotients
     if mni>0:
@@ -190,9 +217,15 @@ def styl_std_quot(y,opt,r={}):
         r['qf'] = mf/mnf
     if mf>0:
         r['qb'] = mi/mf
-    if mnm>0:
-        r['qm'] = mm/mnm
-    
+
+    # max quot
+    if np.isnan(r['qi']):
+        r['qm'] = r['qf']
+    elif np.isnan(r['qf']):
+        r['qm'] = r['qi']
+    else:
+        r['qm'] = max(r['qi'],r['qf'])
+
     # polyfit
     t = myl.nrm_vec(myl.idx_a(len(y)),{'mtd':'minmax','rng':[0,1]})
     c = styl_polyfit(t,y,2)
@@ -1163,6 +1196,11 @@ def styl_rhy_file(copa,ii,fld,opt):
             nk = myl.numkeys(copa['data'][ii][i][fld][j])
             for k in nk:
                 gt = copa['data'][ii][i][fld][j][k]['t']
+
+                #!u
+                #print(copa['data'][ii][i]['fsys']['annot'])
+                #print(i,j,gt)
+
                 yi = styl_yi(gt,myFs,y) 
                 ys = y[yi]
                 r = copa['data'][ii][i][fld][j][k]['rate']

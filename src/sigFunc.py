@@ -245,23 +245,51 @@ def dct_px(x,f,cog,opt):
             #print('cog:',cog,'xi',f[i:i+2],x[i:i+2],'->',xi)
             return np.interp(cog,f[i:i+2],x[i:i+2])
     return np.percentile(x,opt['peak_prct'])
-    
-            
-
-
-
-
-
             
 
 # pre-emphasis
-# s'[n] = s[n]-alpha*s[n-1]
-def pre_emphasis(y,opt={'alpha':0.95}):
+#  alpha > 1 (interpreted as lower cutoff freq)
+#     alpha <- exp(-2 pi alpha delta)
+#  s'[n] = s[n]-alpha*s[n-1]
+# IN:
+#   signal
+#   alpha - s[n-1] weight <0.95>
+#   fs - sample rate <-1>
+#   do_scale - <FALSE> if TRUE than the pre-emphasized signal is scaled to
+#         same abs_mean value as original signal (in general pre-emphasis
+#         leads to overall energy loss)
+def pre_emphasis(y,a=0.95,fs=-1,do_scale=False):
+    # determining alpha directly or from cutoff freq
+    if a>1:
+        if fs <= 0:
+            print('pre emphasis: alpha cannot be calculated deltaT. Set to 0.95')
+            a = 0.95
+        else:
+            a = math.exp(-2*math.pi*a*1/fs)
+  
+    #print('alpha',a)
+      
     # shifted signal
-    z = cp.deepcopy(y)
-    z = np.append([0],z[0:-1])
-    #z = z[0:-1]
-    return y-opt['alpha']*z
+    ype = np.append(y[0], y[1:] - a * y[:-1])
+
+    # scaling
+    if do_scale:
+        sf = np.mean(abs(y))/np.mean(abs(ype))
+        ype*=sf
+
+    ## plot
+    #ys = y[30000:40000]
+    #ypes = ype[30000:40000]
+    #t = np.linspace(0,len(ys),len(ys))
+    #fig, spl = plt.subplots(2,1,squeeze=False)
+    #cid1 = fig.canvas.mpl_connect('button_press_event', onclick_next)
+    #cid2 = fig.canvas.mpl_connect('key_press_event', onclick_exit)
+    #spl[0,0].plot(t,ys)
+    #spl[1,0].plot(t,ypes)
+    #plt.show()
+    ##
+
+    return ype
 
 # frequency bins: symmetric 2-Hz windows around freq integers
 # in bandpass overlapped by 1 Hz
@@ -637,13 +665,17 @@ def pau_detector_red(t,e_ratio,opt):
     # keep boundary pauses
     if opt['fbnd']==True:
         n=opt['n']-2
-        bp = [t[0,],t[-1,]]
+        #bp = [t[0,],t[-1,]]
+        bp = np.concatenate((np.array([t[0,]]),np.array([t[-1,]])),axis=0)
         ii = np.arange(1,len(t)-1,1)
         t = t[ii,]
         e_ratio=e_ratio[ii]
     else:
         n=opt['n']
         bp=np.asarray([])
+
+    if n==0:
+        t=[]
 
     # remove pause with highest e_ratio
     while len(t)>n:
@@ -654,10 +686,132 @@ def pau_detector_red(t,e_ratio,opt):
 
     # re-add boundary pauses if removed
     if opt['fbnd']==True:
-        t=[bp[1,],t,bp[2,]]
+        if len(t)==0:
+            t=np.concatenate((np.array([bp[0,]]),np.array([bp[1,]])),axis=0)
+        else:
+            t=np.concatenate((np.array([bp[0,]]),np.array([t]),np.array([bp[1,]])),axis=0)
 
     return t, e_ratio
 
+
+# spectral balance calculation according to Fant 2000
+# IN:
+#   sig: signal (vowel segment)
+#   fs: sampe rate
+#   opt:
+#      'win': length of central window in ms <len(sig)>; -1 is same as len(sig)
+#      'ub': upper freq boundary in Hz <-1> default: no low-pass filtering
+#      'domain': <'freq'>|'time'; pre-emp in frequency (Fant) or time domain
+#      'alpha': <0.95> for time domain only y[n] = x[n]-alpha*x[n-1]
+#            if alpha>0 it is interpreted as lower freq threshold for pre-emp
+# OUT:
+#   sb: spectral tilt
+def splh_spl(sig,fs,opt={}):
+    opt = myl.opt_default(opt,{'win':len(sig),'ub':-1,'domain':'freq',
+                               'alpha':0.95})
+
+    ## cut out center window ##################################
+    ls = len(sig)
+    if opt['win'] <= 0:
+        opt['win'] = ls
+    if opt['win'] < ls:
+        wi = myl.windowing_idx(int(ls/2),
+                               {'rng':[0, ls],
+                                'win':int(opt['win']*fs)})
+        y = sig[wi]
+    else:
+        y = cp.deepcopy(sig)
+    
+    if len(y)==0:
+        return np.nan
+        
+    # reference sound pressure level
+    p_ref = pRef('spl')
+
+    ## pre-emp in time domain ####################################
+    if opt['domain']=='time':
+        # low pass filtering
+        if opt['ub']>0:
+            y = fu_filt(y,{'fs':fs,'f':opt['ub'],'order':5,
+                           'btype':'low'})
+        yp = pre_emphasis(y,opt['alpha'],fs,False)
+        y_db = 20*np.log10(myl.rmsd(y)/p_ref)
+        yp_db = 20*np.log10(myl.rmsd(yp)/p_ref)
+        return yp_db - y_db
+
+    ## pre-emp in frequency domain ##############################
+    # according to Fant
+    # actual length of cut signal
+    n = len(y)
+    ## hamming windowing
+    y *= np.hamming(n)
+    ## spectrum
+    Y = np.fft.fft(y,n)
+    N = int(len(Y)/2)
+    ## frequency components
+    XN = np.fft.fftfreq(n,d=1/fs)
+    X = XN[0:N]
+    # same as X = np.linspace(0, fs/2, N, endpoint=True)
+
+    ## amplitudes
+    # sqrt(Y.real**2 + Y.imag**2)
+    # to be normalized:
+    # *2 since only half of transform is used
+    # /N since output needs to be normalized by number of samples
+    # (tested on sinus, cf
+    # http://www.cbcity.de/die-fft-mit-python-einfach-erklaert)
+    a = 2*np.abs(Y[:N])/N
+    ## vowel-relevant upper frequency boundary
+    if opt['ub']>0:
+        vi = np.nonzero(X<=opt['ub'])
+        if len(vi)>0:
+            X = X[vi]
+            a = a[vi]
+    ## Fant preemphasis filter (Fant et al 2000, p10f eq 20)
+    preemp = 10*np.log10((1+X**2/200**2)/(1+X**2/5000**2))
+    ap = 10*np.log10(a)+preemp
+    # retransform to absolute scale
+    ap = 10**(ap/10)
+
+    # corresponds to gain values in Fant 2000, p11
+    #for i in myl.idx(a):
+    #    print(X[i],preemp[i])
+    #myl.stopgo()
+    
+    ## get sound pressure level of both spectra
+    #       as 20*log10(P_eff/P_ref)
+    spl = 20*np.log10(myl.rmsd(a)/p_ref)
+    splh = 20*np.log10(myl.rmsd(ap)/p_ref)
+
+    ## get energy level of both spectra
+    #spl = 20*np.log10(myl.mse(a)/p_ref)
+    #splh = 20*np.log10(myl.mse(ap)/p_ref)
+
+    ## spectral balance
+    sb = splh-spl
+
+    #print(spl,splh,sb)
+    #myl.stopgo()
+
+    #fig = plt.figure()
+    #plt.plot(X,20*np.log10(a),'b')
+    #plt.plot(X,20*np.log10(preemp),'g')
+    #plt.plot(X,20*np.log10(ap),'r')
+    #plt.show()
+
+    return sb
+
+# returns reverence levels for typ
+# IN:
+#   typ
+#    'spl': sound pressure level
+#    'i': intensity level
+# OUT:
+#   corresponding reference level
+def pRef(typ):
+    if typ=='spl':
+        return 2*10**(-5)
+    return 10**(-12)
 
 # syllable nucleus detection
 # IN:

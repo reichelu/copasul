@@ -196,7 +196,7 @@ def find(x_in,op,v):
     return xi.astype(int)
 
 # returns mean absolute error of vectors
-# or of one vector and zeros
+# or of one vector and zeros (=mean abs dev)
 # IN:
 #   x
 #   y <zeros>
@@ -207,6 +207,14 @@ def mae(x,y=[]):
         y=np.zeros(len(x))
     x=np.asarray(x)
     return np.mean(abs(x-y))
+
+# mean squared error of vectors
+# or of one vector and zeros (=mean squared dev)
+def mse(x,y=[]):
+    if len(y)==0:
+        y=np.zeros(len(x))
+    x=np.asarray(x)
+    return np.mean((x-y)**2)
 
 # returns RMSD of two vectors
 # or of one vector and zeros
@@ -751,7 +759,6 @@ def copa_categ_var(x):
         return True
     return False
 
-
 # dynamically adjusts 'fsys' part on copa options based on input
 # requires uniform config format as in wrapper_py/config/ids|hgc.json
 # IN:
@@ -1245,19 +1252,25 @@ def tg_tab2tier(t,lab,specs):
 
 # add tier to TextGrid
 # IN:
-#   tg dict from i_tg(); can be empty dict (!!but header[xmin|xmax] not set!!)
+#   tg dict from i_tg(); can be empty dict
 #   tier subdict to be added:
 #       same dict form as in i_tg() output, below 'myItemIdx'
 #   opt 
 #      ['repl'] <True> - replace tier of same name 
 # OUT:
 #   tg updated
+# REMARK:
+#   !if generated from scratch head xmin and xmax are taken over from the tier
+#    which might need to be corrected afterwards! 
 def tg_add(tg,tier,opt={'repl':True}):
 
     # from scratch
     if 'item_name' not in tg:
+        fromScratch = True
         tg = {'name':'', 'format':'long', 'item_name':{}, 'item':{},
               'head':{'size':0,'xmin':0,'xmax':0,'type':'ooTextFile'}}
+    else:
+        fromScratch = False
 
     # tier already contained?
     if (opt['repl']==True and (tier['name'] in tg['item_name'])):
@@ -1271,6 +1284,10 @@ def tg_add(tg,tier,opt={'repl':True}):
         tg['item_name'][tier['name']] = i
         tg['item'][i] = tier
         tg['head']['size'] += 1
+
+    if fromScratch and 'xmin' in tier:
+        for x in ['xmin','xmax']:
+            tg['head'][x] = tier[x]
 
     return tg
 
