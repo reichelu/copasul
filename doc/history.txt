@@ -158,8 +158,9 @@
 	  to be carried out.
 	  'win': length of center window in sec within which spectral
 	  balance is to be calculated; default: -1 (length of segment)
-	  'ub': upper frequency boundary in Hz for balance calclulation
-	  (best to be set to a value relevant for vowels; default: -1, i.e.
-	  no low-pass filtering) 
+	  'btype': filter type to specify frequency band relevant
+	  for spectral balance calculation: <'none'>|'low'|'high'|'band'
+	  'f': cutoff frequency/ies for 'btype' (default: -1, i.e.
+	  no filtering) 
 	  - styl:gnl\_en:alpha is deprecated and replaced by
 	  styl:gnl\_en:sb:alpha
