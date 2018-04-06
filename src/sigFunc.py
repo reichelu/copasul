@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import mylib as myl
 import sys
 import copy as cp
+import re
 import scipy.fftpack as sf
 
 # NOTE: int2float might be removed after scipy update
@@ -708,8 +709,8 @@ def pau_detector_red(t,e_ratio,opt):
 #   sb: spectral tilt
 def splh_spl(sig,fs,opt_in={}):
     opt = cp.deepcopy(opt_in)
-    opt = myl.opt_default(opt,{'win':len(sig),'ub':-1,'domain':'freq',
-                               'alpha':0.95})
+    opt = myl.opt_default(opt,{'win':len(sig),'f':-1,'btype':'none',
+                               'domain':'freq','alpha':0.95})
 
     #print(opt)
     #myl.stopgo()
@@ -735,9 +736,10 @@ def splh_spl(sig,fs,opt_in={}):
     ## pre-emp in time domain ####################################
     if opt['domain']=='time':
         # low pass filtering
-        if opt['ub']>0:
-            y = fu_filt(y,{'fs':fs,'f':opt['ub'],'order':5,
-                           'btype':'low'})
+        if opt['btype'] != 'none':
+            flt = fu_filt(y,{'fs':fs,'f':opt['f'],'ord':6,
+                             'btype':opt['btype']})
+            y = flt['y']
         yp = pre_emphasis(y,opt['alpha'],fs,False)
         y_db = 20*np.log10(myl.rmsd(y)/p_ref)
         yp_db = 20*np.log10(myl.rmsd(yp)/p_ref)
@@ -745,6 +747,7 @@ def splh_spl(sig,fs,opt_in={}):
         return yp_db - y_db
 
     ## pre-emp in frequency domain ##############################
+
     # according to Fant
     # actual length of cut signal
     n = len(y)
@@ -767,8 +770,8 @@ def splh_spl(sig,fs,opt_in={}):
     # http://www.cbcity.de/die-fft-mit-python-einfach-erklaert)
     a = 2*np.abs(Y[:N])/N
     ## vowel-relevant upper frequency boundary
-    if opt['ub']>0:
-        vi = np.nonzero(X<=opt['ub'])
+    if opt['btype'] != 'none':
+        vi = fu_filt_freq(X,opt)
         if len(vi)>0:
             X = X[vi]
             a = a[vi]
@@ -805,6 +808,44 @@ def splh_spl(sig,fs,opt_in={}):
     #plt.show()
 
     return sb
+
+
+# returns indices of freq in x fullfilling conditions in opt
+# IN:
+#   X: freq array
+#   opt: 'btype' - 'none'|'low'|'high'|'band'|'stop'
+#        'f': 1 freq for low|high, 2 freq for band|stop
+# OUT:
+#   i: indices in X fulfilling condition
+def fu_filt_freq(X,opt):
+    typ = opt['btype']
+    f = opt['f']
+
+    # all indices
+    if typ=='none':
+        return myl.idx_a(len(X))
+
+    # error handling
+    if re.search('(band|stop)',typ) and (not myl.listType(f)):
+        print('filter type requires frequency list. Done nothing.')
+        return myl.idx_a(len(X))
+    if re.search('(low|high)',typ) and myl.listType(f):
+        print('filter type requires only 1 frequency value. Done nothing.')
+        return myl.idx_a(len(X))
+
+    if typ=='low':
+        return np.nonzero(X<=f)
+    elif typ=='high':
+        return np.nonzero(X>=f)
+    elif typ == 'band':
+        i = set(np.nonzero(X>=f[0]))
+        return np.sort(np.array(i.intersection(set(np.nonzero(X<=f[1])))))
+    elif typ == 'stop':
+        i = set(np.nonzero(X<=f[0]))
+        return np.sort(np.array(i.union(set(np.nonzero(X>=f[1])))))
+
+    return myl.idx_a(len(X))
+    
 
 # returns reverence levels for typ
 # IN:
@@ -951,12 +992,15 @@ def syl_ncl_trouble(s,opt):
 #   opt['fs'] - sample rate
 #      ['f']  - scalar (high/low) or 2-element vector (band) of boundary freqs
 #      ['order'] - order
-#      ['btype'] - band|low|high
+#      ['btype'] - band|low|high; all other values: signal returned as is
 # OUT:
 #   flt['y'] - filtered signal
 #      ['b'] - coefs
 #      ['a']
 def fu_filt(y,opt):
+    # do nothing
+    if not re.search('^(high|low|band)$',opt['btype']):
+        return {'y': y, 'b': myl.ea(), 'a': myl.ea()}
     # check f<fs/2
     if (opt['btype'] == 'low' and opt['f']>=opt['fs']/2):
         opt['f']=opt['fs']/2-100
@@ -964,7 +1008,6 @@ def fu_filt(y,opt):
         opt['f'][1]=opt['fs']/2-100
     fn = opt['f']/(opt['fs']/2)
     b, a = sis.butter(opt['ord'], fn, btype=opt['btype'])
-    #yf = sis.lfilter(b,a,y) # forward, shifts maxima
     yf = sis.filtfilt(b,a,y)
     return {'y':yf,'b':b,'a':a}
 
