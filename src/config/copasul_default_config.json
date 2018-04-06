@@ -83,8 +83,9 @@
 	"gnl_en": {
 	    "sb": {
 		"domain": "freq",
-		"win": 0.03,
-		"ub": -1,
+		"win": -1,
+		"f": -1,
+		"bytpe": "none",
 		"alpha": 0.95
 	    },
 	    "sts": 0.01,
