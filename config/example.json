@@ -1,7 +1,7 @@
 {
     "fs": 100,
     "navigate": {
-	"from_scratch": 1,
+	"from_scratch": 0,
 	"overwrite_config": 1,
 	"do_diagnosis": 0,
 	"do_augment_chunk": 0,
@@ -16,11 +16,12 @@
 	"do_styl_gnl_en": 1,
 	"do_styl_bnd": 1,
 	"do_styl_bnd_win": 1,
-	"do_styl_bnd_trend": 1,
+	"do_styl_bnd_trend": 0,
 	"do_styl_rhy_f0": 1,
 	"do_styl_rhy_en": 1,
-	"do_clst_loc": 0,
-	"do_clst_glob": 0,
+	"do_styl_voice": 1,
+	"do_clst_loc": 1,
+	"do_clst_glob": 1,
 	"do_export": 1,
 	"do_plot": 0
     },
@@ -33,8 +34,8 @@
 	    "ord": 3
 	},
 	"out": {
-	    "f": 2,
-	    "m": "median"
+	    "f": 3,
+	    "m": "mean"
 	},
 	"nrm_win": 1,
 	"point_win": 0.5
@@ -73,7 +74,13 @@
 	    "cross_chunk": 1
 	},
 	"gnl_en": {
-	    "alpha": 0.95,
+	    "sb": {
+		"domain": "freq",
+		"win": 0.03,
+		"f": -1,
+		"btype": "none",
+		"alpha": 1000
+	    },
 	    "sts": 0.01,
 	    "win": 0.05,
 	    "wintyp": "hamming",
@@ -242,7 +249,7 @@
                     "decl": 0
                 },
                 "rhy_f0": {
-                    "rhy": 0
+                    "rhy": 1
                 },
                 "rhy_en": {
                     "rhy": 0
@@ -260,7 +267,7 @@
         "grp": {
             "type": {
                 "loc": {
-                    "decl": 1,
+                    "decl": 0,
                     "acc": 0
                 },
                 "glob": {
@@ -270,7 +277,7 @@
             "grouping": [
 		"spk"
             ],
-	    "save": 1
+	    "save": 0
         },
         "res": {
             "type": {
@@ -283,110 +290,123 @@
     },
     "fsys": {
 	"f0": {
-	    "dir": "<directory containing F0 files>",
-	    "ext": "f0",
+	    "dir": "<my/Pth/To/F0Files>",
+	    "ext": "<myF0Extension>",
+	    "typ": "tab"
+	},
+	"pulse": {
+	    "dir": "<my/Pth/To/PulseFiles>",
+	    "ext": "<myF0Extension>",
 	    "typ": "tab"
 	},
 	"aud": {
-	    "dir": "<directory containing wav audio files>",
-	    "typ": "wav",
+	    "dir": "<my/Pth/To/AudioFiles>",
+	    "typ": "<myAudioExtension>",
 	    "ext": "wav"
 	},
 	"annot": {
-	    "dir": "<directory containing TextGrid annotation files>",
-	    "typ": "TextGrid",
+	    "dir": "<my/Pth/To/AnnotationFiles>",
+	    "typ": "<myAnnotationExtension>",
 	    "ext": "TextGrid"
 	},
 	"export": {
-	    "dir": "<output directory>",
-	    "stm": "test",
+	    "dir": "<my/export/Pth>",
+	    "stm": "<myExportStem>",
 	    "csv": 1,
+	    "sep": ";",
+	    "summary": 1,
 	    "f0_preproc": 0,
 	    "f0_residual": 0,
 	    "f0_resyn": 0
 	},
 	"pic": {
-            "dir": "<plotting directory>",
-            "stm": ""
+            "dir": "<my/Pth/To/PlotFiles>",
+            "stm": "<myPlotExtension>"
         },
 	"grp": {
-	    "src": "<type of files from which to examine name: f0|aud|annot>",
-	    "sep": "<separator between file name parts>",
+	    "src": "<myFileSource>",
+	    "sep": "<myFilePartsSeparator>",
 	    "lab": [
-		"<grouping variable for each file name part>"
+		"<my>",
+		"<fileparts>"
 	    ]
 	},
 	"label": {
-	    "pau": "<pause label in annotation>",
-	    "chunk": "<chunk label>",
-	    "syl": "<syllable nucleus label>"
+	    "pau": "<p:>",
+	    "chunk": "x",
+	    "syl": "x"
 	},
 	"augment": {
 	    "chunk": {
-		"tier_out_stm": "<output tier name of automatic chunking>"
+		"tier_out_stm": "<myOutputTierStem>"
 	    },
 	    "syl": {
-		"tier_out_stm": "<output tier name of syllabification>",
-		"tier_parent": "<parent tier name>"
+		"tier_out_stm": "<myOutputTierStem>",
+		"tier_parent": "<myParentTier>"
 	    },
 	    "glob": {
-		"tier": "<name of tier to be segmented into IPs>",
-		"tier_out_stm": "<output tier name>",
-		"tier_parent": "<parent tier name>"
+		"tier": "<myAnalysisTier>",
+		"tier_out_stm": "<myOutputTierStem>",
+		"tier_parent": "<myParentTier>"
 	    },
 	    "loc": {
-		"tier_acc": "<name of point tier for accent extraction>",
-		"tier_ag": "<name of interval tier for accent extraction>",
-		"tier_out_stm": "<output tier name>",
-		"tier_parent": "<parent tier name>"
+		"tier_acc": "<myAccentTier>",
+		"tier_ag": "<myAccentGroupTier>",
+		"tier_out_stm": "<myOutputTierStem>",
+		"tier_parent": "<myParentTier>"
 	    }
 	},
 	"glob": {
 	    "tier": [
-		"<IP tiers>"
+		"<myAnalysisTier>"
 	    ]
 	},
 	"loc": {
 	    "tier_ag": [
-		"<accent interval tiers>"
+		"<myAccentGroupTier>"
 	    ],
 	    "tier_acc": [
-		"<accent point tiers>"		
+		"<myAccentTier>"		
 	    ]
 	},
 	"bnd": {
 	    "tier": [
-		"<tiers for boundary candidates>"
+		"<myAnalysisTier>"
 	    ]
 	},
 	"gnl_f0": {
 	    "tier": [
-		"<analysis tier>"
+		"<myAnalysisTier>"
 	    ]
 	},
 	"gnl_en": {
 	    "tier": [
-		"<analysis tier>"
+		"<myAnalysisTier>"
 	    ]
 	},
 	"rhy_f0": {
 	    "tier": [
-		"<analysis tier>"
+		"<myAnalysisTier>"
 	    ],
 	    "tier_rate": [
-		"<influence tier on segments in analysis tier>"
+		"<myAnalysisTier>"
 	    ]
 	},
 	"rhy_en": {
 	    "tier": [
-		"<analysis tier>"
+		"<myAnalysisTier>"
 	    ],
 	    "tier_rate": [
-		"<influence tier on segments in analysis tier>"
+		"<myAnalysisTier>"
+	    ]
+	},
+	"voice": {
+	    "tier": [
+		"<myAnalysisTier>"
 	    ]
 	},
 	"channel": {
-	    "<tier name>": <channel index>
+	    "<myTier>": <myChannelNumber>
 	}
     }
 }
