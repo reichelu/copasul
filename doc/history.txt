@@ -130,7 +130,7 @@
 	  - event tier support for global segments:
 	  time points are treated as right boundaries
 20180123: 0.7.5
-	  - bugfix: automatic accent annotation no
+	  - bugfix: automatic accent annotation now
 	  works also without AG definition (copasul_augment.aug_loc_fv())
 	  - chunking: changing default for e_rel to 0.1
 	  fallback RMS over entire channel content now calculated on
@@ -161,6 +161,28 @@
 	  'btype': filter type to specify frequency band relevant
 	  for spectral balance calculation: <'none'>|'low'|'high'|'band'
 	  'f': cutoff frequency/ies for 'btype' (default: -1, i.e.
-	  no filtering) 
+	  no filtering)
 	  - styl:gnl\_en:alpha is deprecated and replaced by
 	  styl:gnl\_en:sb:alpha
+20180608: 0.7.10
+	  - chunk-final syllable boundary time stamp added
+	  - new phrase boundary and accent bootstrapping method
+	  working without previous word segmentation; 'seed_minmax'
+20180619: 0.7.11
+	  - sigFunc.pau_detector_merge(): merging of chunks across too
+	  short pauses no comes before merging pauses across too short chunks
+	  (expected to work better for dialogs with short backchannel chunks)
+20180626: 0.7.12
+	  - copasul_preproc.pp_channelfeatures(): 'is_init' and 'is_fin' 
+	  keys added (features of same name in loc output table). Describe
+	  position of local segment in global one.
+20180702: 0.8.1
+	  - voice feature set added; copasul_styl.styl_voice()
+20180711: 0.8.2
+	  - config/copasul_default_config.json: default for
+	  config['styl']['gnl_en']['domain'] set to 'time' since
+	  'freq' is time-expensive
+20180725: 0.8.3
+	  - bugfix in copasul_export.export_summary(): now also
+	  working for stereo files. Summary statistics are now given
+	  per file and analysis tier (before: per file and channel)
