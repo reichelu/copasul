@@ -108,14 +108,14 @@ def export_f0(copa,fld):
 #   files: <output_stem>.summary.csv, 1 row per channel
 #                               .R input template
 # VAR:
-#   suma[fileIdx][channelIndex][fset][feat][v|m|sd|med|iqr|h|g|u]
+#   suma[fileIdx][channelIndex][fset][featKey][v|m|sd|med|iqr|h|g|u]
 #   v: array of values on which m|sd|med|iqr|h is calculated
 #   m, med: mean values
 #   s, iqr: variance
 #   h: entropy (for contour classes only)
 #   g: grouping value
 #   u: 'segment'|'file', features from segment or file level
-# feat := feat_analysisTier in case fset contains the column 'tier'
+# featKey := feat_analysisTier in case fset contains the column 'tier'
 
 
 def export_summary(copa):
@@ -192,17 +192,19 @@ def upd_suma(suma,fs_in,d,fi,ci,fac,u):
     else:
         tiers = ['*']
 
+        
     # over tiers
     for t in tiers:
         if t=='*':
             ds = dd
         else:
             ds = dd[dd.tier==t]
-        
+            
         # over features
         for x in ds.keys():
             suma = upd_suma_feat(suma,fs,ds,fi,ci,fac,u,x,t)
 
+            
     return suma
 
 # called by upd_suma for single feat
@@ -213,12 +215,13 @@ def upd_suma(suma,fs_in,d,fi,ci,fac,u):
 # OUT:
 #   suma upd
 def upd_suma_feat(suma,fs,ds,fi,ci,fac,u,x,t):
-
+    
     if t == '*':
-        key = x
+        #key = x
+        key = "CHANNEL{}_{}".format(int(ci)+1,x)
     else:
         key = "{}_{}".format(t,x)
-
+        
     # file-level grouping
     if (x=='stm' or re.search('^grp_',x)):
         v = list(ds[x])
@@ -253,7 +256,7 @@ def upd_suma_feat(suma,fs,ds,fi,ci,fac,u,x,t):
     else:
         if len(v)==0:
             suma[fi][ci][fs][key]['v'] = [np.nan]
-
+            
     return suma
 
 # summary -> export dict -> .csv|R
@@ -271,6 +274,7 @@ def upd_suma_feat(suma,fs,ds,fi,ci,fac,u,x,t):
 #   myGrouping -> [fileLevel grouping vars]
 #   myFeatSet_myFeat_myMeas -> [featureValMeansAndVars]  
 def suma2exp(suma,fo,fp,sep):
+    
     exp = suma2exp_init(suma)
     # incremental d update
     for fi in myl.numkeys(suma):
@@ -280,6 +284,9 @@ def suma2exp(suma,fo,fp,sep):
     # remove redundant grouping columns
     exp = exp_rm_redun(exp)
 
+    #for x in exp:
+    #print(x,len(exp[x]))
+    
     exp_to_file(exp,fo,'summary',checkFld='fi',facpat='',fullPath=fp,sep=sep)
 
 
@@ -314,23 +321,25 @@ def suma2exp_init(suma):
     i = myl.numkeys(suma)
     fi = i[0]
     i = myl.numkeys(suma[fi])
-    ci = i[0]
-    exp = {'fi':[], 'ci':[]}
-    # over featsets
-    for fs in suma[fi][ci]:
-        # over features/groupings
-        for x in suma[fi][ci][fs]:
-            # file or segment level features
-            if suma[fi][ci][fs][x]['u']=='file':
-                key = exp_suma_key(fs,x,'g')
-                exp[key] = []
-            else:
-                # over subfields m,sd,med...
-                for s in suma[fi][ci][fs][x]:
-                    if re.search('[vu]',s):
-                        continue
-                    key = exp_suma_key(fs,x,s)
+    #exp = {'fi':[], 'ci':[]}
+    exp = {'fi':[]}
+    # over channel idx (since tier names as IP_1 and IP_2 are part of keys)
+    for ci in myl.numkeys(suma[fi]):
+        # over featsets
+        for fs in suma[fi][ci]:
+            # over features/groupings
+            for x in suma[fi][ci][fs]:
+                # file or segment level features
+                if suma[fi][ci][fs][x]['u']=='file':
+                    key = exp_suma_key(fs,x,'g')
                     exp[key] = []
+                else:
+                    # over subfields m,sd,med...
+                    for s in suma[fi][ci][fs][x]:
+                        if re.search('[vu]',s):
+                            continue
+                        key = exp_suma_key(fs,x,s)
+                        exp[key] = []
 
     return exp
 
@@ -344,8 +353,9 @@ def suma2exp_init(suma):
 # OUT:
 #   d updated
 def suma2exp_upd(exp,suma,fi,ci):
-    exp['fi'].append(fi)
-    exp['ci'].append(ci)
+    if ci==0 or ci=='0':
+        exp['fi'].append(fi)
+    #exp['ci'].append(ci)
     # over featsets
     for fs in suma[fi][ci]:
         # over features/groupings
@@ -403,7 +413,8 @@ def export_csv(copa):
     # obligatory subfields to check whether dict contains
     # resp feature set and not only time information
     fld={'glob':'decl', 'loc':'acc', 'bnd':'std', 'gnl_f0':'std',
-         'gnl_en':'std', 'rhy_f0':'rhy', 'rhy_en':'rhy'}
+         'gnl_en':'std', 'rhy_f0':'rhy', 'rhy_en':'rhy',
+         'voice':'jit'}
     
     # output file stem
     fo = myl.fsys_stm(opt,'export')
@@ -422,6 +433,8 @@ def export_csv(copa):
         export_loc(c,fo,opt)
     if copa_contains(c,'bnd',fld):
         export_bnd(c,fo,opt)
+    if copa_contains(c,'voice',fld):
+        export_voice(c,fo,opt)
     if copa_contains(c,'gnl_f0',fld):
         df_gnl['f0']=export_gnl(c,fo,opt,'gnl_f0')
     if copa_contains(c,'gnl_en',fld):
@@ -430,7 +443,7 @@ def export_csv(copa):
         df_rhy['f0']=export_rhy(c,fo,opt,'rhy_f0')
     if copa_contains(c,'rhy_en',fld):
         df_rhy['en']=export_rhy(c,fo,opt,'rhy_en')
-
+    
     export_merge(fo,'gnl',df_gnl,opt)
     export_merge(fo,'rhy',df_rhy,opt)
 
@@ -492,7 +505,8 @@ def export_glob(c,fo,opt):
 def export_loc(c,fo,opt):
     # base set
     cn = ['fi','ci','si','gi','stm','t_on','t_off','lab_ag',
-          'lab_acc','m','sd','med','iqr','max','min','dur']
+          'lab_acc','m','sd','med','iqr','max','min','dur',
+          'is_init','is_fin']
     # normalized values
     for x in cn:
         y = "{}_nrm".format(x)
@@ -515,7 +529,8 @@ def export_loc(c,fo,opt):
     po = opt['styl']['loc']['ord']
     for i in range(po+1):
         cn.append("c{}".format(i))
-        # over register
+        cn.append("rms_c{}".format(i))
+        # over register types
         for x in myl.lists():
             cne.append("res_{}_c{}".format(x,i))
 
@@ -536,6 +551,8 @@ def export_loc(c,fo,opt):
                 d['ci'].append(i)
                 d['si'].append(j)
                 d['gi'].append(c[ii][i]['loc'][j]['ri'])
+                d['is_init'].append(c[ii][i]['loc'][j]['is_init'])
+                d['is_fin'].append(c[ii][i]['loc'][j]['is_fin'])
                 d['stm'].append(c[ii][i]['fsys']['f0']['stm'])
                 d['t_on'].append(c[ii][i]['loc'][j]['to'][0])
                 if len(c[ii][i]['loc'][j]['to'])>1:
@@ -550,6 +567,7 @@ def export_loc(c,fo,opt):
                     d[x].append(c[ii][i]['loc'][j]['gnl'][x])
                 for o in range(po+1):
                     d["c{}".format(o)].append(c[ii][i]['loc'][j]['acc']['c'][po-o])
+                    d["rms_c{}".format(o)].append(c[ii][i]['loc'][j]['acc']['rms'][po-o])
                 # gestalt featset
                 if 'bl_rms' in cn:
                     if 'gst' in c[ii][i]['loc'][j]:
@@ -587,7 +605,7 @@ def export_loc(c,fo,opt):
                 d = export_grp_upd(d,c[ii][i]['grp'])
 
 
-    # for x in list(d.keys()): print("{}: {}".format(x,len(d[x])))
+    #for x in list(d.keys()): print("{}: {}".format(x,len(d[x])))
 
     exp_to_file(d,fo,'loc',fullPath=opt['fsys']['export']['fullpath'],
                 sep=opt['fsys']['export']['sep'])
@@ -648,7 +666,6 @@ def export_bnd(c,fo,opt):
                 sep=opt['fsys']['export']['sep'])
 
     return
-
 
 ### rhy ##############################################
 
@@ -789,6 +806,80 @@ def rhy_rate_tiers(c,t,opt):
         if c[0][ci]['rhy_f0'][i][0]['tier']==t:
             return c[0][ci]['rhy_f0'][i][0]['rhy']['wgt'].keys()
     return []
+
+### voice ############################################
+
+def export_voice(c,fo,opt):
+    typ = 'voice'
+    typf = 'voice_file'
+    # segment-level
+    cn = ['fi','ci','si','stm','t_on','t_off','tier','lab']
+    # file-level
+    typf = "{}_file".format(typ)
+    cnf = ['fi','ci','stm']
+    for fld in ['jit','shim']:
+        cn.append(fld)
+        cnf.append(fld)
+        for i in [0,1,2,3]:
+            cn.append("{}_c{}".format(fld,i))
+            cnf.append("{}_c{}".format(fld,i))
+
+    # segment-level
+    d = init_exp_dict(cn,opt)
+
+    # file-level
+    df = init_exp_dict(cnf,opt)
+
+    # files
+    for ii in myl.numkeys(c):
+        # channels
+        for i in myl.numkeys(c[ii]):
+            ## file-level
+            df['fi'].append(ii)
+            df['ci'].append(i)
+            df['stm'].append(c[ii][i]['fsys']['f0']['stm'])
+            df = export_grp_upd(df,c[ii][i]['grp'])
+            # over jit, shim
+            for x in c[ii][i][typf].keys():
+                df[x].append(c[ii][i][typf][x]['v'])
+                coef = c[ii][i][typf][x]['c']
+                coef = coef[::-1]
+                # over coefs
+                for ci in myl.idx(coef):
+                    df["{}_c{}".format(x,ci)].append(coef[ci])
+
+            ## segment level
+            # over segments
+            for j in myl.numkeys(c[ii][i][typ]):
+                # over tiers    
+                for k in myl.numkeys(c[ii][i][typ][j]):
+                    d['fi'].append(ii)
+                    d['ci'].append(i)
+                    d['si'].append(j)
+                    d['stm'].append(c[ii][i]['fsys']['f0']['stm'])
+                    d['t_on'].append(c[ii][i][typ][j][k]['to'][0])
+                    if len(c[ii][i][typ][j][k]['to'])>1:
+                        d['t_off'].append(c[ii][i][typ][j][k]['to'][1])
+                    else:
+                        d['t_off'].append(c[ii][i][typ][j][k]['to'][0])
+                    d['tier'].append(c[ii][i][typ][j][k]['tier'])
+                    # grouping
+                    d = export_grp_upd(d,c[ii][i]['grp'])
+                    d['lab'].append(c[ii][i][typ][j][k]['lab'])
+                    # over jit, shim
+                    for x in ['jit','shim']:
+                        d[x].append(c[ii][i][typ][j][k][x]['v'])
+                        coef = c[ii][i][typ][j][k][x]['c']
+                        coef = coef[::-1]
+                        # over coefs
+                        for ci in myl.idx(coef):
+                            d["{}_c{}".format(x,ci)].append(coef[ci])
+                    
+    #for x in list(d.keys()): print("{}: {}".format(x,len(d[x])))
+
+    exp_to_file(d,fo,typ,fullPath=opt['fsys']['export']['fullpath'],sep=opt['fsys']['export']['sep'])
+    exp_to_file(df,fo,typf,fullPath=opt['fsys']['export']['fullpath'],sep=opt['fsys']['export']['sep'])
+
 
 ### gnl ####################################
 

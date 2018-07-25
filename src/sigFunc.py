@@ -204,6 +204,8 @@ def dct_peak(x,f,cog,opt):
         zi = myl.find(x[si],'is','max')
         if len(zi)>1:
             zi=int(np.mean(zi))
+        else:
+            zi = zi[0]
         i = si[zi]
         if not np.isnan(i):
             f_lm.append(f[i])
@@ -514,25 +516,28 @@ def pau_detector_merge(t,e,opt):
     mpl = myl.sec2smp(opt['min_pau_l'],opt['fs'])
     mcl = myl.sec2smp(opt['min_chunk_l'],opt['fs'])
     #print("\n\nt:\n", t, "\nmpl:\n", mpl, "\nmcl:\n", mcl)
-    ## merging pauses across short chunks
-    tm = np.asarray([t[0,:]])
-    em = np.asarray([e[0]])
-    if (tm[0,0]<mcl): tm[0,0]=0
-    for i in np.arange(1,len(t),1):
-        if (t[i,0] - tm[-1,1] < mcl):
-            tm[-1,1] = t[i,1]
-            em[-1] = np.mean([em[-1],e[i]])
-        else:
+    ## merging chunks across short pauses
+    tm = np.asarray([])
+    em = np.asarray([])
+    for i in myl.idx_a(len(t)):
+        if ((t[i,1]-t[i,0] >= mpl) or
+            (opt['fbnd']==True and (i==0 or i==len(t)-1))):
             tm = myl.push(tm,t[i,:])
             em = myl.push(em,e[i])
-    ## merging chunks across short pauses
-    tn = np.asarray([])
-    en = np.asarray([])
-    for i in myl.idx_a(len(tm)):
-        if ((tm[i,1]-tm[i,0] >= mpl) or
-            (opt['fbnd']==True and (i==0 or i==len(tm)-1))):
+
+
+    ## merging pauses across short chunks
+    tn = np.asarray([tm[0,:]])
+    en = np.asarray([em[0]])
+    if (tn[0,0]<mcl): tn[0,0]=0
+    for i in np.arange(1,len(tm),1):
+        if (tm[i,0] - tn[-1,1] < mcl):
+            tn[-1,1] = tm[i,1]
+            en[-1] = np.mean([en[-1],em[i]])
+        else:
             tn = myl.push(tn,tm[i,:])
             en = myl.push(en,em[i])
+    
     #print("tm:\n", tm, "\ntn:\n", tn)
     return tn, en
 

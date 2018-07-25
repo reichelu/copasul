@@ -3,15 +3,14 @@
 ################################################
 
 # directory-wise f0 extraction from stereo audio files
-# output: 2 column table <frame timestamp> <f0 value>
+# output: 3 column table <frame timestamp> <f0 value ch. 1> <f0 value ch. 2>
 # call:
-# > extract_f0.praat framelength minfrequ maxfrequ inputDir outputDir \
+# > extract_f0_steret.praat framelength minfrequ maxfrequ inputDir outputDir \
 #   audioExtension f0FileExtension
 # example:
-# > extract_f0.praat 0.01 50 400 /my/Audio/Dir/ /my/F0/Dir/ wav f0
+# > extract_f0_stereo.praat 0.01 50 400 /my/Audio/Dir/ /my/F0/Dir/ wav f0
 # output file:
 #   /my/F0/Dir/inputStem.f0 
-#     3 columns [time leftChannel rightChannel]
 
 form input
      real framelength

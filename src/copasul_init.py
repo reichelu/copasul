@@ -100,6 +100,8 @@ def copa_opt_init(conf):
     fs.append('augment')
     fs.append('chunk')
     for x in fs:
+        if x not in opt['fsys']:
+            continue
         opt['fsys'][x]['lab_pau'] = opt['fsys']['label']['pau']
         opt['fsys'][x]['channel'] = opt['fsys']['channel']
         opt['fsys'][x]['nc'] = opt['fsys']['nc']
@@ -121,7 +123,19 @@ def copa_opt_init(conf):
             opt['styl'][x]['point_win'] = opt['preproc'][x]['point_win']
         else:
             opt['styl'][x]['point_win'] = opt['preproc']['point_win']
-   
+
+    # add missing navigations
+    for x in ["from_scratch", "overwrite_config", "do_diagnosis",
+              "do_augment_chunk", "do_augment_syl", "do_augment_glob",
+              "do_augment_loc", "do_preproc", "do_styl_glob",
+              "do_styl_loc", "do_styl_loc_ext",
+              "do_styl_gnl_en", "do_styl_bnd", "do_styl_bnd_win",
+              "do_styl_bnd_trend", "do_styl_rhy_f0", "do_styl_rhy_en",
+              "do_clst_loc", "do_clst_glob", "do_styl_voice", "do_export",
+              "do_plot"]:
+        if x not in opt['navigate']:
+            opt['navigate'][x] = False
+
     # set navigate macros
     opt['navigate']['do_augment'] = False
     for x in ['chunk','syl','glob','loc']:

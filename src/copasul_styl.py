@@ -43,7 +43,6 @@ def styl_gnl(copa,typ,f_log_in=''):
 
     # over files
     for ii in myl.numkeys(copa['data']):
-        #print(ii) #!v
         copa = styl_gnl_file(copa,ii,fld,opt)
 
     return copa
@@ -277,6 +276,222 @@ def styl_yi(iv,fs,y=[]):
 def styl_ys(iv,fs,y):
     j = myl.sec2idx(np.asarray(iv),fs)
     return y[myl.idx_seg(j[0],min(j[1],len(y)-1))]
+
+##########################################################
+#### voice characteristics ###############################
+##########################################################
+
+# IN:
+#   copa
+#   logFile
+# OUT:
+#   + .data...[voice|voice_file]
+#          .shim
+#             .v: shimmer
+#             .c: 3rd order polycoefs
+#          .jit
+#             .v: jitter (relative)
+#             .v_abs: jitter (absolute)
+#             .m: mean period length (in sec)
+#             .c: 3rd order polycoefs
+def styl_voice(copa,f_log_in=''):
+    global f_log
+    f_log = f_log_in
+    fld = 'voice'
+    if fld in copa['config']['styl']:
+        opt = cp.deepcopy(copa['config']['styl'][fld])
+    else:
+        opt={}
+    opt = myl.opt_default(opt,{'shim':{},'jit':{}})
+
+    # over files
+    for ii in myl.numkeys(copa['data']):
+        copa = styl_voice_file(copa,ii,fld,opt)
+
+    return copa
+
+# styl_voice() for single file
+def styl_voice_file(copa,ii,fld,opt):
+    chan_i = myl.numkeys(copa['data'][ii])
+    fp = copa['data'][ii][chan_i[0]]['fsys']['pulse']
+    fa = copa['data'][ii][chan_i[0]]['fsys']['aud']
+    f = "{}/{}.{}".format(fp['dir'],fp['stm'],fp['ext'])
+    fw = "{}/{}.{}".format(fa['dir'],fa['stm'],fa['ext'])
+    # pulses as 2-dim list, one column per channel
+    p = myl.input_wrapper(f,'lol',{'colvec':True})
+    # signal
+    sig_all, fs_sig = sif.wavread(fw)
+    opt['fs_sig'] = fs_sig
+    # over channels
+    for i in chan_i:
+        # jitter and shimmer file wide
+        fld_f = "{}_file".format(fld)
+
+        # channel-related column
+        if np.ndim(sig_all)>1:
+            sig = sig_all[:,i]
+        else:
+            sig = sig_all
+        
+        copa['data'][ii][i][fld_f] = styl_voice_feat(p[:,i],sig,opt)
+
+        # over tiers
+        for j in myl.numkeys(copa['data'][ii][i][fld]):
+            nk = myl.numkeys(copa['data'][ii][i][fld][j])
+            # over segments
+            for k in nk:
+                # resp. segments in pulse sequence and signal
+                lb = copa['data'][ii][i][fld][j][k]['t'][0]
+                ub = copa['data'][ii][i][fld][j][k]['t'][1]
+                pul_i = myl.intersect(myl.find(p[:,i],'>=',lb),
+                                      myl.find(p[:,i],'<=',ub))
+                voi = styl_voice_feat(p[pul_i,i],sig,opt)
+                for x in voi:
+                    copa['data'][ii][i][fld][j][k][x] = voi[x]
+
+    return copa
+
+
+# IN:
+#   pul: pulse time stamps
+#   sig: amplitude values
+#   opt:
+#     'fs_sig' required
+#     'shim': <not yet used> {}
+#     'jit':
+#        't_max' max distance in sec of subsequent pulses to be part of
+#                same voiced segment <0.02> (=50 Hz; praat: Period ceiling)
+#        't_min' min distance in sec <0.0001> (Period floor)
+#        'fac_max' factor of max adjacent period difference <1.3>
+#                (Maximum period factor)
+# OUT:
+#   dict
+#       'jit': see styl_voice_jit()
+#       'shim': see styl_voice_shim()
+def styl_voice_feat(pul,sig,opt):
+
+    # remove -1 padding from input file
+    pul = pul[myl.find(pul,'>',0)]
+    opt = myl.opt_default(opt,{'shim':{},'jit':{}})
+    opt['shim'] = myl.opt_default(opt['shim'],{'fs_sig': opt['fs_sig']})
+    opt['jit'] = myl.opt_default(opt['jit'],{'fs_sig': opt['fs_sig'],
+                                             't_max': 0.02, 't_min': 0.0001,
+                                             'fac_max': 1.3})
+    jit = styl_voice_jit(pul,opt['jit'])
+    shim = styl_voice_shim(pul,sig,opt['shim'])
+    return {'jit': jit, 'shim': shim}
+
+# shimmer: average of abs diff between amplitudes of subsequent pulses
+#          divided by mean amplitude
+# IN:
+#   pul: vector of pulse sequence
+#   sig: signal vector
+#   opt: option dict ('fs_sig': sample rate)
+# OUT:
+#   shim dict
+#     v: shimmer
+#     c: 3rd order polycoefs describing changes of shimmer over normalized time 
+def styl_voice_shim(pul,sig,opt):
+    # get amplitude values at pulse time stamps
+    a = myl.ea()
+    # time stamps
+    t = myl.ea()
+    for i in myl.idx(pul):
+        j = myl.sec2idx(pul[i],opt['fs_sig'])
+        #print(j,'->',len(sig)) #!v
+        if j >= len(sig):
+            break
+        a = np.append(a,np.abs(sig[j]))
+        t = np.append(t,pul[i])
+    d = np.abs(np.diff(a))
+    ma = np.mean(a)
+    # shimmer
+    s = np.mean(d)/ma
+    
+    #print(t)
+
+    ## 3rd order polynomial fit through normalized amplitude diffs
+    # time points between compared periods
+    # normalized to [-1 1] by range of [pul[0] pul[-1]]
+    if ma>0:
+        d = d/ma
+    x = myl.nrm_vec(t[1:len(t)], {'mtd': 'minmax', 'rng': [-1,1]})
+    c = styl_polyfit(x,d,3)
+
+    #print(s,c) #!v
+    #myl.stopgo() #!v
+
+    return {'v': s, 'c': c}
+
+# IN:
+#   pul: vector of pulse sequence
+#   opt: options
+# OUT:
+#   jit dict
+#     v: jitter (relative)
+#     v_abs: jitter (absolute)
+#     m: mean period length (in sec)
+#     c: 3rd order polycoefs describing changes of jitter over normalized time 
+def styl_voice_jit(pul,opt):
+    # all periods
+    ta = np.diff(pul)
+    # abs diffs of adjacent periods
+    d = myl.ea()
+    # indices of these periods
+    ui = myl.ea().astype(int)
+    i = 0
+    while i < len(ta)-1:
+        ec = skip_period(ta,i,opt)
+        # skip first segment
+        if ec > 0:
+            i += ec
+            continue
+        d = np.append(d,np.abs(ta[i]-ta[i+1]))
+        ui = np.append(ui,i)
+        #print(len(d),len(ui)) #!v
+        #myl.stopgo()
+        i+=1
+
+    # not enough values
+    if len(ui)==0:
+        v = np.nan
+        return {'v': v, 'v_abs': v, 'm': v,
+                'c': np.array([v,v,v,v])}
+
+    # all used periods
+    periods = ta[ui]
+    # mean period
+    mp = np.mean(periods)
+    # jitter absolute
+    jit_abs = np.sum(d)/len(d)
+    # jitter relative
+    jit = jit_abs/mp
+
+    ## 3rd order polynomial fit through all normalized period diffs
+    # time points between compared periods
+    # normalized to [-1 1] by range of [pul[0] pul[-1]]
+    if mp>0:
+        d = d/mp
+    x = myl.nrm_vec(pul[ui+1], {'mtd': 'minmax', 'rng': [-1,1]})
+    c = styl_polyfit(x,d,3)
+
+    return {'v': jit, 'v_abs': jit_abs, 'm': mp, 'c': c}
+
+
+
+# returns error code which is increment in jitter calculation
+# 0: minden rendben
+def skip_period(d,i,opt):
+    # 1st period problem
+    if d[i] < opt['t_min'] or d[i] > opt['t_max']:
+        return 1
+    # 2nd period problem
+    if d[i+1] < opt['t_min'] or d[i+1] > opt['t_max']:
+        return 2
+    # transition problem
+    if max(d[i],d[i+1]) > opt['fac_max']*min(d[i],d[i+1]):
+        return 1
+    return 0
 
 ##########################################################
 #### global segments #####################################
@@ -795,9 +1010,11 @@ def styl_loc_file(copa,ii,opt,rms_sum,N):
 #   y f0Seq
 #   opt
 # OUT:
-#   f['c']  polycoefs
+#   f['c']  polycoefs (descending)
 #    ['tn'] normalized time
 #    ['y']  stylized f0
+#    ['rms'] root mean squared error between original and resynthesized contour
+#           for each polynomial order till opt['ord']; descending as for ['c']
 def styl_loc_fit(t,y,opt):
     tt = np.linspace(t[0],t[1],len(y))
     # time normalization with zero placement
@@ -806,6 +1023,14 @@ def styl_loc_fit(t,y,opt):
     f['c'] = styl_polyfit(tn,y,opt['ord'])
     f['y'] = np.polyval(f['c'],tn)
 
+    # errors from 0..opt['ord'] stylization
+    # (same order as in f['c'], i.e. descending)
+    f['rms'] = [myl.rmsd(f['y'],y)]
+    for o in np.linspace(opt['ord']-1,0,opt['ord']):
+        c = styl_polyfit(tn,y,o)
+        r = np.polyval(c,tn)
+        f['rms'].append(myl.rmsd(r,y))
+        
     return f
 
 ### extended local segment feature set
@@ -958,7 +1183,6 @@ def styl_gestalt(obj):
 
 # try-catch wrapper around polyfit
 # returns zeros if something goes wrong
-# 
 def styl_polyfit(x,y,o):
     try:
         c = np.polyfit(x,y,o)

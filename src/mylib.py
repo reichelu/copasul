@@ -10,6 +10,7 @@ import pandas as pd
 import statistics as stat
 import scipy.stats as st
 import scipy.cluster.vq as sc
+import sklearn.preprocessing as sp
 import json
 import pickle
 import re
@@ -20,6 +21,7 @@ import xml.sax.saxutils as xs
 import subprocess
 import copy as cp
 import csv
+import matplotlib.pyplot as plt
 
 ###########################################################
 ### collection of general purpose functions ###############
@@ -30,9 +32,12 @@ import csv
 # i_tg()       -> tg dict
 # i_par()      -> interchange dict
 # i_copa_xml() -> interchange dict
-# i_lol()      -> 2dim nparray
+# i_lol()      -> 1- or 2dim list of strings
 # i_seg_lab()  -> d.t [[on off]...]
 #                  .lab [label ...]
+# i_numpy: calls np.loadtxt() returns np.array list of floats
+#          (1 col -> 1-dim array; else 1 sublist per row)
+#       'pandas_csv': csv file into dict colName -> colContent (using pandas)
 ### output_wrapper()
 # o_tg()
 # o_par()
@@ -51,6 +56,8 @@ import csv
 ### format transformations
 # tg_tab2tier():
 #   numpy array to TextGrid tier
+# tg_tier2tab():
+#   TextGrid tier to numpy and label array
 # tg2inter()
 #   TextGrid -> interchange format
 # inter2tg()
@@ -70,7 +77,16 @@ import csv
 # opt = {'repl':False}
 # for x in tg_tn(myAdd):
 #    myTg = tg_add(myTg,tg_tier(myAdd,x),opt)
-
+#### processing pandas_csv dict, e.g. in copasul context
+# split_by_grp() - if data to be split e.g. by analysis tier
+#                  -> dd[myGrpLevel] = subDict
+# profile_wrapper() - transforming it into profile incl plotting
+#  calls the following functions that can also be applied in isolation
+#    pw_preproc(): wrapper around the following functions
+#    pw_str2float(): panda is biased towards strings -> corrections, incl. NaNs
+#    pw_nan2mean(): replacing NaNs by column means/medians
+#    pw_abs(): abs-transform of selected columns
+#    pw_centerScale(): column-wise center/scaling
 
 
 ### basic matrix op functions
@@ -140,16 +156,17 @@ def lists(typ='register',ret='list'):
     ll = {'register': ['bl','ml','tl','rng'],
           'bndtyp': ['std','win','trend'],
           'bndfeat': ['r', 'rms','rms_pre','rms_post'],
-          'bgd': ['bnd','gnl_f0','gnl_en','rhy_f0','rhy_en'],
+          'bgd': ['bnd','gnl_f0','gnl_en','rhy_f0','rhy_en','voice'],
           'featsets': ['glob','loc','bnd','gnl_f0','gnl_en',
-                       'rhy_f0','rhy_en'],
-          'afa': ['aud','f0','annot'],
+                       'rhy_f0','rhy_en','voice'],
+          'afa': ['aud','f0','annot','pulse'],
           'fac': ['glob','loc','bnd','gnl_f0','gnl_en',
-                  'rhy_f0','rhy_en','augment','chunk'],
+                  'rhy_f0','rhy_en','augment','chunk','voice'],
           'facafa': ['glob','loc','bnd','gnl_f0','gnl_en',
                      'rhy_f0','rhy_en','augment','chunk',
-                     'aud','f0','annot'],
-          'factors': ['class','ci','fi','si','gi','stm','tier','spk']}
+                     'aud','f0','annot','pulse'],
+          'factors': ['class','ci','fi','si','gi','stm','tier','spk',
+                      'is_init','is_fin']}
     if typ in ll:
         if ret=='list':
             return ll[typ]
@@ -158,8 +175,292 @@ def lists(typ='register',ret='list'):
     if ret=='list':
         return []
     return set()
-        
+
+# splits dict d by levels of column gv
+# IN:
+#   dd: dict derived from input_wrapper(...,'pandas_csv')
+#   gc: grouping column name
+# OUT:
+#   ds: dict
+#      myGrpLevel -> dSubset with gv = myGrpLevel (same keys as d)
+#   if gv is not in d, then myGrpLevel = 'x'
+def split_by_grp(dd,gc):
+    d = cp.deepcopy(dd)
+    ds = {}
+    if gc not in d:
+        ds['x'] = d
+        return ds
+    # colnames
+    cn = d.keys()
+    # make lists to arrays for indexing
+    for n in cn:
+        d[n]=np.array(d[n])
+    # grouping column
+    g = d[gc]
+    # over grouping levels
+    for lev in np.unique(g):
+        ds[lev]={}
+        # assign subset
+        for n in cn:
+            ds[lev][n] = d[n][(g == lev)]
+    return ds
+
+
+# wrapper around profile plotting of opt.mean values for selected features
+# IN:
+#   d: dict derived from input_wrapper(...,'pandas_csv')
+#   opt:
+#      'navigate': processing steps
+#            str2float: ensure that all values in d are floats and not strings
+#                       (relevant to correctly interprete np.nan) <True>
+#            nan2mean: replace NaN by column opt.mean <True>
+#            nrm: column-wise centering+scaling <True>
+#            dict2df: create pandas data frame (internally set to True)
+#            plot: output plot files <False> (requires subdict 'plot')
+#      'feat': [list of feature column names
+#               (in wanted output order from top to bottom)] !
+#      'absfeat': [list of features for which absolute values to be taken] <[]>
+#      'abs_add': add (=True) or replace (=False) absfeat column names <False>
+#      'grp': [list of grouping variable column names] !
+#      'stat': <'median'>|'mean'
+#      'plot': dict
+#           'stm': dir/stem ! of output file
+#           'figsize': <()> tuple width x height
+#           'bw': <False>|True
+#           'fs_ytick': <20> fontsize ytick
+#           'fs_legend': <30> fontsize legend
+#           'title': <''> figure title
+#           'lw': <5> line width
+#           'concat_grp': <True> concatenate grouping variable name to plot['title']
+#     (! obligatory)
+# OUT:
+#   p: profile dict
+#      lab -> [featureNames]
+#      grp[myGrpVar][myGrpLevel] -> [values] same length and order as lab
+# REMARKS:
+#   it is not controlled whether or not input D is already split by analysis
+#   tiers. If such a splitting is needed (e.g. for gnl or bnd feature sets)
+#   use ds = split_by_grp(d,'tier') first and
+#   apply profile_wrapper() separately for each ds[myTierName]
+def profile_wrapper(dd,opt):
     
+    ### opt init
+    opt = opt_default(opt,{'stat':'median', 'navigate':{},
+                           'absfeat':[], 'plot':{}})
+    opt['navigate'] = opt_default(opt['navigate'],
+                                  {'str2float': True,
+                                   'nan2mean': True,
+                                   'abs_add': False,
+                                   'nrm': True,
+                                   'plot': False})
+    opt['plot'] = opt_default(opt['plot'], {'bw': False, 'fs_ytick': 20,
+                                            'fs_legend': 30, 'title': '',
+                                            'lw': 5, 'figsize':(),
+                                            'concat_grp': False})
+    opt['navigate']['dict2df']=True
+    if 'stm' not in opt['plot']:
+        opt['navigate']['plot'] = False
+        
+    ### preprocessing
+    # opt['feat'] might be updated by *_abs columns
+    # d is now pd.dataframe
+    d, opt = pw_preproc(dd,opt)
+    
+    ### profile
+    p = pw_prof(d,opt)
+
+    ### plotting
+    if opt['navigate']['plot']:
+        pw_plot(p,opt['plot'])
+
+    return p
+
+# called by profile_wrapper() for plotting
+# IN:
+#   p: profile dict
+#      lab -> [featureNames]
+#      grp[myGrpVar][myGrpLevel] -> [values] same length and order as lab
+#   opt: opt['plot'] dict from profile_wrapper()
+
+def pw_plot(p,opt):
+    
+    ### plotting
+    if opt['bw']:
+        cols = ['k-', 'k--', 'k-.', 'k:']
+    else:
+        cols = ['-g','-r','-b','-k']
+
+    # y-axis ticks
+    yi = np.asarray(range(1,len(p['lab'])+1))
+        
+    # over grouping variables
+    for g in p['grp']:
+        
+        colI = 0
+        y = p['grp'][g]
+        
+        fo = "{}_{}.pdf".format(opt['stm'],g)
+        fig = newfig(opt['figsize'])
+        # over levels
+        for lev in sorted(y.keys()):
+            plt.plot(y[lev],yi,"{}".format(cols[colI]),label=lev,linewidth=5)
+            colI+=1
+
+        plt.yticks(yi,p['lab'],fontsize = opt['fs_ytick'])
+        if opt['concat_grp']:
+            plt.title("{}: {}".format(opt['title'],g))
+        else:
+            plt.title(opt['title'])
+        plt.legend(fontsize = opt['fs_legend'])
+        plt.show()
+        fig.savefig(fo)
+        #stopgo()
+    return
+
+
+# called by profile_wrapper()
+# IN, OUT, cf there
+def pw_prof(d,opt):
+    p = {'lab': opt['feat'], 'grp': {}}
+    # over grouping columns
+    for g in opt['grp']:
+        # m[myFeat][myGrpLevel] = meanValue
+        if opt['stat'] == 'median':
+            m = d.groupby([g]).median()
+        else:
+            m = d.groupby([g]).mean()
+        p['grp'][g] = {}
+        xf = opt['feat'][0]
+        # over grpLevels
+        for lev in m[xf].keys():
+            p['grp'][g][lev] = []
+            # over features
+            for f in opt['feat']:
+                p['grp'][g][lev].append(m[f][lev])
+
+    return p
+
+
+# wrapper around preprocessing for profile generation.
+# called by profile_wrapper() or standalone
+# IN:
+#   d: dict by input_wrapper(...,'pandas_csv')
+#   opt:
+#      'navigate': processing steps
+#            str2float: ensure that all values in d are floats and not strings
+#                       (relevant to correctly interprete np.nan) <True>
+#            nan2mean: replace NaN by column opt.mean <True>
+#            nrm: column-wise centering+scaling <True>
+#            dict2df: create pandas data frame (always <True> if called by
+#                     profile_wrapper(); if not set: <False>
+#      'feat': [list of feature column names
+#               (in wanted output order from top to bottom)] !
+#      'absfeat': [list of features for which absolute values to be taken] <[]>
+#      'abs_add': <False> add (=True) or replace (=False) absfeat column names in d
+#      'stat': <'median'>|'mean'
+# OUT:
+#   d preprocessed
+#   opt: evtl. with updated 'feat' list (in case of abs_add
+def pw_preproc(d,opt):
+
+    ### opt init
+    opt = opt_default(opt,{'stat':'median', 'navigate':{},
+                           'absfeat':[]})
+    opt['navigate'] = opt_default(opt['navigate'],
+                                  {'str2float': True,
+                                   'nan2mean': True,
+                                   'abs_add': False,
+                                   'nrm': True,
+                                   'dict2df': False})
+    
+    d = cp.deepcopy(d)
+    if opt['navigate']['str2float']:
+        d = pw_str2float(d,opt['feat'])
+    if opt['navigate']['nan2mean']:
+        d = pw_nan2mean(d,opt['feat'],opt['stat'])
+    if len(opt['absfeat'])>0:
+        d, cn = pw_abs(d,opt['absfeat'],opt['navigate']['abs_add'])
+        if opt['navigate']['abs_add']:
+            # element-wise to keep pre-specified order
+            for x in cn:
+                if x in opt['feat']:
+                    continue
+                opt['feat'].append(x)
+    if opt['navigate']['nrm']:
+        d = pw_centerScale(d,opt['feat'])
+    if opt['navigate']['dict2df']:
+        d = pd.DataFrame(d)
+    
+    return d, opt
+
+        
+# column-wise string to float
+# IN:
+#   d: dict from input_wrapper(...,'pandas_csv')
+#   cn: list of names of columns to be processed
+# OUT:
+#   d: with processed columns
+def pw_str2float(d,cn):
+    for x in cn:
+        v = ea()
+        for i in range(len(d[x])):
+            v = np.append(v,float(d[x][i]))
+        d[x] = v
+    return d
+
+# replaces np.nan by column medians
+# IN:
+#   d: dict from input_wrapper(...,'pandas_csv')
+#   cn: list of names of columns to be processed
+#   mv: type of mean value '<median>'|'mean'
+# OUT:
+#   d: with processed columns
+def pw_nan2mean(d,cn,mv='median'):
+    for x in cn:
+        ina = find(d[x],'is','nan')
+        if len(ina)==0:
+            continue
+        ifi = find(d[x],'is','finite')
+        if mv=='median':
+            m = np.median(d[x][ifi])
+        else:
+            m = np.mean(d[x][ifi])
+        d[x][ina]=m
+    return d                    
+
+# replace column content by abs values or add column with name *_abs
+# IN:
+#   d: dict from input_wrapper(...,'pandas_csv')
+#   cn: list of names of columns to be processed
+#   do_add: <False>; if True add abs val columns, if False, replace
+#       column content
+# OUT:
+#   d: with processed columns
+#   cna: list with updated column names (only different for do_add=True)
+def pw_abs(d,cn,do_add=False):
+    cna = cp.deepcopy(cn)
+    for c in cn:
+        if do_add:
+            ca = "{}_abs".format(c)
+            cna.append(ca)
+            d[ca] = np.abs(d[c])
+        else:
+            d[c] = np.abs(d[c])
+    return d, cna
+
+# center/scale feature values
+# IN:
+#  dict from input_wrapper(...,'pandas_csv')
+#  cn - relevant column names
+# OUT:
+#  d - with relevant columns centered+scaled
+def pw_centerScale(d,cn):
+    for x in cn:
+        d[x] = d[x].reshape(-1, 1)
+        cs = sp.RobustScaler().fit(d[x])
+        d[x] = cs.transform(d[x])
+        d[x] = d[x][:,0]
+    return d
 
 
 # simulation of matlab find for 1-dim data
@@ -676,6 +977,7 @@ def nan2mean(x):
 #    lol_txt: any 2-dim array
 #    l_txt: 1-dim array splitting input text at blanks
 #    seg_lab: on off label
+#    i_numpy: output of np.loadtxt (1- or 2-dim array)
 #    csv: returns dict with keys defined by column titles 
 #    csv: NA, NaN, Inf ... are kept as strings. In some
 #        context need to be replaced by np.nan... (e.g. machine learning)
@@ -685,10 +987,16 @@ def input_wrapper(f,typ,opt={}):
     if 'sep' in opt:
         sep = opt['sep']
     else:
-        sep = ','
+        if typ=='i_numpy':
+            sep = None
+        else:
+            sep = ','
     # 1-dim list of rows
     if typ=='list':
         return i_list(f)
+    # 1-dim nparray of floats
+    if typ=='i_numpy':
+        return np.loadtxt(f,delimiter=sep)
     # TextGrid
     if typ=='TextGrid':
         return i_tg(f)
@@ -735,7 +1043,7 @@ def input_wrapper(f,typ,opt={}):
     else:
         m = 'r'
     if (typ == 'lol' or typ == 'tab'):
-        return lol(f)
+        return lol(f,opt)
     # 1 dim list of blanksep items
     if typ == 'l_txt':
         return i_lol(f,sep='',frm='1d')
@@ -972,8 +1280,14 @@ def cellwise(f,x):
 
 # outputs also one-line inputs as 2 dim array
 # IN: fileName or list
+#     opt:
+#       'colvec' <FALSE> +/- enforce to return column vector
+#             (for input files with 1 row or 1 column
+#              FALSE returns [[...]], and TRUE returns [[.][.]...])
 # OUT: numpy 2-dim array
-def lol(f):
+# BEWARE
+def lol(f,opt={}):
+    opt = opt_default(opt,{'colvec':False})
     try:
         x = np.loadtxt(f)
     except:
@@ -982,6 +1296,10 @@ def lol(f):
     if x.ndim==1:
         x=x.reshape((-1,x.size))
     x=np.asarray(x)
+
+    if opt['colvec'] and len(x)==1:
+        x = np.transpose(x)
+
     return x
 
 # returns robust median from 1- or 2-dim array
@@ -1171,6 +1489,34 @@ def cp_dict(a,b):
 #   int for number of dims
 def ndim(x):
     return len(x.shape)
+
+# transforms TextGrid tier to 2 arrays
+# point -> 1 dim + lab
+# interval -> 2 dim (one row per segment) + lab
+# IN:
+#   t: tg tier (by tg_tier())
+# OUT:
+#   x: 1- or 2-dim array of time stamps
+#   lab: corresponding labels
+# REMARK:
+#   empty intervals are skipped
+def tg_tier2tab(t):
+    x = ea()
+    lab = []
+    if 'intervals' in t:
+        for i in numkeys(t['intervals']):
+            z = t['intervals'][i]
+            if len(z['text'])==0:
+                continue
+            x = push(x,[z['xmin'],z['xmax']])
+            lab.append(z['text'])
+    else:
+        for i in numkeys(t['points']):
+            z = t['points'][i]
+            x = push(x,z['time'])
+            lab.append(z['mark'])
+    return x, lab
+
 
 # transforms table to TextGrid tier
 # IN:
@@ -1959,18 +2305,18 @@ def retFalse(typ='bool'):
     return False
         
 
-# returns file content as 1-dim list (one element per row)
+# returns file content as 1-dim list of strings (one element per row)
 # IN:
 #   filename
 # OUT:
-#   list of columns
+#   list
 def i_list(f):
     with open(f, encoding='utf-8') as h:
         l = [x.strip() for x in h]
         h.close()
     return l
 
-# reads any text file as 1-dim or 2-dim list
+# reads any text file as 1-dim or 2-dim list (of strings)
 # Remark: no np.asarray, thus element indexing is x[i][j],
 #         i.e. [i,j] does not work 
 # IN:
@@ -3247,3 +3593,28 @@ def make_f0(opt):
                                                         par['param']['max'],
                                                         pth['aud'],pth['f0']))
     return True
+
+### figure init #################################
+
+# init new figure with onclick->next, keypress->exit
+# figsize can be customized
+# IN:
+#   fs tuple <()>
+# OUT:
+#   figure object
+# OUT:
+#   figureHandle
+def newfig(fs=()):
+    if len(fs)==0:
+        fig = plt.figure()
+    else:
+        fig = plt.figure(figsize=fs)
+    cid1 = fig.canvas.mpl_connect('button_press_event', fig_next)
+    cid2 = fig.canvas.mpl_connect('key_press_event', fig_key)
+    return fig
+
+def fig_next(event):
+    plt.close()
+
+def fig_key(event):
+    sys.exit()

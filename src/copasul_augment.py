@@ -78,7 +78,6 @@ def aug_main(copa,f_log_in):
         aug_batch('glob',ff_wav,ff_annot,ff_f0,opt,add_mat)
 
     # accents batch clustering
-    # TODO: dependencies: if glob-unit==batch, also loc-unit needs to be batch
     if opt['navigate']['do_augment_loc'] and opt['augment']['loc']['unit']=='batch':
         aug_batch('loc',ff_wav,ff_annot,ff_f0,opt,add_mat)
         
@@ -732,6 +731,11 @@ def aug_syl(y,annot,opt,fs,i,fstm,f,lng,spec):
         s,b = sif.syl_ncl(cs,opt_syl)
         syl = np.append(syl,s['t'])
         bnd = np.append(bnd,b['t'])
+        # add parent-tier final time stamp
+        ptf = myl.idx2sec(pt[j,1],fs)
+        if len(bnd)==0 or bnd[-1] < ptf:
+            bnd = np.append(bnd,ptf)
+
 
     return syl, bnd
 
@@ -861,11 +865,29 @@ def aug_glob_seg(c,tc,t,to,pt,pto,fto,opt):
     d = myl.ea()
     ons = to[0,0]
     for j in range(len(c)):
-        # classified as boundary or parent tier bnd (use trunc values for ==)
-        if (c[j]==1 or len(myl.find(pt[:,1],'==',t[j,1]))>0):
-            d = myl.push(d,[ons, myl.trunc2(to[j,1])])
+        # classified as boundary 
+        if c[j]==1:
+            d = myl.push(d,[ons, to[j,1]])
             if j+1 < len(t)-1:
                 ons = to[j+1,0]
+        # parent tier bnd (use nk2 for comparison)
+        else:
+            pti = myl.find(pt[:,1],'==',t[j,1])
+            if len(pti)>0:
+                d = myl.push(d,[ons, to[j,1]])
+                if pti+1 < len(pt)-1:
+                    ons = pto[pti[0]+1,0]
+                elif j+1 < len(t)-1:
+                    ons = to[j+1,0]
+
+
+        #if (c[j]==1 or len(myl.find(pt[:,1],'==',t[j,1]))>0):
+        #d = myl.push(d,[ons, myl.trunc2(to[j,1])])
+        #    d = myl.push(d,[ons, to[j,1]])
+        #    print('-> YES',d)
+        #    if j+1 < len(t)-1:
+        #        ons = to[j+1,0]
+                
 
     # + adding pto boundaries
     if len(d)==0:
@@ -982,12 +1004,17 @@ def aug_glob_fv(ty,y,annot,opt,i,fstm,f,lng,spec):
     # f0 medians [[bl ml tl]...], same length as y
     med = cost.styl_reg_med(y,opt['styl']['glob'])
 
+    # feature matrix for seed_minmax method
+    fmat = myl.ea()
+
     # over segments in candidate tier
     # last segment is skipped for all feature subsets
     # std: fv added for j-1
     # trend: j just increased till jj[-1]
     jj = myl.numkeys(r)
     for j in jj:
+        # featvec to be added to fmat (if seed_minmax)
+        fvec=myl.ea()
         if j == jj[-1]:
             break
         for x in wglob:
@@ -1015,8 +1042,10 @@ def aug_glob_fv(ty,y,annot,opt,i,fstm,f,lng,spec):
             #   features can be extracted, e.g.: syllable nucleus
             v,w = aug_glob_fv_sub(x,d,opt)
             fx[x] = myl.push(fx[x],v)
+            fvec = np.append(fvec,v)
             if len(wx[x])==0:
                 wx[x] = w
+        fmat = myl.push(fmat,fvec)
         tc = myl.push(tc, r[j]['to'][1])
 
     #!pho
@@ -1031,8 +1060,11 @@ def aug_glob_fv(ty,y,annot,opt,i,fstm,f,lng,spec):
             wx['pho']=[wgt_pho]
     #!pho
     
+    # get is1 and is0 seeds from seed_minmax
+    if gopt['cntr_mtd'] == 'seed_minmax':
+        is0, is1 = aug_seed_minmax(fmat,gopt)
     # get is0 seeds from min_l next to is1 boundaries
-    if len(is1)>0 and re.search('^seed',gopt['cntr_mtd']):
+    elif len(is1)>0 and re.search('^seed',gopt['cntr_mtd']):
         is0 = aug_is0(tc,is0,is1,gopt['min_l'])
 
 
@@ -1046,6 +1078,35 @@ def aug_glob_fv(ty,y,annot,opt,i,fstm,f,lng,spec):
         fv, wgt = aug_fv_measure(fv,wgt,gopt['measure'])
 
     return fv, wgt, tc, is0, is1, t, to, pt, pto, fto
+
+# calculates for each featvec it's MAE to 0
+# The items with the highest values are put to set 1 
+# IN:
+#   x: feature matrix, one row per item
+#   o: minmax_prct <[5, 95]>
+#   is0: <{}>
+#   is1: <{}>
+# OUT:
+#   is0: set of indices of class 0 items 
+#   is1: set of indices of class 1 items
+
+def aug_seed_minmax(x,o,is0=set(),is1=set()):
+    if 'minmax_prct' not in o:
+        mmp=[10,90]
+    else:
+        mmp=o['minmax_prct']
+    
+    cs = sp.RobustScaler()
+    x = cs.fit_transform(abs(x))
+    # row-wise mean
+    #y = np.mean(x,1)
+    y = np.sum(x,1)
+    p = np.percentile(y,mmp)
+    is0 = set(np.where(y<=p[0])[0])
+    is1 = set(np.where(y>=p[1])[0])
+    #print(y,p,is0,is1)
+    #myl.stopgo()
+    return is0, is1
 
 
 
@@ -1250,7 +1311,6 @@ def aug_loc_fv(ty,y,bv,annot,opt,i,fstm,f,lng,add_mat,spec):
         elif x == 'gnl_en':
             copa = cost.styl_gnl(copa,'en')
         v,w,tc,tco = aug_loc_feat(x,copa,ii,i)
-        
         fx[x] = v
         wx[x] = w
 
@@ -1274,7 +1334,9 @@ def aug_loc_fv(ty,y,bv,annot,opt,i,fstm,f,lng,add_mat,spec):
     # if entroid method is seed_{split|kmeans} and there is an AG
     # tier below the file level which is assumed to contain word segments
     # (heuristics ORT)
-    if (re.search('seed',lopt['cntr_mtd']) and
+    if lopt['cntr_mtd'] == 'seed_minmax':
+        is0, is1 = aug_seed_minmax(fv,lopt)
+    elif (re.search('seed',lopt['cntr_mtd']) and
         len(atn)>0 and atn != 'FILE' and ('heuristics' in lopt) and
         lopt['heuristics']=='ORT'):
         is0, is1 = aug_loc_seeds(tco,ato,fv,wgt,lopt['min_l_a'],lopt['max_l_na'])

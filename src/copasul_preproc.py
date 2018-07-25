@@ -48,7 +48,7 @@ def pp_main(copa,f_log_in=''):
     f_log = f_log_in
     # detach config
     opt = cp.deepcopy(copa['config'])
-    # ff['f0'|'aud'|'annot'] list of full/path/files
+    # ff['f0'|'aud'|'annot'|'pulse'] list of full/path/files
     ff = pp_file_collector(opt)
 
     # over files
@@ -62,7 +62,6 @@ def pp_main(copa,f_log_in=''):
         annot_dat = myl.input_wrapper(ff['annot'][ii],opt['fsys']['annot']['typ'])
         # over channels
         for i in range(opt['fsys']['nc']):
-            #print(ff['annot'][ii],i)
             copa['data'][ii][i]={}
             copa = pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log)
 
@@ -404,6 +403,19 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
         good_j = np.append(good_j,j)
         copa['data'][ii][i]['loc'][jj] = {}
         copa['data'][ii][i]['loc'][jj]['ri'] = ri[j]
+        #### position of local segment in global one:
+        # 'is_fin', 'is_init', both 'yes' or 'no'
+        if ((j-1 not in ri) or ri[j-1] != ri[j]):
+            is_init='yes'
+        else:
+            is_init='no'
+        if ((j+1 not in ri) or ri[j+1] != ri[j]):
+            is_fin='yes'
+        else:
+            is_fin='no'
+        copa['data'][ii][i]['loc'][jj]['is_init'] = is_init
+        copa['data'][ii][i]['loc'][jj]['is_fin'] = is_fin
+        #### labels
         if len(lab_ag)>0:
             copa['data'][ii][i]['loc'][jj]['lab_ag'] = lab_ag[j]
         else:
@@ -437,6 +449,8 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
         doSync = opt['preproc']['loc_sync']
 
     for ft in myl.lists('bgd'):
+        if ft not in opt['fsys']:
+            continue
         r = {} # becomes copa['data'][ii][i][ft]
         # tier idx
         k=0
@@ -881,25 +895,34 @@ def pp_tiernames(fsys,fld,typ,ci,tn_opt={}):
 # IN:
 #   option dict
 # OUT:
-#   ff['f0'|'aud'|'annot'] list of full/path/files
-#
+#   ff['f0'|'aud'|'annot'|'pulse'] list of full/path/files
+#                          only defined for those keys,
+#                          where files are available
 # checks for list lengths
 def pp_file_collector(opt):
     ff={}
     for x in myl.lists('afa'):
-        ff[x] = myl.file_collector(opt['fsys'][x]['dir'],
-                                   opt['fsys'][x]['ext'])
+        if x not in opt['fsys']:
+            continue
+        f = myl.file_collector(opt['fsys'][x]['dir'],
+                               opt['fsys'][x]['ext'])
+        if len(f)>0 or x=='annot':
+            ff[x]=f
+
     # length check
     # file lists must have length 0 or equal length
     # at least one list must have length > 0
     # annotation files can be generated from scratch
     #    in this case stems of f0 (or aud) files are taken over
     l = max(len(ff['f0']),len(ff['aud']),len(ff['annot']))
+    
     if l==0:
         myLog("Fatal! Neither signal nor annotation files found!",True)
     for x in myl.lists('afa'):
+        if x not in ff:
+            continue
         if ((len(ff[x])>0) and (len(ff[x]) != l)):
-            myLog("Fatal! Numbers of f0/annotation/audio files must be 0 or equal!",True)
+            myLog("Fatal! Numbers of f0/annotation/audio/pulse files must be 0 or equal!",True)
     if len(ff['annot'])==0:
         if ((not opt['fsys']['annot']) or (not opt['fsys']['annot']['dir']) or
             (not opt['fsys']['annot']['ext']) or (not opt['fsys']['annot']['typ'])):
@@ -913,7 +936,7 @@ def pp_file_collector(opt):
             f = os.path.join(opt['fsys']['annot']['dir'],
                              "{}.{}".format(myl.stm(gg[i]),opt['fsys']['annot']['ext']))
             ff['annot'].append(f)
-            
+
     return ff
 
 ### bnd data: time stamps to adjacent intervals
@@ -1170,9 +1193,12 @@ def pp_chunk_limit(c,t_chunks):
 #   tierNames only for respective channel i
 def pp_fsys(fsys,ff,ii,i):
     fs = {'i':ii}
-    # 'f0'|'aud'|'augment'|'glob'|'loc'...
+    # 'f0'|'aud'|'augment'|'pulse'|'glob'|'loc'...
     for x in myl.lists('facafa'):
-        # 'f0'|'aud'|'annot' or featSet keys
+        # skip 'pulse' etc if not available 
+        if x not in fsys:
+            continue
+        # 'f0'|'aud'|'annot'|'pulse' or featSet keys
         if x in ff:
             fs[x]={'stm':myl.stm(ff[x][ii])}
         else:
@@ -1320,6 +1346,7 @@ def pp_read(an,opt,tn='',fn='',call=''):
         d = myl.ea()
         # selected tier
         #print(an['item_name'])
+        #!e
         t = an['item'][an['item_name'][tn]]
         # 'interals'/'text' or 'points'/'mark'
         if 'intervals' in t:
