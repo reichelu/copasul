@@ -386,6 +386,7 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
     loc = pp_apply_along_axis(pp_loc,1,loc,opt)
     # link each idx in loc.t to idx in glob.t
     ri = pp_apply_along_axis(pp_link,1,loc,glb)
+    hri = len(loc)-1
     # over segments [[on off center] ...]
     for j in range(len(loc)):
         # no parenting global segment -> skip
@@ -405,14 +406,17 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
         copa['data'][ii][i]['loc'][jj]['ri'] = ri[j]
         #### position of local segment in global one:
         # 'is_fin', 'is_init', both 'yes' or 'no'
-        if ((j-1 not in ri) or ri[j-1] != ri[j]):
+
+        if j==0 or ri[j-1] != ri[j]:
             is_init='yes'
         else:
             is_init='no'
-        if ((j+1 not in ri) or ri[j+1] != ri[j]):
+
+        if j==hri or ri[j+1] != ri[j]:
             is_fin='yes'
         else:
             is_fin='no'
+        
         copa['data'][ii][i]['loc'][jj]['is_init'] = is_init
         copa['data'][ii][i]['loc'][jj]['is_fin'] = is_fin
         #### labels
