@@ -186,3 +186,7 @@
 	  - bugfix in copasul_export.export_summary(): now also
 	  working for stereo files. Summary statistics are now given
 	  per file and analysis tier (before: per file and channel)
+20180731: 0.8.4
+	  - bugfix in copasul_preproc.pp_channel() for calculating is_fin
+	  column of loc featset
+	  
