@@ -189,4 +189,10 @@
 20180731: 0.8.4
 	  - bugfix in copasul_preproc.pp_channel() for calculating is_fin
 	  column of loc featset
-	  
+20180802: 0.8.5
+	  - styl.register default changed from 'bl' to 'ml'
+	  - boundary features now can also be extracted on f0 residual
+	  (i.e. after removing global register)
+	  ! usually not interpretable across global segment boundaries
+	  due to different global register subtraction
+
