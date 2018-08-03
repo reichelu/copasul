@@ -960,6 +960,7 @@ def styl_loc_file(copa,ii,opt,rms_sum,N):
     for i in myl.numkeys(copa['data'][ii]):
         t = copa['data'][ii][i]['f0']['t']
         # add residual vector if not provided by styl_glob()
+        # (for register = 'none')
         if 'r' not in copa['data'][ii][i]['f0']:
             copa['data'][ii][i]['f0']['r'] = cp.deepcopy(copa['data'][ii][i]['f0']['y'])
         y = copa['data'][ii][i]['f0']['r']
@@ -1241,7 +1242,12 @@ def styl_bnd_file(copa,ii,navi,opt):
     # over channels
     for i in myl.numkeys(copa['data'][ii]):
         t = copa['data'][ii][i]['f0']['t']
-        y = copa['data'][ii][i]['f0']['y']
+
+        # which f0 contour to take (+/- residual)
+        if opt['residual']:
+            y = copa['data'][ii][i]['f0']['r']
+        else:
+            y = copa['data'][ii][i]['f0']['y']
 
         # [[bl ml tl]...] medians over complete F0 contour (same length as y) 
         med = styl_reg_med(y,opt)

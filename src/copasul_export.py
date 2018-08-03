@@ -457,7 +457,8 @@ def export_glob(c,fo,opt):
           'ml_c1','ml_c0','ml_r','ml_rate','ml_m',
           'tl_c1','tl_c0','tl_r','tl_rate','tl_m',
           'rng_c1','rng_c0','rng_r','rng_rate','rng_m',
-          'lab','m','sd','med','iqr','max','min','dur']
+          'lab','m','sd','med','iqr','max','min','dur',
+          'is_init_chunk','is_fin_chunk']
     if 'class' in c[0][0]['glob'][0]:
         cn.append('class')
 
@@ -477,6 +478,8 @@ def export_glob(c,fo,opt):
                     d['t_off'].append(c[ii][i]['glob'][j]['to'][0])
                 d['bv'].append(c[ii][i]['f0']['bv'])
                 d['lab'].append(c[ii][i]['glob'][j]['lab'])
+                d['is_init_chunk'].append(c[ii][i]['glob'][j]['is_init_chunk'])
+                d['is_fin_chunk'].append(c[ii][i]['glob'][j]['is_fin_chunk'])
                 for x in c[ii][i]['glob'][j]['gnl']:
                     d[x].append(c[ii][i]['glob'][j]['gnl'][x])
                 dd = c[ii][i]['glob'][j]['decl']
@@ -506,7 +509,7 @@ def export_loc(c,fo,opt):
     # base set
     cn = ['fi','ci','si','gi','stm','t_on','t_off','lab_ag',
           'lab_acc','m','sd','med','iqr','max','min','dur',
-          'is_init','is_fin']
+          'is_init','is_fin','is_init_chunk','is_fin_chunk']
     # normalized values
     for x in cn:
         y = "{}_nrm".format(x)
@@ -553,6 +556,8 @@ def export_loc(c,fo,opt):
                 d['gi'].append(c[ii][i]['loc'][j]['ri'])
                 d['is_init'].append(c[ii][i]['loc'][j]['is_init'])
                 d['is_fin'].append(c[ii][i]['loc'][j]['is_fin'])
+                d['is_init_chunk'].append(c[ii][i]['loc'][j]['is_init_chunk'])
+                d['is_fin_chunk'].append(c[ii][i]['loc'][j]['is_fin_chunk'])
                 d['stm'].append(c[ii][i]['fsys']['f0']['stm'])
                 d['t_on'].append(c[ii][i]['loc'][j]['to'][0])
                 if len(c[ii][i]['loc'][j]['to'])>1:
@@ -616,7 +621,8 @@ def export_loc(c,fo,opt):
 ### bnd ###########################################
 
 def export_bnd(c,fo,opt):
-    cn = ['ci','fi','si','tier','p','lab','lab_next','t_on','t_off']
+    cn = ['ci','fi','si','tier','p','lab','lab_next','t_on','t_off',
+          'is_init','is_fin','is_init_chunk','is_fin_chunk']
     # [std|win|trend]_[bl|ml|tl|rng]_[r|rms|rms_pre|rms_post]
     for x in myl.lists('bndtyp'):
         if (x in c[0][0]['bnd'][0][0]):
@@ -645,6 +651,10 @@ def export_bnd(c,fo,opt):
                     d['t_on'].append(c[ii][i]['bnd'][j][k]['std']['t_on'])
                     d['t_off'].append(c[ii][i]['bnd'][j][k]['std']['t_off'])
                     d['lab'].append(c[ii][i]['bnd'][j][k]['lab'])
+                    d['is_init'].append(c[ii][i]['bnd'][j][k]['is_init'])
+                    d['is_fin'].append(c[ii][i]['bnd'][j][k]['is_fin'])
+                    d['is_init_chunk'].append(c[ii][i]['bnd'][j][k]['is_init_chunk'])
+                    d['is_fin_chunk'].append(c[ii][i]['bnd'][j][k]['is_fin_chunk'])
                     if k+1 in c[ii][i]['bnd'][j]:
                         d['lab_next'].append(c[ii][i]['bnd'][j][k+1]['lab'])
                     else:
@@ -659,8 +669,8 @@ def export_bnd(c,fo,opt):
                                     d["{}_{}_{}".format(w,y,z)].append(c[ii][i]['bnd'][j][k][w][y][z])
                     # grouping
                     d = export_grp_upd(d,c[ii][i]['grp'])
-  
-    # for x in list(d.keys()): print("{}: {}".format(x,len(d[x])))
+
+    #for x in list(d.keys()): print("{}: {}".format(x,len(d[x])))
 
     exp_to_file(d,fo,'bnd',fullPath=opt['fsys']['export']['fullpath'],
                 sep=opt['fsys']['export']['sep'])
@@ -673,7 +683,9 @@ def export_bnd(c,fo,opt):
 # segment- and file-level output
 def export_rhy(c,fo,opt,typ):
     # segment-level
-    cn = ['fi','ci','si','stm','t_on','t_off','tier','lab','dur','f_max','n_peak']
+    cn = ['fi','ci','si','stm','t_on','t_off','tier','lab','dur',
+          'f_max','n_peak',
+          'is_init','is_fin','is_init_chunk','is_fin_chunk']
     # file-level
     typf = "{}_file".format(typ)
     cnf = ['fi','ci','stm','dur','f_max','n_peak']
@@ -763,6 +775,10 @@ def export_rhy(c,fo,opt,typ):
                     else:
                         d['t_off'].append(c[ii][i][typ][j][k]['to'][0])
                     d['lab'].append(c[ii][i][typ][j][k]['lab'])
+                    d['is_init'].append(c[ii][i][typ][j][k]['is_init'])
+                    d['is_fin'].append(c[ii][i][typ][j][k]['is_fin'])
+                    d['is_init_chunk'].append(c[ii][i][typ][j][k]['is_init_chunk'])
+                    d['is_fin_chunk'].append(c[ii][i][typ][j][k]['is_fin_chunk'])
                     d['dur'].append(c[ii][i][typ][j][k]['rhy']['dur'])
                     # spec moms
                     for q in myl.idx_seg(1,smo,1):
@@ -813,7 +829,8 @@ def export_voice(c,fo,opt):
     typ = 'voice'
     typf = 'voice_file'
     # segment-level
-    cn = ['fi','ci','si','stm','t_on','t_off','tier','lab']
+    cn = ['fi','ci','si','stm','t_on','t_off','tier','lab',
+          'is_init','is_fin','is_init_chunk','is_fin_chunk']
     # file-level
     typf = "{}_file".format(typ)
     cnf = ['fi','ci','stm']
@@ -866,6 +883,10 @@ def export_voice(c,fo,opt):
                     # grouping
                     d = export_grp_upd(d,c[ii][i]['grp'])
                     d['lab'].append(c[ii][i][typ][j][k]['lab'])
+                    d['is_init'].append(c[ii][i][typ][j][k]['is_init'])
+                    d['is_fin'].append(c[ii][i][typ][j][k]['is_fin'])
+                    d['is_init_chunk'].append(c[ii][i][typ][j][k]['is_init_chunk'])
+                    d['is_fin_chunk'].append(c[ii][i][typ][j][k]['is_fin_chunk'])
                     # over jit, shim
                     for x in ['jit','shim']:
                         d[x].append(c[ii][i][typ][j][k][x]['v'])
@@ -908,7 +929,8 @@ def export_gnl(c,fo,opt,typ):
         cnf.append(x)
 
     # linking variables
-    for x in ['fi','ci','si','stm','t_on','t_off','tier','lab']:
+    for x in ['fi','ci','si','stm','t_on','t_off','tier','lab',
+              'is_init','is_fin','is_init_chunk','is_fin_chunk']:
         cn.append(x)
     for x in ['fi','ci','stm']:
         cnf.append(x)
@@ -950,13 +972,17 @@ def export_gnl(c,fo,opt,typ):
                         d['t_off'].append(c[ii][i][typ][j][k]['to'][0])
                     d['tier'].append(c[ii][i][typ][j][k]['tier'])
                     d['lab'].append(c[ii][i][typ][j][k]['lab'])
+                    d['is_init'].append(c[ii][i][typ][j][k]['is_init'])
+                    d['is_fin'].append(c[ii][i][typ][j][k]['is_fin'])
+                    d['is_init_chunk'].append(c[ii][i][typ][j][k]['is_init_chunk'])
+                    d['is_fin_chunk'].append(c[ii][i][typ][j][k]['is_fin_chunk'])
                     for x in c[ii][i][typ][j][k]['std'].keys():
                         if x in d.keys():
                             d[x].append(c[ii][i][typ][j][k]['std'][x])
                     # grouping
                     d = export_grp_upd(d,c[ii][i]['grp'])
 
-    # for x in list(d.keys()): print("{}: {}".format(x,len(d[x])))
+    #for x in list(d.keys()): print("{}: {}".format(x,len(d[x])))
 
     exp_to_file(d,fo,typ,fullPath=opt['fsys']['export']['fullpath'],sep=opt['fsys']['export']['sep'])
     exp_to_file(df,fo,typf,fullPath=opt['fsys']['export']['fullpath'],sep=opt['fsys']['export']['sep'])

@@ -241,6 +241,7 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
         chunk_ut = np.asarray([[f0_ut[0,0],f0_ut[-1,0]]])
         lab_chunk = opt['fsys']['label']['chunk']
 
+        
     ## glob #########################
     tn = pp_tiernames(opt['fsys'],'glob','tier',i)
     if len(tn)>0:
@@ -258,8 +259,8 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
     if len(glb)==0:
         glb=cp.deepcopy(chunk)
         glb_ut=cp.deepcopy(chunk_ut)
-        lab_glb=cp.deepcopy(lab_chunk)
-
+        lab_glb=cp.deepcopy(lab_chunk)        
+        
     ## loc ##########################
     tn_loc = set()
     tn_acc = pp_tiernames(opt['fsys'],'loc','tier_acc',i)
@@ -298,13 +299,6 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
     if len(loc)==0:
         lab_ag = []
         lab_acc = []
-
-    # no loc segs -> cp glob segs, deprecated!
-    #if len(loc)==0:
-    #    loc=cp.deepcopy(glb)
-    #    loc_ut=cp.deepcopy(glb_ut)
-    #    lab_ag=cp.deepcopy(lab_glb)
-    #    lab_acc = []
 
     ## F0 (2) ################################
     ## preproc + filling copa.f0 #############
@@ -374,6 +368,13 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
     if len(bad_j)>0:
         glb = glb[good_j,]
         glb_ut = glb_ut[good_j,]
+
+    # within-chunk position of glb
+    rci = pp_apply_along_axis(pp_link,1,glb,chunk)
+    for j in myl.idx(glb):
+        is_init, is_fin = pp_initFin(rci,j)
+        copa['data'][ii][i]['glob'][j]['is_init_chunk'] = is_init
+        copa['data'][ii][i]['glob'][j]['is_fin_chunk'] = is_fin
         
     ## copa.loc #############################
     copa['data'][ii][i]['loc'] = {}
@@ -385,10 +386,12 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
     #   - symmetric window around accent in case no AG is given
     loc = pp_apply_along_axis(pp_loc,1,loc,opt)
     # link each idx in loc.t to idx in glob.t
+    # index in ri: index of locseg; value in ri: index of globseg
     ri = pp_apply_along_axis(pp_link,1,loc,glb)
-    hri = len(loc)-1
+    # ... same for loc.t to chunk.t
+    rci = pp_apply_along_axis(pp_link,1,loc,chunk)
     # over segments [[on off center] ...]
-    for j in range(len(loc)):
+    for j in myl.idx(loc):
         # no parenting global segment -> skip
         if ri[j] < 0:
             bad_j = np.append(bad_j,j)
@@ -404,21 +407,15 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
         good_j = np.append(good_j,j)
         copa['data'][ii][i]['loc'][jj] = {}
         copa['data'][ii][i]['loc'][jj]['ri'] = ri[j]
-        #### position of local segment in global one:
+        #### position of local segment in global one and in chunk
         # 'is_fin', 'is_init', both 'yes' or 'no'
-
-        if j==0 or ri[j-1] != ri[j]:
-            is_init='yes'
-        else:
-            is_init='no'
-
-        if j==hri or ri[j+1] != ri[j]:
-            is_fin='yes'
-        else:
-            is_fin='no'
-        
+        is_init, is_fin = pp_initFin(ri,j)
+        #### same for within chunk position
+        is_init_chunk, is_fin_chunk = pp_initFin(rci,j)
         copa['data'][ii][i]['loc'][jj]['is_init'] = is_init
         copa['data'][ii][i]['loc'][jj]['is_fin'] = is_fin
+        copa['data'][ii][i]['loc'][jj]['is_init_chunk'] = is_init_chunk
+        copa['data'][ii][i]['loc'][jj]['is_fin_chunk'] = is_fin_chunk
         #### labels
         if len(lab_ag)>0:
             copa['data'][ii][i]['loc'][jj]['lab_ag'] = lab_ag[j]
@@ -440,7 +437,8 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
         loc_ut = loc_ut[good_j,]
 
     ### bnd, gnl_*, rhy_* input #############################
-    # additional tier index layer, since features can be derived from several tiers
+    # additional tier index layer, since features can be derived
+    # from several tiers
     # copa['data'][ii][i][bnd|gnl_*|rhy_*][tierIdx][segmentIdx]
     # (as opposed to chunk, glob, loc)
     # keys: tierNameIdx in opt, values: t, ot, lab, tier
@@ -452,6 +450,7 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
     else:
         doSync = opt['preproc']['loc_sync']
 
+    # over feature set (bnd etc)
     for ft in myl.lists('bgd'):
         if ft not in opt['fsys']:
             continue
@@ -465,25 +464,19 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
             #   non-existent names
             if not pp_tier_in_annot(tn,annot_dat,opt['fsys'][ft]['typ']):
                 continue
-            t, to, lab = pp_read(annot_dat,opt['fsys'][ft],tn,'','bdg')
-            # for later sync with loc seg, if required
-            #if np.ndim(t)==1:
-            #    print('yep!',tn)
-            #    t_pnt = cp.deepcopy(t)
-            #else:
-            #    print('nope!',tn)
-            #    t_pnt = np.mean(t,1)
+            tx, to, lab = pp_read(annot_dat,opt['fsys'][ft],tn,'','bdg')
+
             # time to intervals (analysis + norm windows)
             # t_nrm: local normalization window limited by chunk boundaries
             # t_trend: windows from chunk onset to boundary, and
             #              from boundary to chunk offset
-            t, t_nrm, t_trend = pp_t2i(t,ft,opt,chunk)
+            t, t_nrm, t_trend = pp_t2i(tx,ft,opt,chunk)
             r[k] = {}
             jj, bad_j, good_j = 0, np.asarray([]).astype(int), np.asarray([]).astype(int)
             # for sync, use each loc interval only once
             blocked_i = {}
             ## over segment index
-            for a in range(len(lab)):
+            for a in myl.idx(lab):
                 # skip too short segments until sync with locseg is required
                 # that will be checked right below
                 if (too_short(tn,t[a,:],fstm) and
@@ -507,14 +500,28 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
                     if all_consumed:
                         bad_j = np.append(bad_j,a)
                         continue
-                good_j = np.append(good_j,a)
+                good_j = np.append(good_j,a)                
                 r[k][jj] = {'tier':tn,'t':t[a,:],'to':to[a,:],
                            'tn':t_nrm[a,:],'tt':t_trend[a,:],
                            'lab':lab[a]}
                 jj+=1
             if len(bad_j)>0:
                 t = t[good_j,]
+                tx = tx[good_j,]
 
+            ### position in glob and chunk segments
+            # links to parent segments (see above loc, or glb)
+            ri = pp_apply_along_axis(pp_link,1,tx,glb)
+            rci = pp_apply_along_axis(pp_link,1,tx,chunk)
+            # over segment idx
+            for j in myl.idx(tx):
+                is_init, is_fin = pp_initFin(ri,j)
+                is_init_chunk, is_fin_chunk = pp_initFin(rci,j)
+                r[k][j]['is_init'] = is_init
+                r[k][j]['is_fin'] = is_fin
+                r[k][j]['is_init_chunk'] = is_init_chunk
+                r[k][j]['is_fin_chunk'] = is_fin_chunk
+                
             # rates of tier_rate entries for each segment
             #   (all rate tiers of same channel as tn)
             if re.search('^rhy_',ft):
@@ -540,6 +547,35 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
     #sys.exit() #!
     return copa
 
+# checks for a segment/time stamp X whether in which position it
+# is within the parent segment Y (+/- inital, +/- final)
+# IN:
+#   ri: list of reverse indices (index in list: index of X in its tier,
+#                                value: index of Y in parent tier)
+#   j: index of current X
+# OUT:
+#   is_init: 'yes'|'no' X is in initial position in Y
+#   is_fin: 'yes'|'no' X is in final position in Y
+def pp_initFin(ri,j):
+    # does not belong to any parent segment
+    if ri[j] < 0:
+        return 'no', 'no'
+
+    # initial?
+    if j==0 or ri[j-1] != ri[j]:
+        is_init='yes'
+    else:
+        is_init='no'
+
+    # final?
+    if j==len(ri)-1 or ri[j+1] != ri[j]:
+        is_fin='yes'
+    else:
+        is_fin='no'
+
+    return is_init, is_fin
+
+        
 # transforms glob point into segment tier
 #   - points are considered to be right segment boundaries
 #   - segments do not cross chunk boundaries
@@ -946,7 +982,7 @@ def pp_file_collector(opt):
 ### bnd data: time stamps to adjacent intervals
 ### gnl_*|rhy_* data: time stamps to intervals centered on time stamp
 ### ! chunk constraint: interval boundaries are limited by chunk boundaries if any
-### normalising time windows
+### normalizing time windows
 ### bb becomes copa...[myFeatSet]['t']
 ### bb_nrm becomes copa...[myFeatSet]['tn']
 ### bb_trend becomes copa...[myFeatSet]['tt']
@@ -1236,16 +1272,24 @@ def pp_slayp(loc,glb):
 
 ### row linking from loc to globseg ##################
 # IN:
-#   x row in loc
+#   x row in loc|glob etc (identified by its length;
+#                         loc: len 3, other len 1 or 2)
 #   y glb matrix
 # OUT:
 #   i rowIdx in glb
+#      (-1 if not connected)
+# REMARK: not yet strict layer constrained fulfilled, thus
+#      robust assignment
 def pp_link(x,y):
-    # wrong, since not yet strict layer
-    #i = myl.intersect(myl.find(y[:,0],'<=',x[0]),
-    #                   myl.find(y[:,1],'>=',x[1]))
-    i = myl.intersect(myl.find(y[:,0],'<=',x[2]),
-                      myl.find(y[:,1],'>=',x[2]))
+    if len(y)==0:
+        return -1
+    if len(x)>2:
+        i = myl.intersect(myl.find(y[:,0],'<=',x[2]),
+                          myl.find(y[:,1],'>=',x[2]))
+    else:
+        m = np.mean(x)
+        i = myl.intersect(myl.find(y[:,0],'<=',m),
+                          myl.find(y[:,1],'>=',m))
     if len(i)==0:
         i = -1
     else:

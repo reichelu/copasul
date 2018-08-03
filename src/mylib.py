@@ -166,7 +166,7 @@ def lists(typ='register',ret='list'):
                      'rhy_f0','rhy_en','augment','chunk',
                      'aud','f0','annot','pulse'],
           'factors': ['class','ci','fi','si','gi','stm','tier','spk',
-                      'is_init','is_fin']}
+                      'is_init','is_fin','is_init_chunk','is_fin_chunk']}
     if typ in ll:
         if ret=='list':
             return ll[typ]
@@ -232,7 +232,7 @@ def split_by_grp(dd,gc):
 #           'title': <''> figure title
 #           'lw': <5> line width
 #           'concat_grp': <True> concatenate grouping variable name to plot['title']
-#     (! obligatory)
+#     (! = obligatory)
 # OUT:
 #   p: profile dict
 #      lab -> [featureNames]
@@ -2143,6 +2143,10 @@ def check_var(c):
             if re.search('^rhy',dom):
                 if ('rate' not in copa['data'][ii][i]):
                     sys.exit("ERROR! {} feature extraction requires an update of the preprocessing step. Set navigate.do_preproc to 1".format(dom))
+            if dom=='bnd':
+                if ((copa['config']['styl']['bnd']['residual']) and
+                    ('r' not in copa['data'][0][0]['f0'])):
+                    sys.exit("ERROR! {} feature extraction based on f0 residuals requires a previous global contour stylization so that the register can be subtracted from the f0 contour. Set navigate.do_styl_glob to 1, or set styl.bnd.residual to 0".format(dom))
 
 ## check blocks called by check_var()
 # preproc fields given?
