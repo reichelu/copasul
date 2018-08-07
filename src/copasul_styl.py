@@ -537,6 +537,7 @@ def styl_glob_file(copa,ii,opt,reg,err_sum,N):
     for i in myl.numkeys(copa['data'][ii]):
         t = copa['data'][ii][i]['f0']['t']
         y = copa['data'][ii][i]['f0']['y']
+        
         # residual
         r = np.zeros(len(y))
 
@@ -647,13 +648,13 @@ def styl_std_feat(y,opt,t=[]):
 def styl_discont(t,y,a,b,opt,plotDict={},med=myl.ea()):
     # pause length, time
     bnd = {'p':b['to'][0]-a['to'][-1],'t_off':a['to'][-1],'t_on':b['to'][0]}
-
+    
     ## joint segment
     ta = a['t']
     ia = styl_yi(ta,opt['fs'])
     tb = b['t']
     ib = styl_yi(tb,opt['fs'])
-
+    
     # robust y-lim of indices
     ia, ib = sdw_robust(ia,ib,len(y)-1)
 
@@ -670,6 +671,8 @@ def styl_discont(t,y,a,b,opt,plotDict={},med=myl.ea()):
     else:
         meds = myl.ea()
 
+    #print('meds ->', meds)
+    #myl.stopgo()
     # decl fit of joint segment
     df = styl_decl_fit(ys,opt,meds)
 
@@ -718,7 +721,8 @@ def styl_discont(t,y,a,b,opt,plotDict={},med=myl.ea()):
         tta = np.linspace(ta[0],ta[1],len(yya))
         ttb = np.linspace(tb[0],tb[1],len(yyb))
 
-        copl.plot_main({'call':'browse','state':'online','type':'complex','set':'bnd',
+        copl.plot_main({'call':'browse','state':'online',
+                        'type':'complex','set':'bnd',
                         'fit':{'a':a['decl'],'b':b['decl'],'ab':df},
                         'y':{'a':yya,'b':yyb,'ab':yy},
                         't':{'a':tta,'b':ttb,'ab':tt},'infx':plotDict['infx']},
@@ -773,7 +777,7 @@ def styl_residual(y,df,r):
 #              ['tl']  <90>
 #      ['nrm']['mtd']   normalization method
 #             ['range']
-#   med <[]> median values (in some conexts pre-calculated)
+#   med <[]> median values (in some contexts pre-calculated)
 #   t   <[]> time [on off] not provided in discontinuity context
 # OUT:
 #   df['tn']   [normalizedTime]
@@ -791,6 +795,7 @@ def styl_decl_fit(y,opt,med=myl.ea(),t=myl.ea()):
 
     med = myl.lol(med)
     if len(med) != len(y):
+        print('YES')
         med = styl_reg_med(y,opt)
 
     # normalized time
@@ -1249,9 +1254,10 @@ def styl_bnd_file(copa,ii,navi,opt):
         else:
             y = copa['data'][ii][i]['f0']['y']
 
-        # [[bl ml tl]...] medians over complete F0 contour (same length as y) 
+            
+        # [[bl ml tl]...] medians over complete F0 contour (same length as y)
         med = styl_reg_med(y,opt)
-
+        
         # over tiers
         for j in myl.numkeys(copa['data'][ii][i]['bnd']):
             # over segments
@@ -1309,9 +1315,11 @@ def styl_discont_wrapper(tw,t,y,opt,po={},med=myl.ea()):
     # called with entire opt dict
     if 'styl' in opt:
         opt=cp.deepcopy(opt['styl']['bnd'])
-
+        
     # f0 medians [[bl ml tl]...], same length as y
-    med = myl.lol(med)
+    if len(med)>0:
+        med = myl.lol(med)
+        
     if len(med) != len(y):
         med = styl_reg_med(y,opt)
 
@@ -1341,20 +1349,16 @@ def styl_discont_wrapper(tw,t,y,opt,po={},med=myl.ea()):
 #   i1, i2: index arrays of adjacent segments
 #   u: upper index limit (incl; lower is 0)
 def sdw_robust(i1,i2,u):
-    #print('A',i2)
-    i1 = myl.find(i1,'<=',u)
-    i2 = myl.find(i2,'<=',u)
-    #print('B',i2)
+    i1 = i1[myl.find(i1,'<=',u)]
+    i2 = i2[myl.find(i2,'<=',u)]
     if len(i1)==0:
         i1 = np.asarray([max(0,i2[0]-2)])
     if len(i2)==0:
         i2 = np.asarray([i1[-1]])
-    #print('C',i2)
     while len(i1) < 2 and i1[-1] < u:
         i1 = np.append(i1,i1[-1]+1)
     while len(i2) < 2 and i2[-1] < u: 
         i2 = np.append(i2,i2[-1]+1)
-    #print('D',i2)
     return i1, i2
 
 ####### speech rhythm ###################
