@@ -195,4 +195,6 @@
 	  (i.e. after removing global register)
 	  ! usually not interpretable across global segment boundaries
 	  due to different global register subtraction
-
+20180807: 0.8.6
+	  - bugfix in copasul_styl.sdw_robust(): occasionally affected
+	  boundary rms features
