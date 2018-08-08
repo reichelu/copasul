@@ -1156,6 +1156,7 @@ def pp_t2i(b,typ,opt,t_chunks,untrunc=False):
                     bb_nrm = myl.push(bb_nrm,[ww[0],c,c2,ww[1]])
                 ## trend window
                 bb_trend = myl.push(bb_trend,[r[0],c,c2t,r2t])
+                
     # gnl, rhy
     else:
         if nc>1:

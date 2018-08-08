@@ -630,6 +630,7 @@ def styl_std_feat(y,opt,t=[]):
 #   opt: copa['config']['styl']['bnd']
 #   plotDict {'copa'-copa, 'infx' key} <{}>
 #   med: [[bl ml tl]...] medians
+#   caller: for evtl. later plotting
 # OUT:
 #   bnd['p'] - pause length in sec
 #      ['t_on'] - onset time of post-boundary segment (evtl. end of pause)
@@ -645,7 +646,12 @@ def styl_std_feat(y,opt,t=[]):
 #       rms - root mean squared deviation over seg a.b
 #       rms_pre - rms for seg a
 #       rms_post - rms for seg b
-def styl_discont(t,y,a,b,opt,plotDict={},med=myl.ea()):
+def styl_discont(t,y,a,b,opt,plotDict={},med=myl.ea(),caller='bnd'):
+
+    # non-processable input marked by empty t
+    if len(t)==0:
+        return discont_nan()
+    
     # pause length, time
     bnd = {'p':b['to'][0]-a['to'][-1],'t_off':a['to'][-1],'t_on':b['to'][0]}
     
@@ -675,7 +681,7 @@ def styl_discont(t,y,a,b,opt,plotDict={},med=myl.ea()):
     #myl.stopgo()
     # decl fit of joint segment
     df = styl_decl_fit(ys,opt,meds)
-
+    
     # discontinuities for all register representations
     for x in myl.lists():
 
@@ -705,31 +711,54 @@ def styl_discont(t,y,a,b,opt,plotDict={},med=myl.ea()):
         bnd[x]['rms_pre'] = myl.rmsd(ya,za)
         bnd[x]['rms_post'] = myl.rmsd(yb,zb)
 
-    ### plot
-    if 'copa' in plotDict:
-        sts = 1/plotDict['copa']['config']['fs']
-        # pause zeros
-        zz = np.asarray([])
-        tz = ta[1]+sts
-        while tz < tb[0]:
-            zz = myl.push(zz,0)
-            tz += sts
-        yy = np.concatenate((y[ia],zz,y[ib]))
-        tt = np.linspace(ta[0],tb[1],len(yy))
-        yya = y[ia]
-        yyb = y[ib]
-        tta = np.linspace(ta[0],ta[1],len(yya))
-        ttb = np.linspace(tb[0],tb[1],len(yyb))
+    # generate plot subdict for final plotting with copl.plot_main()
+    #   .fit|y|t
+    bnd['plot']=bnd_plotObj(y,ia,ib,ta,tb,a,b,df,opt)
 
+    # online plot
+    if 'copa' in plotDict:
         copl.plot_main({'call':'browse','state':'online',
-                        'type':'complex','set':'bnd',
-                        'fit':{'a':a['decl'],'b':b['decl'],'ab':df},
-                        'y':{'a':yya,'b':yyb,'ab':yy},
-                        't':{'a':tta,'b':ttb,'ab':tt},'infx':plotDict['infx']},
+                        'type':'complex','set':caller,
+                        'fit': bnd['plot']['fit'],
+                        'y': bnd['plot']['y'],
+                        't': bnd['plot']['t'],
+                        'infx':plotDict['infx']},
                        plotDict['copa']['config'])
         
     return bnd
 
+# generates 'plot' subdict for bnd dict which can be used later for plotting
+def bnd_plotObj(y,ia,ib,ta,tb,a,b,df,opt):
+        
+    sts = 1/opt['fs']
+    # pause zeros
+    zz = np.asarray([])
+    tz = ta[1]+sts
+    while tz < tb[0]:
+        zz = myl.push(zz,0)
+        tz += sts
+    yab = np.concatenate((y[ia],zz,y[ib]))
+    tab = np.linspace(ta[0],tb[1],len(yab))
+    ya = y[ia]
+    yb = y[ib]
+    ta = np.linspace(ta[0],ta[1],len(ya))
+    tb = np.linspace(tb[0],tb[1],len(yb))
+
+    return {'fit':{'a': a['decl'], 'b': b['decl'], 'ab': df},
+            'y': {'a': ya, 'b': yb, 'ab': yab},
+            't': {'a': ta, 'b': tb, 'ab': tab}}
+
+# return all-NaN dict if discont input cannot be processed
+def discont_nan():
+    bnd = {}
+    for x in ['p', 't_on', 't_off']:
+        bnd[x]=np.nan
+    for x in myl.lists('register'):
+        bnd[x]={}
+        for y in myl.lists('bndfeat'):
+            bnd[x][y] = np.nan
+    return bnd
+    
 # returns list of paths through x to field with NaN
 # IN:
 #   typ: subdict type
@@ -1272,24 +1301,26 @@ def styl_bnd_file(copa,ii,navi,opt):
                 if k<1: continue
                 a = copa['data'][ii][i]['bnd'][j][k-1]
                 b = copa['data'][ii][i]['bnd'][j][k]
-                    
+
                 # plotting dict
                 po = {'copa':copa,'infx':"{}-{}-{}-{}-std".format(ii,i,copa['data'][ii][i]['bnd'][j][k]['tier'],k-1)}
                     
                 # discont
-                copa['data'][ii][i]['bnd'][j][k-1]['std'] = styl_discont(t,y,a,b,opt,po,med)
+                copa['data'][ii][i]['bnd'][j][k-1]['std'] = styl_discont(t,y,a,b,opt,po,med,'bnd')
                 ## alternative bnd windows
                 # trend
                 if navi['do_styl_bnd_trend'] == True:
                     #print(copa['data'][ii][i]['bnd'][j])
                     po['infx'] = "{}-{}-{}-{}-trend".format(ii,i,copa['data'][ii][i]['bnd'][j][k]['tier'],k-1)
                     copa['data'][ii][i]['bnd'][j][k-1]['trend'] = styl_discont_wrapper(copa['data'][ii][i]['bnd'][j][k]['tt'],
-                                                                                       t,y,opt,po,med)
+                                                                                       t,y,opt,po,med,'bnd_trend')
                     
                 if navi['do_styl_bnd_win'] == True:
                     po['infx'] = "{}-{}-{}-{}-win".format(ii,i,copa['data'][ii][i]['bnd'][j][k]['tier'],k-1)
-                    copa['data'][ii][i]['bnd'][j][k-1]['win'] = styl_discont_wrapper(copa['data'][ii][i]['bnd'][j][k]['tn'],
-                                                                                     t,y,opt,po,med)
+                    #!b error: tn too short
+                    #print(copa['data'][ii][i]['bnd'][j][k]['tn'])
+                    copa['data'][ii][i]['bnd'][j][k-1]['win'] = styl_discont_wrapper(copa['data'][ii][i]['bnd'][j][k]['tn'],t,y,opt,po,
+                                                                                     med,'bnd_win')
                     
     return copa
 
@@ -1303,12 +1334,13 @@ def styl_bnd_file(copa,ii,navi,opt):
 #   opt: copa['config']
 #   po: plotting options
 #   med: [[bl ml tl]...], same length as y (will be calculated in this function if not provided)
+#   caller: for evtl. plotting
 # OUT:
 #   dict from styl_discont()
 # REMARKS:
 #    tw: ['bnd'][j]['tn'|'tt'] can be passed on as is ('win', 'trend' discont)
 #        ['bnd'][j]['t'] + ['bnd'][j+1]['t'] needs to be concatenated ('std' discont)
-def styl_discont_wrapper(tw,t,y,opt,po={},med=myl.ea()):
+def styl_discont_wrapper(tw,t,y,opt,po={},med=myl.ea(),caller='bnd'):
     
     myFs = opt['fs']
 
@@ -1328,6 +1360,12 @@ def styl_discont_wrapper(tw,t,y,opt,po={},med=myl.ea()):
         on1, off1, on2, off2 = tw[0], tw[1], tw[2], tw[3]
     else:
         on1, off1, on2, off2 = tw[0], tw[1], tw[1], tw[2]
+
+    # segments too short or missing
+    # (e.g. if cross_chunk is False, and seg 1 ends at or seg2 starts at chunk bnd)
+    if on1==off1 or on2==off2:
+        return styl_discont([],[],{},{},{},{},[],'')
+
     i1 = styl_yi([on1,off1],myFs)
     i2 = styl_yi([on2,off2],myFs)
     # robust extension
@@ -1342,7 +1380,7 @@ def styl_discont_wrapper(tw,t,y,opt,po={},med=myl.ea()):
     b = {'decl':styl_decl_fit(ys2,opt,med2),'t':[on2,off2],'to':[on2,off2]}
 
     ### styl discontinuity
-    return styl_discont(t,y,a,b,opt,po,med)
+    return styl_discont(t,y,a,b,opt,po,med,caller)
 
 # for discont styl, padds indices so that index arrays have minlength 2
 # IN:
@@ -1353,12 +1391,16 @@ def sdw_robust(i1,i2,u):
     i2 = i2[myl.find(i2,'<=',u)]
     if len(i1)==0:
         i1 = np.asarray([max(0,i2[0]-2)])
+        #print('i1',i1)
     if len(i2)==0:
         i2 = np.asarray([i1[-1]])
+        #print('i2',i2)
     while len(i1) < 2 and i1[-1] < u:
         i1 = np.append(i1,i1[-1]+1)
+        #print('i1a',i1)
     while len(i2) < 2 and i2[-1] < u: 
         i2 = np.append(i2,i2[-1]+1)
+        #print('i2a',i2)
     return i1, i2
 
 ####### speech rhythm ###################

@@ -44,8 +44,8 @@ def plot_browse(copa):
 # channelwise processing of plot_browse()
 # IN:
 #   copa
-#   typ type  'glob'|'loc'...
-#   s   set   'decl'|'acc'...
+#   typ type  'glob'|'loc'|'rhy_f0'|'complex'|...
+#   s   set   'decl'|'acc'|'rhy'|'superpos'|'gestalt'|'bnd'...
 #   ii fileIdx
 #   i channelIdx
 def plot_browse_channel(copa,typ,s,ii,i):
@@ -61,7 +61,10 @@ def plot_browse_channel(copa,typ,s,ii,i):
 
     # for all complex plots range over global segments
     if typ == 'complex':
-        dom = 'glob'
+        if re.search('^bnd',s):
+            dom = 'bnd'
+        else:
+            dom = 'glob'
     else:
         dom = typ
 
@@ -70,7 +73,6 @@ def plot_browse_channel(copa,typ,s,ii,i):
 
     ## segments
     for j in myl.numkeys(c[ii][i][dom]):
-
         # verbose to find plot again
         if myl.ext_true(po,'verbose'):
             print("file_i={}, channel_i={}, segment_i={}".format(ii,i,j))
@@ -115,15 +117,45 @@ def plot_browse_channel(copa,typ,s,ii,i):
                        'infx':"{}-{}-{}".format(ii,i,j),'local':myLoc}
                 plot_main(obj,copa['config'])
         else:
-            myLoc = plot_loc(c,ii,i,dom,j,myStm)
-            if 'lab' in c[ii][i][dom][j]:
-                myLab = c[ii][i][dom][j]['lab']
+            if re.search('^bnd',s):
+                # get key depending on s
+                if s=='bnd':
+                    z='std'
+                elif s=='bnd_win':
+                    z='win'
+                else:
+                    z='trend'
+                ## tiers
+                for k in myl.numkeys(c[ii][i][dom][j]):
+                    if z not in c[ii][i][dom][j][k] or 'plot' not in c[ii][i][dom][j][k][z]:
+                        continue
+                    myObj = c[ii][i][dom][j][k][z]['plot']
+                    if 'lab' in c[ii][i][dom][j][k][z]:
+                        myLab = c[ii][i][dom][j][k][z]['lab']
+                    else:
+                        myLab = ''
+                    myInfx = "{}-{}-{}-{}".format(ii,i,c[ii][i][dom][j][k]['tier'],k)
+                    myTim = c[ii][i][dom][j][k]['t']
+                    myTier = c[ii][i][dom][j][k]['tier']
+                    myLoc = "{}:{}:[{} {}]".format(myStm,myTier,myTim[0],myTim[1])
+                    obj = {'call': 'browse', 'state': 'final',
+                           'type': 'complex', 'set': s,
+                           'fit': myObj['fit'],
+                           'y': myObj['y'],
+                           't': myObj['t'],
+                           'infx': myInfx,
+                           'local': myLoc}
+                    plot_main(obj,copa['config'])
             else:
-                myLab = ''
-            obj = {'call':'browse','state':'final','fit':copa,'type':'complex',
-                   'set':s,'i':[ii,i,j],'infx':"{}-{}-{}".format(ii,i,j),'local':myLoc,
-                   'lab': myLab, 't_glob': c[ii][i]['glob'][j]['to'], 'stm': myStm}
-            plot_main(obj,copa['config'])
+                myLoc = plot_loc(c,ii,i,dom,j,myStm)
+                if 'lab' in c[ii][i][dom][j]:
+                    myLab = c[ii][i][dom][j]['lab']
+                else:
+                    myLab = ''
+                obj = {'call':'browse','state':'final','fit':copa,'type':'complex',
+                       'set':s,'i':[ii,i,j],'infx':"{}-{}-{}".format(ii,i,j),'local':myLoc,
+                       'lab': myLab, 't_glob': c[ii][i]['glob'][j]['to'], 'stm': myStm}
+                plot_main(obj,copa['config'])
 
     return
 
@@ -156,9 +188,9 @@ def plot_loc(c,ii,i,dom,j,myStm):
 #   opt copa['config']
 def plot_main(obj,opt):
     po = opt['plot']
-
+    
     if plot_doNothing(obj,opt): return
-
+    
     if obj['call']=='browse':
 
         # display location
@@ -176,7 +208,7 @@ def plot_main(obj,opt):
         elif obj['type']=='complex':
             if re.search('(superpos|gestalt)',obj['set']):
                 fig = plot_styl_complex(obj,opt)
-            elif obj['set']=='bnd':
+            elif re.search('^bnd',obj['set']):
                 fig = plot_styl_bnd(obj,opt)
 
         # save plot
@@ -217,16 +249,12 @@ def plot_doNothing(obj,opt):
     # type-set set to 0 in config
     if not po[obj['call']]['type'][obj['type']][obj['set']]:
         return True
-    # non-compliant combinations
-    # bnd can only be displayed online, since not all needed
-    # to be plotted stored in copa
-    if obj['state']=='final' and obj['set']=='bnd':
-        return True
-    
-    # customized func to skip specified data portions
+
+    #### customized func to skip specified data portions ##########
     # ! comment if not needed !
     #return plot_doNothing_custom_senta_coop(obj,opt)
-
+    ###############################################################
+    
     return False
 
 def plot_doNothing_custom_senta_coop(obj,opt):
@@ -269,9 +297,13 @@ def plot_doNothing_custom1(obj,opt):
 
 # plot 3 declination objects underlying boundary features
 def plot_styl_bnd(obj,opt):
+
+    if 'fit' not in obj:
+        return
+
     # new figure
     fig = plot_newfig()
-
+    
     # segment a.b
     bid = plot_styl_cont({'fit':obj['fit']['ab'],'type':'glob','set':'decl','y':obj['y']['ab'],
                           't':obj['t']['ab'],'tnrm':False,'show':False,'newfig':False},opt)
@@ -634,10 +666,13 @@ def plot_styl_rhy(obj,opt):
         else:
             plt.setp(sl, 'color', 'k', 'linewidth', 4)
 
-        if 'f_lmax' in rhy:
-            for fm in rhy['f_lmax']:
-                spl[i,0].plot([fm,fm],[0,rhy['c_cog']/c_sum],'-g',linewidth=5)
-            spl[i,0].plot([rhy['sm'][0],rhy['sm'][0]],[0,rhy['c_cog']/c_sum],'-c',linewidth=5)
+        # local maxima (green lines)
+        #if 'f_lmax' in rhy:
+        #    for fm in rhy['f_lmax']:
+        #        spl[i,0].plot([fm,fm],[0,rhy['c_cog']/c_sum],'-g',linewidth=5)
+
+        # 1st spectral moment (thick black vertical line)
+        spl[i,0].plot([rhy['sm'][0],rhy['sm'][0]],[0,rhy['c_cog']/c_sum],'-k',linewidth=5)
 
         #plt.ylim([0,0.4]) #!csl
 
