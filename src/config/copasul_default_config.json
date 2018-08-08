@@ -64,7 +64,7 @@
 	    },
 	    "ord": 3
 	},
-	"register": "bl",
+	"register": "ml",
 	"bnd": {
 	    "nrm": {
 		"mtd": "minmax",
@@ -76,7 +76,8 @@
 		"tl": 90
 	    },
 	    "win": 1,
-	    "cross_chunk": 1
+	    "cross_chunk": 1,
+	    "residual": 0
 	},
 	"gnl": {
 	    "win": 0.3
@@ -254,7 +255,9 @@
 		"complex": {
 		    "superpos": 0,
 		    "gestalt": 0,
-		    "bnd": 0
+		    "bnd": 0,
+		    "bnd_win": 0,
+		    "bnd_trend": 0
 		},
 		"clst": {
 		    "contours": 0
