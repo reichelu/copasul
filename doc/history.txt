@@ -198,3 +198,11 @@
 20180807: 0.8.6
 	  - bugfix in copasul_styl.sdw_robust(): occasionally affected
 	  boundary rms features
+20180808: 0.8.7
+          - copasul_styl.styl_discont(); do_styl_bnd_win, do_styl_bnd_trend:  
+	  no empty segment warning at chunk ends resulting from
+	  option cross_chunk=0, but only NaN output in the output tables
+	  - bnd, bnd_win, and bnd_trend stylizations can also be plotted
+	  AFTER stylization (plot.browse.time='final').
+	  Not backward compatible with previously obtained pickle files.
+	  
