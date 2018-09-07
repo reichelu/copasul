@@ -6,7 +6,6 @@ import os
 import mylib as myl
 import pandas as pd
 import numpy as np
-import futureScipy as fsc
 import scipy as si
 import scipy.signal as ssi
 import sys
@@ -1560,7 +1559,7 @@ def pp_bv(yp,opt):
 ### smoothing ########################################
 def pp_smooth(y,opt):
     if opt['mtd']=='sgolay':
-        y = fsc.savgol_filter(y,opt['win'],opt['ord'])
+        y = ssi.savgol_filter(y,opt['win'],opt['ord'])
     elif opt['mtd']=='med':
         y = ssi.medfilt(y,opt['win'])
     return y
