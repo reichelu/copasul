@@ -205,4 +205,6 @@
 	  - bnd, bnd_win, and bnd_trend stylizations can also be plotted
 	  AFTER stylization (plot.browse.time='final').
 	  Not backward compatible with previously obtained pickle files.
-	  
+20180907: 0.8.8
+	  - futureScipy.py removed
+	  - scipy version >= 0.15.1 required (that contains scipy.signal.savgol_filter()) 
