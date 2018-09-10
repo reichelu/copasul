@@ -155,7 +155,8 @@ def fileExists(n):
 def lists(typ='register',ret='list'):
     ll = {'register': ['bl','ml','tl','rng'],
           'bndtyp': ['std','win','trend'],
-          'bndfeat': ['r', 'rms','rms_pre','rms_post'],
+          'bndfeat': ['r', 'rms','rms_pre','rms_post',
+                      'sd_prepost','sd_pre','sd_post'],
           'bgd': ['bnd','gnl_f0','gnl_en','rhy_f0','rhy_en','voice'],
           'featsets': ['glob','loc','bnd','gnl_f0','gnl_en',
                        'rhy_f0','rhy_en','voice'],

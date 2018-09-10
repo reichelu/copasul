@@ -646,6 +646,9 @@ def styl_std_feat(y,opt,t=[]):
 #       rms - root mean squared deviation over seg a.b
 #       rms_pre - rms for seg a
 #       rms_post - rms for seg b
+#       sd_prepost - slope(b)-slope(a)
+#       sd_pre - slope(a)-slope(ab)
+#       sd_post - slope(b)-slope(ab)
 def styl_discont(t,y,a,b,opt,plotDict={},med=myl.ea(),caller='bnd'):
 
     # non-processable input marked by empty t
@@ -684,7 +687,7 @@ def styl_discont(t,y,a,b,opt,plotDict={},med=myl.ea(),caller='bnd'):
     
     # discontinuities for all register representations
     for x in myl.lists():
-
+        
         # concat without overlap
         if ta[-1]==tb[0]:
             ya = a['decl'][x]['y'][0:len(a['decl'][x]['y'])-1]
@@ -707,10 +710,18 @@ def styl_discont(t,y,a,b,opt,plotDict={},med=myl.ea(),caller='bnd'):
         ya, za = myl.hal(ya,za)
         yb, zb = myl.hal(yb,zb)
         ## hack off
+
+        # RMS
         bnd[x]['rms'] = myl.rmsd(yab,zab)
         bnd[x]['rms_pre'] = myl.rmsd(ya,za)
         bnd[x]['rms_post'] = myl.rmsd(yb,zb)
 
+        # slope diffs
+        sab, sa, sb = df[x]['c'][0], a['decl'][x]['c'][0], b['decl'][x]['c'][0]
+        bnd[x]['sd_prepost'] = sa-sb
+        bnd[x]['sd_pre'] = sab-sa
+        bnd[x]['sd_post'] = sab-sb
+        
     # generate plot subdict for final plotting with copl.plot_main()
     #   .fit|y|t
     bnd['plot']=bnd_plotObj(y,ia,ib,ta,tb,a,b,df,opt)
@@ -810,7 +821,7 @@ def styl_residual(y,df,r):
 #   t   <[]> time [on off] not provided in discontinuity context
 # OUT:
 #   df['tn']   [normalizedTime]
-#     [myRegister]['c']   base/mid/topline/range coefs
+#     [myRegister]['c']   base/mid/topline/range coefs [slope intercept]
 #                 ['y']   line
 #                 ['rate'] rate (ST per sec, only if input t is not empty)
 #                 ['m']   mean value of line (resp. line dist)
@@ -1218,6 +1229,7 @@ def styl_gestalt(obj):
 
 # try-catch wrapper around polyfit
 # returns zeros if something goes wrong
+# coeffcients returned highest power first
 def styl_polyfit(x,y,o):
     try:
         c = np.polyfit(x,y,o)
@@ -1312,15 +1324,11 @@ def styl_bnd_file(copa,ii,navi,opt):
                 if navi['do_styl_bnd_trend'] == True:
                     #print(copa['data'][ii][i]['bnd'][j])
                     po['infx'] = "{}-{}-{}-{}-trend".format(ii,i,copa['data'][ii][i]['bnd'][j][k]['tier'],k-1)
-                    copa['data'][ii][i]['bnd'][j][k-1]['trend'] = styl_discont_wrapper(copa['data'][ii][i]['bnd'][j][k]['tt'],
-                                                                                       t,y,opt,po,med,'bnd_trend')
+                    copa['data'][ii][i]['bnd'][j][k-1]['trend'] = styl_discont_wrapper(copa['data'][ii][i]['bnd'][j][k]['tt'],t,y,opt,po,med,'bnd_trend')
                     
                 if navi['do_styl_bnd_win'] == True:
                     po['infx'] = "{}-{}-{}-{}-win".format(ii,i,copa['data'][ii][i]['bnd'][j][k]['tier'],k-1)
-                    #!b error: tn too short
-                    #print(copa['data'][ii][i]['bnd'][j][k]['tn'])
-                    copa['data'][ii][i]['bnd'][j][k-1]['win'] = styl_discont_wrapper(copa['data'][ii][i]['bnd'][j][k]['tn'],t,y,opt,po,
-                                                                                     med,'bnd_win')
+                    copa['data'][ii][i]['bnd'][j][k-1]['win'] = styl_discont_wrapper(copa['data'][ii][i]['bnd'][j][k]['tn'],t,y,opt,po,med,'bnd_win')
                     
     return copa
 
