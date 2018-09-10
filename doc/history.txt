@@ -208,3 +208,7 @@
 20180907: 0.8.8
 	  - futureScipy.py removed
 	  - scipy version >= 0.15.1 required (that contains scipy.signal.savgol_filter()) 
+20180910: 0.8.9
+	  - copasul_styl.styl_discont(): 3 slope diff boundary features added
+	  sd_prepost, sd_pre, sd_post -> gives 3 more discontinuity features for each register
+	  representation
