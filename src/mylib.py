@@ -84,7 +84,7 @@ import matplotlib.pyplot as plt
 #  calls the following functions that can also be applied in isolation
 #    pw_preproc(): wrapper around the following functions
 #    pw_str2float(): panda is biased towards strings -> corrections, incl. NaNs
-#    pw_nan2mean(): replacing NaNs by column means/medians
+#    pw_nan2mean(): replacing NaNs by column means/medians (can be further grouped by 1 variable)
 #    pw_abs(): abs-transform of selected columns
 #    pw_centerScale(): column-wise center/scaling
 
@@ -156,7 +156,10 @@ def lists(typ='register',ret='list'):
     ll = {'register': ['bl','ml','tl','rng'],
           'bndtyp': ['std','win','trend'],
           'bndfeat': ['r', 'rms','rms_pre','rms_post',
-                      'sd_prepost','sd_pre','sd_post'],
+                      'sd_prepost','sd_pre','sd_post',
+                      'corrD','corrD_pre','corrD_post',
+                      'rmsR','rmsR_pre','rmsR_post',
+                      'aicI','aicI_pre','aicI_post'],
           'bgd': ['bnd','gnl_f0','gnl_en','rhy_f0','rhy_en','voice'],
           'featsets': ['glob','loc','bnd','gnl_f0','gnl_en',
                        'rhy_f0','rhy_en','voice'],
@@ -269,7 +272,7 @@ def profile_wrapper(dd,opt):
     
     ### profile
     p = pw_prof(d,opt)
-
+    
     ### plotting
     if opt['navigate']['plot']:
         pw_plot(p,opt['plot'])
@@ -323,6 +326,7 @@ def pw_plot(p,opt):
 # IN, OUT, cf there
 def pw_prof(d,opt):
     p = {'lab': opt['feat'], 'grp': {}}
+    
     # over grouping columns
     for g in opt['grp']:
         # m[myFeat][myGrpLevel] = meanValue
@@ -330,6 +334,7 @@ def pw_prof(d,opt):
             m = d.groupby([g]).median()
         else:
             m = d.groupby([g]).mean()
+            
         p['grp'][g] = {}
         xf = opt['feat'][0]
         # over grpLevels
@@ -359,14 +364,15 @@ def pw_prof(d,opt):
 #      'absfeat': [list of features for which absolute values to be taken] <[]>
 #      'abs_add': <False> add (=True) or replace (=False) absfeat column names in d
 #      'stat': <'median'>|'mean'
+#      'grp_n2m': grouping column name for nan2mean separately for each factor level <''>
 # OUT:
 #   d preprocessed
 #   opt: evtl. with updated 'feat' list (in case of abs_add
 def pw_preproc(d,opt):
-
+    
     ### opt init
     opt = opt_default(opt,{'stat':'median', 'navigate':{},
-                           'absfeat':[]})
+                           'absfeat':[], 'grp_n2m': ''})
     opt['navigate'] = opt_default(opt['navigate'],
                                   {'str2float': True,
                                    'nan2mean': True,
@@ -378,7 +384,7 @@ def pw_preproc(d,opt):
     if opt['navigate']['str2float']:
         d = pw_str2float(d,opt['feat'])
     if opt['navigate']['nan2mean']:
-        d = pw_nan2mean(d,opt['feat'],opt['stat'])
+        d = pw_nan2mean(d,opt['feat'],opt['stat'],opt['grp_n2m'])
     if len(opt['absfeat'])>0:
         d, cn = pw_abs(d,opt['absfeat'],opt['navigate']['abs_add'])
         if opt['navigate']['abs_add']:
@@ -414,9 +420,38 @@ def pw_str2float(d,cn):
 #   d: dict from input_wrapper(...,'pandas_csv')
 #   cn: list of names of columns to be processed
 #   mv: type of mean value '<median>'|'mean'
+#   grp: grouping variable for nan2mean by factor-level
 # OUT:
 #   d: with processed columns
-def pw_nan2mean(d,cn,mv='median'):
+def pw_nan2mean(d,cn,mv='median',grp=''):
+    ### factor-level nan2mean
+    if len(grp)>0 and grp in d:
+        # grpLevel -> row indices in d
+        gri = {}
+        for g in uniq(d[grp]):
+            gri[g] = find(d[grp],'==',g)
+
+        # over features
+        for x in cn:
+            xina = find(d[x],'is','nan')
+            if len(xina)==0:
+                continue
+            xifi = find(d[x],'is','finite')
+            # over grouping levels
+            for g in gri:
+                ina = intersect(xina,gri[g])
+                ifi = intersect(xifi,gri[g])
+                if len(ina)==0 or len(ifi)==0:
+                    continue
+                if mv=='median':
+                    m = np.median(d[x][ifi])
+                else:
+                    m = np.mean(d[x][ifi])
+                d[x][ina]=m
+
+    ### global nan2mean
+    # redo also for factor level nan2mean to catch
+    # non-replacement cases 
     for x in cn:
         ina = find(d[x],'is','nan')
         if len(ina)==0:
@@ -509,6 +544,48 @@ def mae(x,y=[]):
         y=np.zeros(len(x))
     x=np.asarray(x)
     return np.mean(abs(x-y))
+
+# residual squared deviation
+# IN:
+#   x: data vector
+#   y: prediction vector (e.g. fitted line) or []
+# OUT:
+#   r: residual squared deviation
+def rss(x,y=[]):
+    if len(y)==0:
+        y=np.zeros(len(x))
+    x=np.asarray(x)
+    y=np.asarray(y)
+    return np.sum((x-y)**2)
+
+
+# aic information criterion for least squares fit
+# for model comparison, i.e. without constant terms
+# IN:
+#   x: underlying data
+#   y: predictions (same length as x!)
+#   k: number of parameters (<3> for single linear fit)
+def aic_ls(x,y,k=3):
+    n=len(x)
+    r = rss(x,y)
+    if r==0:
+        return 2*k
+    aic = 2*k + n*np.log(r)
+    return aic
+
+# robust natural log
+# log(<=0) is np.nan
+def robust_log(y):
+    if y<=0:
+        return np.nan
+    return np.log(y)
+
+# robust division
+# returns np.nan for 0-divisions
+def robust_div(x,y):
+    if y == 0:
+        return np.nan
+    return x/y
 
 # mean squared error of vectors
 # or of one vector and zeros (=mean squared dev)
@@ -2078,7 +2155,32 @@ def list_rm(x,r):
 def rm_pau(x):
     return list_rm(x,{'<p:>','<p>','<P>'})
 
-
+# length adjustment
+# IN:
+#   x: list
+#   l: required length
+# OUT:
+#   x adjusted
+#  if x is longer than l, x[0:l] is returned
+#  if x is shorter than l: horizontal extrapolation
+def halx(x,l):
+    if len(x)==l:
+        return x
+    if len(x)>l:
+        return x[0:l]
+    
+    if len(x)==0:
+        a=0
+    else:
+        a=x[-1]
+    if type(x) is np.ndarray:
+        while len(x)<l:
+            x = np.append(x,a)
+    else:
+        while len(x)<l:
+            x.append(a)
+    return x
+            
 # hack: length adjustment
 # IN:
 #   x list
@@ -2086,6 +2188,13 @@ def rm_pau(x):
 # OUT:
 #   x,y shortened to same length if needed
 def hal(x,y):
+    if len(x)>len(y):
+        x=x[0:len(y)]
+    elif len(y)>len(x):
+        y=y[0:len(x)]
+    return x, y
+
+def hal_old(x,y):
     while(len(x)>len(y)):
         x=x[0:len(x)-1]
     while(len(y)>len(x)):

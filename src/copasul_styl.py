@@ -621,7 +621,10 @@ def styl_std_feat(y,opt,t=[]):
             'max':np.max(y),'min':np.min(y),
             'dur':d}
 
-#### discontinuity stylizaion
+#### discontinuity stylization
+# for most variables: higher discontinuity is expressed by higher values
+# exceptions: reset 'r', slope differences 'sd_*', for which later on abs values
+#        might be taken
 # IN:
 #   t   time seq of whole file 
 #   y   f0 seq of whole file
@@ -642,13 +645,48 @@ def styl_std_feat(y,opt,t=[]):
 #       tl - topline
 #       rng - range
 #     myDiscontinuity :=
-#       r - reset
-#       rms - root mean squared deviation over seg a.b
-#       rms_pre - rms for seg a
-#       rms_post - rms for seg b
+#       r - reset: b[0] - a[-1]
+#       rms - rmsd(a.b, a+b)
+#       rms_pre - rmsd(A.b,a)
+#       rms_post - rmsd(a.B.b)
 #       sd_prepost - slope(b)-slope(a)
-#       sd_pre - slope(a)-slope(ab)
-#       sd_post - slope(b)-slope(ab)
+#       sd_pre - slope(a.b)-slope(a)
+#       sd_post - slope(a.b)-slope(b)
+#       corrD - (1-corr(a+b, a.b))/2; correlation based distance, the higher the more discont;
+#                                 ranging from 0 to 1
+#       corrD_pre - (1-corr(a, A.b))/2
+#       corrD_post - (1-corr(b, a.B))/2
+#       rmsR - rmse ratio rmse(a.b)/rmse(a+b); the higher the more discont
+#       rmsR_pre - rmse(A.b)/rmse(a)
+#       rmsR_post - rmse(a.B)/rmse(b)
+#       aicI - Akaike information criterion AIC increase of joint vs separate fit,
+#               AIC(a.b)-AIC(a+b); the higher the more discont
+#       aicI_pre - AIC(A.b)-AIC(a)
+#       aicI_post - AIC(a.B)-AIC(b)
+#    Notation:
+#    a, b: fits on pre-, post-boundary segments
+#    a.b: joint fit over segments a and b
+#    a+b: separate fits over segments a and b
+#    A.b: first part of a.b (a segment)
+#    a.B: second part of a.b (b segment)
+# AIC for least squares calculated as explained in:
+# https://en.wikipedia.org/wiki/Akaike_information_criterion#Comparison_with_least_squares
+# 3 model parameters per linear fit: intercept, slope, variance of (Gaussian) noise
+
+# variables:
+#    wab: original f0 contour for segments a and b
+#    wa: original f0 contour for segment a
+#    wb: original f0 contour for segment b
+#    xab: register fit input (median sequence) for a+b
+#    xa: register fit input for a
+#    xb: register fit input for b
+#    yab: values of adjacent lines fitted separately on segments a+b
+#    ya: line fitted on segment a
+#    yb: line fitted on segment b
+#    zab: joint a.b fitted line values
+#    za: part of zab corresponding to segment a; A.b
+#    zb: part of zab corresponding to segment b; a.B
+
 def styl_discont(t,y,a,b,opt,plotDict={},med=myl.ea(),caller='bnd'):
 
     # non-processable input marked by empty t
@@ -687,31 +725,15 @@ def styl_discont(t,y,a,b,opt,plotDict={},med=myl.ea(),caller='bnd'):
     
     # discontinuities for all register representations
     for x in myl.lists():
-        
-        # concat without overlap
-        if ta[-1]==tb[0]:
-            ya = a['decl'][x]['y'][0:len(a['decl'][x]['y'])-1]
-        else:
-            ya = a['decl'][x]['y']
-        yb = b['decl'][x]['y']
-        
-        # joint segments' portions for rmsd, corr (pre, post, total)
-        zab = df[x]['y']
-        za = df[x]['y'][0:len(ya)]
-        zb = df[x]['y'][len(ya):len(df[x]['y'])]
 
+        # f0 arrays as introduced above (cf 'variables:')
+        wa,wb,wab,xa,xb,xab,ya,yb,yab,za,zb,zab = bnd_segs(a,b,df,y,ys,ta,tb,ia,ib,x)
+        
         # reset
         bnd[x]={}
         bnd[x]['r']=b['decl'][x]['y'][0]-a['decl'][x]['y'][-1]
 
-        yab = np.concatenate((ya,yb))
-        ## hack on: length adjustment
-        yab, zab = myl.hal(yab,zab)
-        ya, za = myl.hal(ya,za)
-        yb, zb = myl.hal(yb,zb)
-        ## hack off
-
-        # RMS
+        # RMS between fitted lines
         bnd[x]['rms'] = myl.rmsd(yab,zab)
         bnd[x]['rms_pre'] = myl.rmsd(ya,za)
         bnd[x]['rms_post'] = myl.rmsd(yb,zb)
@@ -721,6 +743,21 @@ def styl_discont(t,y,a,b,opt,plotDict={},med=myl.ea(),caller='bnd'):
         bnd[x]['sd_prepost'] = sa-sb
         bnd[x]['sd_pre'] = sab-sa
         bnd[x]['sd_post'] = sab-sb
+
+        # distance derived from person r
+        corrD = bnd_corrD(ya,yb,yab,za,zb,zab)
+        for fld in corrD:
+            bnd[x][fld] = corrD[fld]
+
+        # fitting error ratios (in terms of RMSE) a.b / a+b
+        rmsR = bnd_rmsR(xa,xb,xab,ya,yb,yab,za,zb,zab)
+        for fld in rmsR:
+            bnd[x][fld] = rmsR[fld]
+        
+        # AIC increases
+        aicI = bnd_aicI(xa,xb,xab,ya,yb,yab,za,zb,zab)
+        for fld in aicI:
+            bnd[x][fld] = aicI[fld]
         
     # generate plot subdict for final plotting with copl.plot_main()
     #   .fit|y|t
@@ -737,6 +774,100 @@ def styl_discont(t,y,a,b,opt,plotDict={},med=myl.ea(),caller='bnd'):
                        plotDict['copa']['config'])
         
     return bnd
+
+# distance d from pearson r ranging from 0 to 1
+# d=(1-r)/2
+# IN:
+#   all segments
+# OUT:
+#   dict with dcorr, dcorr_pre, dcorr_post
+def bnd_corrD(ya,yb,yab,za,zb,zab):
+    return {'corrD': (1-np.corrcoef(yab,zab)[0,1])/2,
+            'corrD_pre': (1-np.corrcoef(ya,za)[0,1])/2,
+            'corrD_post': (1-np.corrcoef(yb,zb)[0,1])/2}
+
+
+# fitting error ratios joint vs sep segments (in terms of RMSE)
+# the higher the worse the fit on a.b compared to a+b
+# IN:
+#   all segments
+# OUT:
+#   dict with rmsR, rmsR_pre, rmsR_post
+def bnd_rmsR(xa,xb,xab,ya,yb,yab,za,zb,zab):
+    rms_zab = myl.rmsd(zab,xab)
+    rms_za = myl.rmsd(za,xa)
+    rms_zb = myl.rmsd(zb,xb)
+    rms_yab = myl.rmsd(yab,xab)
+    rms_ya = myl.rmsd(ya,xa)
+    rms_yb = myl.rmsd(yb,xb)
+    return {'rmsR': myl.robust_div(rms_zab,rms_yab),
+            'rmsR_pre': myl.robust_div(rms_za,rms_ya),
+            'rmsR_post': myl.robust_div(rms_zb,rms_yb)}
+
+# AIC increase joint a.b vs sep a+b segments
+# the higher, the more discontinuity
+# IN:
+#   all segments
+# OUT:
+#   dict with aicR, aicR_pre, aicR_post
+def bnd_aicI(xa,xb,xab,ya,yb,yab,za,zb,zab):
+    # number of parameters per line fit:
+    # intercept, slope, noise variance
+    k = 3
+    aic_zab = myl.aic_ls(xab,zab,k)
+    aic_za = myl.aic_ls(xa,za,k)
+    aic_zb = myl.aic_ls(xb,zb,k)
+    aic_yab = myl.aic_ls(xab,yab,k*2)
+    aic_ya = myl.aic_ls(xa,ya,k)
+    aic_yb = myl.aic_ls(xb,yb,k)
+        
+    return {'aicI': aic_zab-aic_yab,
+            'aicI_pre': aic_za-aic_ya,
+            'aicI_post': aic_zb-aic_yb}
+
+
+# returns orig f0 and lines around boundaries for pre/post/joint segment
+# see above for variable introduction
+# IN:
+#    a: decl dict of pre-bnd seg
+#    b: decl dict of post-bnd seg
+#    df: decl dict of joint seg
+#    x: register id
+# OUT:
+#    f0 segments xa, xb, xab ...
+def bnd_segs(a,b,df,y,ys,ta,tb,ia,ib,x):
+    # concat without overlap
+    if ta[-1]==tb[0]:
+        ya = a['decl'][x]['y'][0:len(a['decl'][x]['y'])-1]
+        xa = a['decl'][x]['x'][0:len(a['decl'][x]['y'])-1]
+    else:
+        ya = a['decl'][x]['y']
+        xa = a['decl'][x]['x']
+    yb = b['decl'][x]['y']
+    xb = b['decl'][x]['x']
+        
+    # joint segments' portions for rmsd, corr (pre, post, total)
+    zab = df[x]['y']
+    za = df[x]['y'][0:len(ya)]
+    zb = df[x]['y'][len(ya):len(df[x]['y'])]
+    
+    yab = np.concatenate((ya,yb))
+    xab = np.concatenate((xa,xb))
+    ## hack on: robust length adjustment
+    yab, zab = myl.hal(yab,zab)
+    ya, za = myl.hal(ya,za)
+    yb, zb = myl.hal(yb,zb)
+    ## same for stylization input (adjust to length of z*)
+    xab = myl.halx(xab,len(zab))
+    xa = myl.halx(xa,len(za))
+    xb = myl.halx(xb,len(zb))
+    ## same for original f0 contours (adjust to length of z*)
+    wab = myl.halx(ys,len(zab))
+    wa = myl.halx(y[ia],len(za))
+    wb = myl.halx(y[ib],len(zb))
+    ## hack off
+
+    return wa,wb,wab,xa,xb,xab,ya,yb,yab,za,zb,zab
 
 # generates 'plot' subdict for bnd dict which can be used later for plotting
 def bnd_plotObj(y,ia,ib,ta,tb,a,b,df,opt):
@@ -835,7 +966,6 @@ def styl_decl_fit(y,opt,med=myl.ea(),t=myl.ea()):
 
     med = myl.lol(med)
     if len(med) != len(y):
-        print('YES')
         med = styl_reg_med(y,opt)
 
     # normalized time
@@ -854,7 +984,7 @@ def styl_decl_fit(y,opt,med=myl.ea(),t=myl.ea()):
     df['ml']['c'] = mc
     df['ml']['y'] = mv
     df['ml']['m'] = np.mean(df['ml']['y'])
-
+    
     # get c for 'none' register (evtl needed for clustering if register='none')
     df['none'] = {'c': styl_polyfit(tn,y,1)}
 
@@ -881,6 +1011,8 @@ def styl_decl_fit(y,opt,med=myl.ea(),t=myl.ea()):
                 df[x]['rate'] = (df[x]['y'][-1]-df[x]['y'][0])/(t[1]-t[0])
                 #print(t, df[x]['y'][-1], df[x]['y'][0],df[x]['rate']) #!r
 
+    ## errors
+          
     # erroneous line crossing
     if ((min(df['tl']['y']-df['ml']['y']) < 0) or
         (min(df['tl']['y']-df['bl']['y']) < 0) or
@@ -889,7 +1021,14 @@ def styl_decl_fit(y,opt,med=myl.ea(),t=myl.ea()):
     else:
         df['err'] = 0
 
+    # styl input for later error calculation
+    df['bl']['x'] = med[:,0]
+    df['ml']['x'] = med[:,1]
+    df['tl']['x'] = med[:,2]
+    df['rng']['x'] = med[:,2]-med[:,0]
+    
     return df
+
 
 # returns base/mid/topline medians
 # IN:
