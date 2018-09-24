@@ -43,7 +43,8 @@
 	},
 	"nrm_win": 0.6,
 	"point_win": 0.3,
-	"loc_sync": 0
+	"loc_sync": 0,
+	"loc_align": "skip"
     },
     "styl": {
 	"glob": {
