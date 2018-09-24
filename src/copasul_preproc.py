@@ -53,7 +53,7 @@ def pp_main(copa,f_log_in=''):
     # over files
     for ii in range(len(ff['f0'])):
 
-        #print(ff['f0'][ii]) #!c
+        #print(ff['annot'][ii]) #!c
 
         copa['data'][ii]={}
         # f0 and annotation file content
@@ -239,7 +239,6 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
         chunk = np.asarray([[f0[0,0],f0[-1,0]]])
         chunk_ut = np.asarray([[f0_ut[0,0],f0_ut[-1,0]]])
         lab_chunk = opt['fsys']['label']['chunk']
-
         
     ## glob #########################
     tn = pp_tiernames(opt['fsys'],'glob','tier',i)
@@ -249,11 +248,11 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
         
     else:
         glb = myl.ea()
-
+        
     # point -> segment tier
     if len(glb)>0 and np.size(glb,1)==1:
         glb, glb_ut, lab_glb = pp_point2segment(glb,glb_ut,lab_glb,chunk,chunk_ut,opt['fsys']['chunk'])
-
+        
     # no glob segs -> chunks
     if len(glb)==0:
         glb=cp.deepcopy(chunk)
@@ -276,11 +275,14 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
     else:
         loc_acc, loc_acc_ut, lab_loc_acc = pp_read_empty()
     loc, loc_ut = myl.ea(2)
+    
     # [[on off center]...]
     if (len(loc_ag)>0 and len(loc_acc)>0):
+        
         # assigning corresponding ag and acc items
         loc,loc_ut,lab_ag,lab_acc = pp_loc_merge(loc_ag_ut,lab_loc_ag,
-                                                 loc_acc_ut,lab_loc_acc)
+                                                 loc_acc_ut,lab_loc_acc,
+                                                 opt['preproc'])
     # [[on off]...]
     elif len(loc_ag)>0:
         loc = loc_ag
@@ -293,7 +295,7 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
         loc_ut = loc_acc_ut
         lab_ag = []
         lab_acc = lab_loc_acc
-
+        
     # no loc segs
     if len(loc)==0:
         lab_ag = []
@@ -309,7 +311,7 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
         # for embedding in augment
         f0 = pp_zp(f0,glb[-1][1],opt,True)
         copa['data'][ii][i]['f0'] = {'t':f0[:,0], 'y':f0[:,1]}
-
+        
     ## error?
     if np.max(y)==0:
          myLog("ERROR! {} contains only zeros that will cause trouble later on.\nPlease remove f0, audio and annotation file from data and re-start the analysis.".format(ff['f0'][ii]),True)
@@ -324,7 +326,7 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
     if len(chunk)>0:
         chunk[0,0] = np.max([chunk[0,0],f0[0,0]])
         chunk_ut[0,0] = np.max([chunk_ut[0,0],f0[0,0]])
-
+        
     # for warnings
     fstm = copa['data'][ii][i]['fsys']['annot']['stm']
 
@@ -716,27 +718,40 @@ def pp_f0_preproc(f0,t_max,opt):
     return f0, t, y, bv
 
 # merging AG segment and ACC event tiers to n x 3 array [[on off center]...]
-# only keeping AGs and ACC for which exactly 1 ACC is within AG
+# opt['preproc']['loc_align']='skip': only keeping AGs and ACC for which exactly 1 ACC is within AG
+#                             'left': if >1 acc in ag keeping first one
+#                             'right': if >1 acc in ag keeping last one
 # IN:
 #   ag: nx2 [[on off]...] of AGs
 #   lab_ag: list of AG labels
 #   acc: mx1 [[timeStamp]...]
 #   lab_acc: list of ACC labels
+#   opt: opt['preproc']
 # OUT:
 #   d:  ox3 [[on off center]...] ox3, %.2f trunc times
 #   d_ut: same not trunc'd 
 #   lag: list of AG labels
 #   lacc: list of ACC labels
-def pp_loc_merge(ag,lab_ag,acc,lab_acc):
+def pp_loc_merge(ag,lab_ag,acc,lab_acc,opt):
     d = myl.ea()
     lag = []
     lacc = []
     for i in range(len(ag)):
         j = myl.find_interval(acc,ag[i,:])
+        jj = -1
         if len(j)==1:
-            d = myl.push(d,[ag[i,0],ag[i,1],acc[j[0]]])
-            lag.append(lab_ag[j[0]])
-            lacc.append(lab_acc[j[0]])
+            jj = j[0]
+        elif len(j)>1 and opt['loc_align'] != 'skip':
+            if opt['loc_align']=='left':
+                jj = j[0]
+            elif opt['loc_align']=='right':
+                jj = j[-1]
+        if jj < 0:
+            continue
+        
+        d = myl.push(d,[ag[i,0],ag[i,1],acc[jj]])
+        lag.append(lab_ag[i])
+        lacc.append(lab_acc[jj])
 
     return myl.cellwise(myl.trunc2,d),d,lag,lacc
 
@@ -1557,6 +1572,10 @@ def pp_bv(yp,opt):
     return bv, b
 
 ### smoothing ########################################
+# remark: savgol_filter() causes warning
+# Using a non-tuple sequence for multidimensional indexing is deprecated
+# will be out with scipy.signal 1.2.0
+# (https://github.com/scipy/scipy/issues/9086)
 def pp_smooth(y,opt):
     if opt['mtd']=='sgolay':
         y = ssi.savgol_filter(y,opt['win'],opt['ord'])
