@@ -215,3 +215,6 @@
 	  - copasul_styl.styl_discont(): 9 boundary featured added for each register
 	  representation: corrD, corrD_pre, corrD_post, rmsR, rmsR_pre, rmsR_post,
 	  aicR, aicR_pre, aicR_post
+20180924: 0.8.11
+	  - copasul_preproc.pp_loc_merge(): more robust treatment of deviating numbers of
+	  accents and accent groups. Covered by new option preproc:loc_align

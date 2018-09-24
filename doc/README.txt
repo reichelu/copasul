@@ -10,6 +10,7 @@ Author: Uwe Reichel, Budapest, 2017
 
 # Documentation:
 doc/copasul_manual.pdf
+copasul/doc/copasul_commented_config.json.txt
 https://arxiv.org/abs/1612.04765
 
 # Language:
