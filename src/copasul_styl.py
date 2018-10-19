@@ -663,6 +663,8 @@ def styl_std_feat(y,opt,t=[]):
 #               AIC(a.b)-AIC(a+b); the higher the more discont
 #       aicI_pre - AIC(A.b)-AIC(a)
 #       aicI_post - AIC(a.B)-AIC(b)
+#       d_o - onset difference: a[0]-b[0]
+#       d_m - diff of mean values: mean(a)-mean(b)
 #    Notation:
 #    a, b: fits on pre-, post-boundary segments
 #    a.b: joint fit over segments a and b
@@ -733,6 +735,10 @@ def styl_discont(t,y,a,b,opt,plotDict={},med=myl.ea(),caller='bnd'):
         bnd[x]={}
         bnd[x]['r']=b['decl'][x]['y'][0]-a['decl'][x]['y'][-1]
 
+        # onsets and means difference (downstep)
+        bnd[x]['d_o'] = a['decl'][x]['y'][0] - b['decl'][x]['y'][0]
+        bnd[x]['d_m'] = np.mean(a['decl'][x]['y']) - np.mean(b['decl'][x]['y'])
+        
         # RMS between fitted lines
         bnd[x]['rms'] = myl.rmsd(yab,zab)
         bnd[x]['rms_pre'] = myl.rmsd(ya,za)
@@ -1191,11 +1197,11 @@ def styl_loc_file(copa,ii,opt,rms_sum,N):
 
 # polyfit of local segment
 # IN:
-#   t timeSeq
+#   t time [onset offset nucleus]
 #   y f0Seq
 #   opt
 # OUT:
-#   f['c']  polycoefs (descending)
+#   f['c']  polycoefs (descending order)
 #    ['tn'] normalized time
 #    ['y']  stylized f0
 #    ['rms'] root mean squared error between original and resynthesized contour
@@ -1537,7 +1543,10 @@ def sdw_robust(i1,i2,u):
     i1 = i1[myl.find(i1,'<=',u)]
     i2 = i2[myl.find(i2,'<=',u)]
     if len(i1)==0:
-        i1 = np.asarray([max(0,i2[0]-2)])
+        if len(i2)==0:
+            i1 = [0]
+        else:
+            i1 = np.asarray([max(0,i2[0]-2)])
         #print('i1',i1)
     if len(i2)==0:
         i2 = np.asarray([i1[-1]])

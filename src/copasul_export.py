@@ -665,7 +665,7 @@ def export_bnd(c,fo,opt):
                             # bl|ml|tl|rng
                             for y in myl.lists('register'):
                                 # r|rms|...
-                                for z in myl.lists ('bndfeat'):
+                                for z in myl.lists('bndfeat'):
                                     d["{}_{}_{}".format(w,y,z)].append(c[ii][i]['bnd'][j][k][w][y][z])
                     # grouping
                     d = export_grp_upd(d,c[ii][i]['grp'])
