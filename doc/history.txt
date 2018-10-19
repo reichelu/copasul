@@ -218,3 +218,8 @@
 20180924: 0.8.11
 	  - copasul_preproc.pp_loc_merge(): more robust treatment of deviating numbers of
 	  accents and accent groups. Covered by new option preproc:loc_align
+20181019: 0.8.12
+	  - copasul_styl.styl_discont(): for each register representation 2 more features
+	  of use e.g. for measuring downstep.
+	  d_o: onset difference
+	  d_m: difference of means
