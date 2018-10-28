@@ -25,16 +25,16 @@ import re
 ### common structure for filewise and batch processing for IP and accent extraction 
 #aug_glob/aug_batch('glob',...):
 # 1. feature matrix, weights, seed vectors, time info
-#   fv, wgt, tc, is0, is1, t, to, pt, pto, fto = aug_glob_fv(ty,y,annot,opt,i,fstm,f,lng,spec)
+#   fv, wgt, tc, is0, is1, i_nan, t, to, pt, pto, fto = aug_glob_fv(ty,y,annot,opt,i,fstm,f,lng,spec)
 # 2. clustering
-#   c, cntr, wgt = aug_cntr_wrapper('glob',fv,tc,wgt,opt,is0,is1)
+#   c, cntr, wgt = aug_cntr_wrapper('glob',fv,tc,wgt,opt,is0,is1,i_nan,meas)
 # 3. segmentation based on class vector c
 #   ip = aug_glob_seg(c,tc,t,to,pt,pto,fto,opt)
 #aug_loc/aug_batch('loc',...):
 # 1. feature matrix, weights, seed vectors, time info
-#   fv, wgt, tc, is0, is1,to, ato, do_postsel = aug_loc_fv(ty,y,bv,annot,opt,i,fstm,f,lng,add_mat,spec)
+#   fv, wgt, tc, is0, is1, i_nan, to, ato, do_postsel = aug_loc_fv(ty,y,bv,annot,opt,i,fstm,f,lng,add_mat,spec)
 # 2. clustering
-#   c, cntr, wgt = aug_cntr_wrapper('loc',fv,tc,wgt,opt,is0,is1)
+#   c, cntr, wgt = aug_cntr_wrapper('loc',fv,tc,wgt,opt,is0,is1,i_nan,meas)
 # 3. accentuation based on class vector c, and further selection within accent groups/words
 #   acc = aug_loc_acc(c,fv,wgt,to,ato,do_postsel,cntr)
 # augments TextGrids by tiers: myChunkTierName_myChannelIdx and
@@ -102,7 +102,10 @@ def aug_batch(dom,ff_wav,ff_annot,ff_f0,opt,add_mat):
     # clustering over all data
     d = ps['batch']
     #print(d['fv'], d['wgt'], ps['file'][0][0]['fv'])
-    c, cntr, wgt = aug_cntr_wrapper(dom,d['fv'],d['tc'],d['wgt'],opt,d['is0'],d['is1'])
+
+    c, cntr, wgt = aug_cntr_wrapper(dom,d['fv'],d['tc'],d['wgt'],opt,
+                                    d['is0'],d['is1'],d['i_nan'],
+                                    opt['augment'][dom]['measure'])
     #print("wgt {}: ".format(dom), wgt) #!wgt
     #myl.stopgo() #!wgt
     # distributing c to files
@@ -192,21 +195,21 @@ def aug_batch_ps(dom,ff_wav,ff_annot,ff_f0,opt,add_mat):
             f0, t, z, bv = copp.pp_f0_preproc(f0,myl.trunc2(lng),opt)
             ## phrase/accent extraction ################## 
             if dom == 'glob':
-                fv,wgt,tc,is0,is1,t,to,pt,pto,fto = aug_glob_fv(t,z,annot,opt,i,fstm,
-                                                                f,lng,aug_spec['glob'])
+                fv,wgt,tc,is0,is1,i_nan,to,pt,pto,fto = aug_glob_fv(t,z,annot,opt,i,fstm,
+                                                                    f,lng,aug_spec['glob'])
                 # domain dependent input
                 psf = {'t':t, 'pt':pt,'pto':pto,'to':to,'fto':fto}
             else:
-                fv,wgt,tc,is0,is1,to,ato,do_postsel = aug_loc_fv(t,z,bv,annot,opt,i,
-                                                                 fstm,f,lng,add_mat,
-                                                                 aug_spec['loc'])
+                fv,wgt,tc,is0,is1,i_nan,to,ato,do_postsel = aug_loc_fv(t,z,bv,annot,opt,i,
+                                                                       fstm,f,lng,add_mat,
+                                                                       aug_spec['loc'])
                 psf = {'do_postsel':do_postsel,'ato':ato,'to':to}
             if add_pho:
                 pho = aug_pho(dom,pho,annot,tc,i,fstm,opt)
                 #print(pho) ##!!
                 #myl.stopgo() ##!!
 
-            ps = aug_batch_ps_upd(ps,dom,ii,i,fv,wgt,tc,is0,is1,lng,psf,oi)
+            ps = aug_batch_ps_upd(ps,dom,ii,i,fv,wgt,tc,is0,is1,i_nan,lng,psf,oi)
             
             oi = len(ps['batch']['fv'])
 
@@ -247,7 +250,7 @@ def aug_pho_nrm(pho):
     # myPhone -> [myDur ...]
     dur = {}
     # over vowel labels
-    for i in range(len(pho['lab'])):
+    for i in myl.idx(pho['lab']):
         v = pho['lab'][i]
         if v not in dur:
             dur[v] = myl.ea()
@@ -274,12 +277,14 @@ def aug_pho_nrm(pho):
 #  dom: 'glob'|'loc'
 #  pho: phonem dict to be updated, initialized in aug_batch()
 #  annot_ annotation dict
-#  tc: potential prosodic event file stamps where to look for vowel length
+#  tc: potential prosodic event time stamps where to look for vowel length
 #  ci: channelIdx
 #  stm: annotation file stem
 #  opt: copa['config']
 # OUT:
 #  pho: updated by duration, label at tc stamps
+#       .lab: label array
+#       .dur: duration array
 def aug_pho(dom,pho,annot,tc,ci,stm,opt):
     # vowel pattern
     vow = opt['fsys']['pho']['vow']
@@ -341,15 +346,16 @@ def aug_do_add_pho(dom,opt):
 #   tc: time stamps vector
 #   is0: set of 0 class seed indices
 #   is1: set of 1 class seed indices
+#   i_nan: row idx with nans
 #   lng: signal length
 #   psf: domain-related fields to be passed to ps
 #   oi: onset index
-def aug_batch_ps_upd(ps,dom,ii,i,fv,wgt,tc,is0,is1,lng,psf,oi):
+def aug_batch_ps_upd(ps,dom,ii,i,fv,wgt,tc,is0,is1,i_nan,lng,psf,oi):
     # file specs
     if ii not in ps['file']:
         ps['file'][ii]={}
     ps['file'][ii][i]={'fv':fv,'is0':is0,'is1':is1,
-                       'tc':tc,'lng':lng}
+                       'i_nan':i_nan,'tc':tc,'lng':lng}
     for x in psf:
         ps['file'][ii][i][x]=psf[x]
 
@@ -359,10 +365,12 @@ def aug_batch_ps_upd(ps,dom,ii,i,fv,wgt,tc,is0,is1,lng,psf,oi):
     # add onset to candidate indices
     is0 = set(np.asarray(list(is0)).astype(int) + oi)
     is1 = set(np.asarray(list(is1)).astype(int) + oi)
+    i_nan = set(np.asarray(list(i_nan)).astype(int) + oi)
 
     ps['batch']['fv'] = myl.cmat(ps['batch']['fv'],fv)
     ps['batch']['is0'] = ps['batch']['is0'].union(is0)
     ps['batch']['is1'] = ps['batch']['is1'].union(is1)
+    ps['batch']['i_nan'] = ps['batch']['i_nan'].union(i_nan)
     if len(ps['batch']['wgt'])==0:
         ps['batch']['wgt']=wgt
     # file/channel assignment
@@ -386,6 +394,7 @@ def aug_batch_ps_upd(ps,dom,ii,i,fv,wgt,tc,is0,is1,lng,psf,oi):
 #     ['file']['fi']['ci']  fileIdx x channelIdx: rowIdx in data['fv']
 #                         ['is0'] set of 0-seed indices
 #                         ['is1'] set of 1-seed indices
+#                         ['i_nan'] set of nan row idx
 #                         ['tc']
 #                         ['pt']
 #                         ['pto']
@@ -399,7 +408,7 @@ def aug_ps_init():
     ps = {'batch':{}, 'file':{}}
     for x in ['fv', 'tc', 'i1', 'i2', 'ij', 'wgt']:
         ps['batch'][x]=myl.ea()
-    for x in ['is0', 'is1']:
+    for x in ['is0', 'is1', 'i_nan']:
         ps['batch'][x]=set()
     return ps
 
@@ -772,6 +781,8 @@ def aug_tn(tq,spec,annot,opt,ci,fld):
                 return x
         # constraint (1)
         tn = copp.pp_tiernames(opt['fsys']['augment'],fld,tq,ci)
+        #print(fld,tq,ci,'->',tn,'vs',x,xc) #!
+        #myl.stopgo() #!
         if x not in tn:
             if xc not in tn:
                 myLog("Info! {} augmentation. {} candidate {} not usable. Trying fallbacks".format(fld,tq,x))
@@ -827,12 +838,13 @@ def aug_viol(t,spec,tq):
 # OUT:
 #   glob: [[on off]...]
 def aug_glob(ty,y,annot,opt,i,fstm,f,lng,spec):
-    fv, wgt, tc, is0, is1, t, to, pt, pto, fto = aug_glob_fv(ty,y,annot,opt,i,fstm,f,lng,spec)
+    fv, wgt, tc, is0, is1, i_nan, t, to, pt, pto, fto = aug_glob_fv(ty,y,annot,opt,i,fstm,f,lng,spec)
     # c[j]==1: bnd following after segment j
     c = myl.eai()
     if len(tc)>0:
         #print(len(tc),len(fv),wgt,len(is0),len(is1)) #!
-        c, cntr, wgt = aug_cntr_wrapper('glob',fv,tc,wgt,opt,is0,is1)
+        c, cntr, wgt = aug_cntr_wrapper('glob',fv,tc,wgt,opt,is0,is1,i_nan,
+                                        opt['augment']['glob']['measure'])
     return aug_glob_seg(c,tc,t,to,pt,pto,fto,opt)
 
 
@@ -917,6 +929,7 @@ def aug_glob_seg(c,tc,t,to,pt,pto,fto,opt):
 #  tc: [...] time stamps for feature extraction
 #  is0: set of class 0 seed indices
 #  is1: set of class 1 seed indices
+#  i_nan: set of feattab row idx initially containing NaNs
 #  t: [[on off]...] of inter-boundary candidate segments
 #  to: t unrounded
 #  pt: [[on off]...] parent tier segments
@@ -957,6 +970,7 @@ def aug_glob_fv(ty,y,annot,opt,i,fstm,f,lng,spec):
     t_trend = myl.cellwise(myl.trunc2,to_trend)
 
     ## r: input dict for bnd feature extraction
+    #    .myIdx: over boundary candidates
     r = {}
     for j in range(len(lab)):
         # fallback: file nrm
@@ -982,7 +996,7 @@ def aug_glob_fv(ty,y,annot,opt,i,fstm,f,lng,spec):
     # bnd features for each segment
     # (code taken over from cost.styl_bnd(): for k in nk...)
 
-    # opt
+    # dict of selected features
     wglob = gopt['wgt']
 
     # over cue sets: feat and wgt for each set
@@ -1000,6 +1014,8 @@ def aug_glob_fv(ty,y,annot,opt,i,fstm,f,lng,spec):
     # all indices in vicinity
     #   -> certainly no boundaries (min length assumption)
     is0 = set()
+    # feature table row idx initially containing an NaN or Inf
+    i_nan = set()
 
     # f0 medians [[bl ml tl]...], same length as y
     med = cost.styl_reg_med(y,opt['styl']['glob'])
@@ -1023,7 +1039,7 @@ def aug_glob_fv(ty,y,annot,opt,i,fstm,f,lng,spec):
             elif x=='trend':
                 tw = r[j]['tt']
             elif x=='win':
-                tw = r[j]['tn']
+                tw = r[j]['tn']                
             else:
                 # no other featsets supported (pho see below)
                 continue
@@ -1041,6 +1057,8 @@ def aug_glob_fv(ty,y,annot,opt,i,fstm,f,lng,spec):
             #   (time needed since not for all time stamps all
             #   features can be extracted, e.g.: syllable nucleus
             v,w = aug_glob_fv_sub(x,d,opt)
+            #print('!!!',w) #!cl
+            #myl.stopgo() #!cl
             fx[x] = myl.push(fx[x],v)
             fvec = np.append(fvec,v)
             if len(wx[x])==0:
@@ -1057,33 +1075,51 @@ def aug_glob_fv(ty,y,annot,opt,i,fstm,f,lng,spec):
         zz = list(fx.keys())
         if len(zz)==0 or len(ndur)==len(fx[zz[0]]):
             fx['pho']=myl.lol(ndur).T
-            wx['pho']=[wgt_pho]
+            wx['pho']=np.asarray([wgt_pho])
     #!pho
     
     # get is1 and is0 seeds from seed_minmax
+    # (e.g. if no word boundaries given)
     if gopt['cntr_mtd'] == 'seed_minmax':
         is0, is1 = aug_seed_minmax(fmat,gopt)
     # get is0 seeds from min_l next to is1 boundaries
     elif len(is1)>0 and re.search('^seed',gopt['cntr_mtd']):
         is0 = aug_is0(tc,is0,is1,gopt['min_l'])
 
-
-
     # merge featset-related featmats and weights to single matrices
     # transform to delta values depending on opt['measure']
     # weight vector is doubled in case of abs+delta
     if len(tc)>0:
-        fv, wgt = aug_fv_mrg(fx,wx)
+        fv, wgt, i_nan = aug_fv_mrg(fx,wx)
         # abs, delta, abs+delta
         fv, wgt = aug_fv_measure(fv,wgt,gopt['measure'])
+    return fv, wgt, tc, is0, is1, i_nan, t, to, pt, pto, fto
 
-    return fv, wgt, tc, is0, is1, t, to, pt, pto, fto
+# remove is1 indices if corresp featvecs contained NaNs (meanwhile replaced by 0)
+# IN:
+#   is1: set of is1 row indices in featmat
+#   i_nan: set of row indices in featmat that contained NaNs
+#   m: 'abs'|'delta'|'abs+delta'; if incl. delta i_nan+1 added to i_nan
+# OUT:
+#   is1 with i_nan members removed
+def rm_is1(is1,i_nan,m):
+    #print(is1,i_nan) #!cl
+    isDelta = False
+    if re.search('delta',m):
+        isDelta = True
+    for i in i_nan:
+        is1.discard(i)
+        if isDelta:
+            is1.discard(i+1)
+    #print('-->',is1) #!cl
+    #myl.stopgo() #!cl
+    return is1
 
-# calculates for each featvec it's MAE to 0
+# calculates for each featvec it's summed AE to 0
 # The items with the highest values are put to set 1 
 # IN:
 #   x: feature matrix, one row per item
-#   o: minmax_prct <[5, 95]>
+#   o: minmax_prct <[10, 90]> below 10 -> set 0, above 90 -> set 1
 #   is0: <{}>
 #   is1: <{}>
 # OUT:
@@ -1138,15 +1174,17 @@ def aug_certain_bnd(r,j):
 # OUT:
 #   loc: [timeStamp ...]
 def aug_loc(ty,y,bv,annot,opt,i,fstm,f,lng,add_mat,spec):
-    fv, wgt, tc, is0, is1, to, ato, do_postsel = aug_loc_fv(ty,y,bv,annot,opt,i,fstm,f,lng,add_mat,spec)
-
+    fv, wgt, tc, is0, is1, i_nan, to, ato, do_postsel = aug_loc_fv(ty,y,bv,annot,opt,i,
+                                                                   fstm,f,lng,add_mat,spec)
+    
     # all accents to be returned
     if len(fv)==0:
         return to
 
     # centroid-based classification
     # c[j]==1: bnd following after segment j 
-    c, cntr, wgt = aug_cntr_wrapper('loc',fv,tc,wgt,opt,is0,is1)
+    c, cntr, wgt = aug_cntr_wrapper('loc',fv,tc,wgt,opt,is0,is1,i_nan,
+                                    opt['augment']['loc']['measure'])
 
     return aug_loc_acc(c,fv,wgt,to,ato,do_postsel,cntr)
 
@@ -1196,6 +1234,7 @@ def aug_loc_acc(c,fv,wgt,to,ato,do_postsel,cntr):
 #  tc: time stamp
 #  is0: class 0 seed index set
 #  is1: class 1 seed index set
+#  i_nan: set of feature table row idx containing NaNs
 #  to: time stamp of accent candidates
 #  ato: [[on off]...] of accent group
 #  do_postsel: boolean
@@ -1323,11 +1362,11 @@ def aug_loc_fv(ty,y,bv,annot,opt,i,fstm,f,lng,add_mat,spec):
         zz = list(fx.keys())
         if len(zz)==0 or len(ndur)==len(fx[zz[0]]):
             fx['pho']=myl.lol(ndur).T
-            wx['pho']=[wgt_pho]
+            wx['pho']=np.asarray([wgt_pho])
     #!pho
 
     # merge featset-related featmats and weights to single matrices
-    fv, wgt = aug_fv_mrg(fx,wx)
+    fv, wgt, i_nan = aug_fv_mrg(fx,wx)
     if len(fv)==0: return myl.ea()
 
     # get seed candidates for stressed and unstressed words
@@ -1351,7 +1390,7 @@ def aug_loc_fv(ty,y,bv,annot,opt,i,fstm,f,lng,add_mat,spec):
     # if specified: delta values, weight vector doubling in case of abs+delta
     fv, wgt = aug_fv_measure(fv,wgt,lopt['measure'])
     
-    return fv, wgt, tc, is0, is1, to, ato, do_postsel
+    return fv, wgt, tc, is0, is1, i_nan, to, ato, do_postsel
 
 
 # removes those time stamps that are not within a global segment
@@ -1438,8 +1477,9 @@ def aug_loc_seeds(to,ato,fv,wgt,min_l_a,max_l_na):
 #   fx: dict myFeatSet -> myFeatTab
 #   wx: dict myFeatSet -> myWeightVector
 # OUT:
-#   fv: feat matrix, col-concat over featSets
+#   fv: feat matrix, col-concat over featSets; zero-weight features removed
 #   wgt: weight vector, col-concat
+#   i_nan: set of row indices that contain NaNs or Infs
 def aug_fv_mrg(fx,wx):
     fv, wgt = myl.ea(2)
     # featsets
@@ -1458,21 +1498,34 @@ def aug_fv_mrg(fx,wx):
                 err=True
                 if i==0: wgt = myl.ea()
                 break
-            ##!!np: later numpy versions do not support
-            ## column concat with empty arrays
-            ##!!np v = np.append(v,fx[x][i,:], 1)
-            v = np.append(v,fx[x][i,:])
+            # non-zero weights
+            w1 = myl.find(wx[x],'>',0)
+            #print(w1,type(w1),type(wx[x])) #!cl
+            #v = np.append(v,fx[x][i,:])
+            v = np.append(v,fx[x][i,w1])
+            # create wgt only once
             if i>0 and len(wgt)>0: continue
-            ##!!np wgt = np.append(wgt, wx[x],1)
-            wgt = np.append(wgt, wx[x])
+            #wgt = np.append(wgt, wx[x])
+            wgt = np.append(wgt, wx[x][w1])
         if err: continue
         fv = myl.push(fv,v)
         if err: break
 
+    # nan rows
+    i_nan = set()
+    for i in myl.idx(fv):
+        l_nan = myl.find(fv[i],'is','nan')
+        l_inf = myl.find(fv[i],'is','inf')
+        if len(l_nan)+len(l_inf)>0:
+            i_nan.add(i)
+        
+    # replace all NaN by 0
+    # ok as an approximation, since features are selected in a way that:
+    #   the higher (+positive) the value the more likely a boundary/accent candidate
     fv = np.nan_to_num(fv)
     wgt = np.nan_to_num(wgt)
-
-    return fv, wgt
+    
+    return fv, wgt, i_nan
 
 # returns t, to, lab for file-wide default segment
 def t_file_parent(lng):
@@ -1535,7 +1588,7 @@ def aug_loc_postsel(loc,fv,wgt,ato,cntr={}):
 #   i: channelIdx
 # OUT:
 #   fv: n x m feature matrix
-#   w:  1 x m weight vector
+#   w:  1 x m weight vector (with 0 for features to be dropped later)
 #   tc:  time stamp vector
 #   tco: unrounded
 def aug_loc_feat(typ,copa,ii,i):
@@ -1803,8 +1856,11 @@ def aug_loc_preselect(t,to,lab,at,ato,alab,opt):
 #   tc: corresponding time stamp values (bnd for glob, sylncl for loc)
 #   wgt: feat weight vector
 #   opt: copa['config']
-#   is0: set of clear non-bound indices
-#   is1: set pre-defined indices of 1 class
+#   is0: set of clear non-bound row indices in x
+#   is1: set pre-defined class 1 row indices in x
+#   i_nan: row idx of featvecs containing nan
+#   meas: measure abs|abs+delta|delta to see whether 1 or 2 rows in feattab are
+#         concerned by nans
 #   ij: matrix of [fileIdx channelIdx] (one per matrix row)
 # OUT:
 #   c: vector, c[j] - +boundary/accent
@@ -1812,9 +1868,10 @@ def aug_loc_preselect(t,to,lab,at,ato,alab,opt):
 #      [0|1]: centroidVector
 #   wgt: weights (as user input or estimated from data, in case
 #       abs + delta values are taken, the weight vector gets double length)
-def aug_cntr_wrapper(typ,x,tc,wgt,opt,is0=set(),is1=set(),ij=myl.eai()):
+def aug_cntr_wrapper(typ,x,tc,wgt,opt,is0=set(),is1=set(),i_nan=set(),
+                     meas='abs',ij=myl.eai()):
     topt = opt['augment'][typ]
-
+    
     # threshold to decide which scaling method to choose
     n_sparse = 10
 
@@ -1822,7 +1879,16 @@ def aug_cntr_wrapper(typ,x,tc,wgt,opt,is0=set(),is1=set(),ij=myl.eai()):
         return myl.eai(), wgt
 
     # robustness: convert nan to 0
+    # ok, since features to be selected to be positive and positively
+    # correlated to class 1 events (i.e. e.g. higher values for +accent
+    # than for -accent)
     x = np.nan_to_num(x)
+
+    # locally remove idx with nan-rows before centroid extraction
+    # is1 needed outside of function to place events at corresp positions,
+    # even if feature extraction failed
+    is1 = cp.deepcopy(is1)
+    is1 = rm_is1(is1,i_nan,meas)
 
     # centering + scaling of sparse data
     if len(x) <= n_sparse:
@@ -1835,8 +1901,8 @@ def aug_cntr_wrapper(typ,x,tc,wgt,opt,is0=set(),is1=set(),ij=myl.eai()):
     i0 = np.asarray(list(is0)).astype(int)
     i1 = np.asarray(list(is1)).astype(int)
 
-    cntr, ww = aug_cntr_wrapper_sub(x,i0,i1,topt)
-
+    cntr, ww = aug_cntr_wrapper_sub(x,i0,i1,wgt,topt)
+    
     # non-user defined weights
     if len(ww)>0: wgt=ww
 
@@ -1895,6 +1961,21 @@ def aug_cntr_wrapper(typ,x,tc,wgt,opt,is0=set(),is1=set(),ij=myl.eai()):
     #if (typ=='glob' and len(c)>0): c[-1]=1
     return c, cntr, wgt
 
+# remove 0-only rows in x indexed by is1
+# IN:
+#   is1: set of certain bnd/acc candidates
+#   x: feature matrix, that might contain zero-only rows indicating
+#          extraction error
+# OUT:
+#   is1: with those indices removed that point to the errorneous rows in x
+def acw_rmIs1Err(is1,x):
+    y = set()
+    for i in is1:
+        if max(x[i,:])>0:
+            y.add(i)
+    return y
+
+    
 # transforms current into delta values or returns both
 # depending on mtd. On case of both, weight vector is doubled
 # (at this stage user-defined, not yet data-derived)
@@ -1918,10 +1999,12 @@ def aug_fv_measure(x,wgt,mtd):
 #   x: feature matrix
 #   i0: index vector of 0 seed items in x
 #   i1: index vector of 1 seed items in x
+#   wgt: weight vector (n = ncol of x) -> zeros are kept
+#   topt: opt[config][augment][myDomain]
 # OUT:
 #   cntr: dict [0|1] median vectors
 #   ww: feature weight vector
-def aug_cntr_wrapper_sub(x,i0,i1,topt):
+def aug_cntr_wrapper_sub(x,i0,i1,wgt,topt):
 
     # data-driven feature weights
     ww = myl.ea()
@@ -1976,7 +2059,7 @@ def aug_is0(tc,is0,is1,d):
 #          [0]
 #  w: <[]> feature weights.
 def aug_cntr_seed(x,seed,opt):
-
+    
     ## initial centroids
     c = {0:myl.ea(),1:myl.ea()}
     for j in [0,1]:
@@ -1989,7 +2072,7 @@ def aug_cntr_seed(x,seed,opt):
     ## feature weights:
     # e.g. 'silhouette' = feature value separability, based on init centroids
     w = aug_wgt(opt['wgt_mtd'],x,c)
-
+    
     ## keep initial centroids; nearest centroid classif by 
     ## weighted distance
     if req and opt['cntr_mtd'] == 'seed_wgt':
@@ -2005,13 +2088,18 @@ def aug_cntr_seed(x,seed,opt):
         return c, w
 
     ## percentile-based centroid (for less balanced class expectations)
+    # 'seed_prct'
     # nx1 delta-dist vector, 1 element per featvec
     # d = [distTo0/distTo1 ...], i.e. the higher the closer to 0
     d = myl.ea()
+    # over feature vectors
     for i in myl.idx_a(len(x)):
         if req:
             d0, d1 = myl.dist_eucl(x[i,:],c[0],w), myl.dist_eucl(x[i,:],c[1],w)
             d = myl.push(d,d0/myl.rob0(d1))
+            #print('c0:', c[0], 'c1:', c[1], 'xi:', x[i,:], 'max', max(x[i,:])) #!cl
+            #print(d0,d1,d) #!cl
+            #myl.stopgo() #!cl
         elif len(c[1])>0:
             d1 = myl.dist_eucl(x[i,:],c[1],w)
             d = myl.push(d,d1)
@@ -2019,9 +2107,12 @@ def aug_cntr_seed(x,seed,opt):
             d0 = myl.dist_eucl(x[i,:],c[0],w)
             d = myl.push(d,1/myl.rob0(d0))
             
-    px = np.percentile(x,opt['prct'])
+    #px = np.percentile(x,opt['prct'])
+    px = np.percentile(d,opt['prct'])
     i0, i1 = myl.robust_split(d,px)
-
+    #print('d:',d,'px:',px,'i0:',i0,'i1:',i1) #!cl
+    #myl.stopgo() #!cl
+    
     c[0] = np.median(x[i0,:],axis=0)
     c[1] = np.median(x[i1,:],axis=0)
     return c, w
@@ -2073,14 +2164,14 @@ def aug_cntr_split(x,opt):
 # single glob feature vector
 # IN:
 #   typ: 'std'|'trend'|'win'
-#   b: feature dict
+#   b: boundary feature dict
 #          ['p']
 #          ['ml']|['rng']|...
 #               ['rms']|['rms_pre']|['rms_post'] 
 #   opt: copa['config']
 # OUT:
 #   v: featvec
-#   wgt: init or left as is if given
+#   w: init or left as is if given
 # REMARKS:
 #   for reset 'r' absolute value is taken 
 def aug_glob_fv_sub(typ,b,opt):

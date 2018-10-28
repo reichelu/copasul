@@ -53,6 +53,10 @@ import matplotlib.pyplot as plt
 #   returns tier from TextGrid
 # tg_tn()
 #   returns list TextGrid tier names
+# tg_tierType()
+#   returns 'points' or 'intervals' (= key to access items in tier)
+# tg_mrg()
+#   select tiers of >=1 TextGrid and create new TextGrid from these tiers
 ### format transformations
 # tg_tab2tier():
 #   numpy array to TextGrid tier
@@ -84,9 +88,10 @@ import matplotlib.pyplot as plt
 #  calls the following functions that can also be applied in isolation
 #    pw_preproc(): wrapper around the following functions
 #    pw_str2float(): panda is biased towards strings -> corrections, incl. NaNs
+#    pw_outl2nan(): replacing outliers by NaN
 #    pw_nan2mean(): replacing NaNs by column means/medians (can be further grouped by 1 variable)
 #    pw_abs(): abs-transform of selected columns
-#    pw_centerScale(): column-wise center/scaling
+#    pw_centerScale(): column-wise robust center/scaling
 
 
 ### basic matrix op functions
@@ -159,7 +164,8 @@ def lists(typ='register',ret='list'):
                       'sd_prepost','sd_pre','sd_post',
                       'corrD','corrD_pre','corrD_post',
                       'rmsR','rmsR_pre','rmsR_post',
-                      'aicI','aicI_pre','aicI_post'],
+                      'aicI','aicI_pre','aicI_post',
+                      'd_o','d_m'],
           'bgd': ['bnd','gnl_f0','gnl_en','rhy_f0','rhy_en','voice'],
           'featsets': ['glob','loc','bnd','gnl_f0','gnl_en',
                        'rhy_f0','rhy_en','voice'],
@@ -251,6 +257,7 @@ def profile_wrapper(dd,opt):
     ### opt init
     opt = opt_default(opt,{'stat':'median', 'navigate':{},
                            'absfeat':[], 'plot':{}})
+    
     opt['navigate'] = opt_default(opt['navigate'],
                                   {'str2float': True,
                                    'nan2mean': True,
@@ -375,6 +382,7 @@ def pw_preproc(d,opt):
                            'absfeat':[], 'grp_n2m': ''})
     opt['navigate'] = opt_default(opt['navigate'],
                                   {'str2float': True,
+                                   'outl2nan': False,
                                    'nan2mean': True,
                                    'abs_add': False,
                                    'nrm': True,
@@ -383,6 +391,8 @@ def pw_preproc(d,opt):
     d = cp.deepcopy(d)
     if opt['navigate']['str2float']:
         d = pw_str2float(d,opt['feat'])
+    if opt['navigate']['outl2nan']:
+        d = pw_outl2nan(d,opt['feat'])
     if opt['navigate']['nan2mean']:
         d = pw_nan2mean(d,opt['feat'],opt['stat'],opt['grp_n2m'])
     if len(opt['absfeat'])>0:
@@ -413,6 +423,21 @@ def pw_str2float(d,cn):
         for i in range(len(d[x])):
             v = np.append(v,float(d[x][i]))
         d[x] = v
+    return d
+
+# replaces outliers by np.nan
+# IN:
+#   d: dict from input_wrapper(...,'pandas_csv')
+#   cn: list of names of columns to be processed (!needs to be numeric!)
+def pw_outl2nan(d,cn):
+    # ignore zeros
+    opt = {'zi': False,
+           'm': 'mean',
+           'f': 4}
+    for x in cn:
+        io = outl_idx(d[x],opt)
+        if np.size(io)>0:
+            d[x][io] = np.nan
     return d
 
 # replaces np.nan by column medians
@@ -685,16 +710,22 @@ def intersect(a,b):
     return list(set(a) & set(b))
 
 # for flexible command line vs embedded call of some function
-# either: args contains a 'config' key, then opt is read from config file
-# or: args contains key <reqKey>, then opt is set to args
+# - args contains a 'config' key?
+# --- config value is dict: opt := args['config']
+# --- config value is string (file name): opt is read from config file
+# - args contains a <reqKey> key?
+# - config := args
 # IN:
 #   args dict
-#   reqKey required key
+#   reqKey required key <''>
 # OUT:
 #   opt dict read from args.config or equal args
-def args2opt(args,reqKey):
+def args2opt(args,reqKey=''):
     if 'config' in args:
-        opt = input_wrapper(args['config'],'json')
+        if type(args['config']) is dict:
+            opt = args['config']
+        else:
+            opt = input_wrapper(args['config'],'json')
     elif reqKey in args:
         opt = args
     else:
@@ -740,16 +771,23 @@ def stopgo(x=''):
 
 # returns files incl full path as list (recursive dir walk)
 # IN:
-#   d - string, directory
-#   e - string, extension
+#   d - string, directory; or dict containing fields 'dir' and 'ext'
+#   e - string, extension; or <''> if d dict
 # OUT:
 #   ff - list of fullPath-filenames
-def file_collector(d,e):
+def file_collector(d,e=''):
+    if type(d) is dict:
+        pth = d['dir']
+        ext = d['ext']
+    else:
+        pth = d
+        ext = e
+    
     ff=[]
-    for root, dirs, files in os.walk(d):
+    for root, dirs, files in os.walk(pth):
         files.sort()
         for f in files:
-            if f.endswith(e):
+            if f.endswith(ext):
                 ff.append(os.path.join(root, f))
     return sorted(ff)
 
@@ -791,10 +829,12 @@ def outl_rm(y,opt):
 # io - indices of outliers
 def outl_idx(y,opt):
     if opt['zi']==True:
-        i = (y!=0).nonzero()
+        #i = (y!=0).nonzero()
+        i = (y!=0 & np.isfinite(y)).nonzero()
     else:
-        i = range(np.size(y))
-
+        #i = range(np.size(y))
+        i = (np.isfinite(y)).nonzero()
+        
     f=opt['f']
 
     if np.size(i)==0:
@@ -818,9 +858,11 @@ def outl_idx(y,opt):
             lb, ub = q1-f*r, q3+f*r
         
     if opt['zi']==False:
-        io = ((y>ub) | (y<lb)).nonzero()
+        #io = ((y>ub) | (y<lb)).nonzero()
+        io = (np.isfinite(y) & ((y>ub) | (y<lb))).nonzero()
     else:
-        io = ((y>0) & ((y>ub) | (y<lb))).nonzero()
+        #io = ((y>0) & ((y>ub) | (y<lb))).nonzero()
+        io = (np.isfinite(y) & ((y>0) & ((y>ub) | (y<lb)))).nonzero()
 
     #stopgo("m: {}, lb: {}, ub: {}, n: {}".format(trunc2(m),trunc2(lb),trunc2(ub),len(io[0])))
 
@@ -829,12 +871,13 @@ def outl_idx(y,opt):
 # output wrapper, extendable, so far only working for typ 'pickle'
 # 'TextGrid' and 'list' (1-dim)
 # IN:
-#   anyVariable (except json: dict type)
+#   anyVariable (for pickle; dict type for json, csv, csv_quote; TextGrid/list/string
 #   fileName
-#   typ: 'pickle'|'TextGrid'|'json'|'list'|'string'
+#   typ: 'pickle'|'TextGrid'|'json'|'list'|'string'|'csv'|'csv_quote'
+#   opt dict used by some output types, e.g. 'sep' for csv
 # OUT:
 #   <fileOutput>
-def output_wrapper(v,f,typ):
+def output_wrapper(v,f,typ,opt={'sep':','}):
     if typ == 'pickle': m = 'wb'
     else: m = 'w'
     if typ == 'pickle':
@@ -857,8 +900,12 @@ def output_wrapper(v,f,typ):
         with open(f,m) as h:
             json.dump(v, h, indent="\t", sort_keys=True)
             h.close()
-
-
+    elif typ == 'csv':
+        pd.DataFrame(v).to_csv("{}.csv".format(f),na_rep='NA',index_label=False, index=False, sep=opt['sep'])
+    elif typ == 'csv_quote':
+        pd.DataFrame(d).to_csv("{}.csv".format(f),na_rep='NA',index_label=False, index=False,
+                               quoting=csv.QUOTE_NONNUMERIC, sep=opt['sep'])
+        
 # TextGrid output of dict read in by i_tg()
 # (appended if file exists, else from scratch)
 # IN:
@@ -881,7 +928,7 @@ def o_tg(tg,fil):
         h.write("File type = \"ooTextFile\"\nObject class = \"TextGrid\"\n")
         h.write("{}\n".format(tgv(tg['head']['xmin'],'xmin')))
         h.write("{}\n".format(tgv(tg['head']['xmax'],'xmax')))
-        h.write("<exists>")
+        h.write("<exists>\n")
         h.write("{}\n".format(tgv(tg['head']['size'],'size')))
 
     ## item
@@ -945,11 +992,11 @@ def tgv(v,a):
 #   tg: dict by i_tg()
 #   tn: name of tier
 # OUT:
-#   t: dict tier
+#   t: dict tier (deepcopy)
 def tg_tier(tg,tn):
     if tn not in tg['item_name']:
         return {}
-    return tg['item'][tg['item_name'][tn]]
+    return cp.deepcopy(tg['item'][tg['item_name'][tn]])
 
 # returns list of TextGrid tier names
 # IN:
@@ -958,7 +1005,28 @@ def tg_tier(tg,tn):
 #   tn: sorted list of tiernames
 def tg_tn(tg):
     return sorted(list(tg['item_name'].keys()))
-    
+
+# returns tier type
+# IN:
+#   t: tg tier (by tg_tier())
+# OUT:
+#   typ: 'points'|'intervals'|''
+def tg_tierType(t):
+    for x in ['points', 'intervals']:
+        if x in t:
+            return x
+    return ''
+
+# returns text field name according to tier type
+# IN:
+#   typ: tier type returned by tg_tierType(myTier)
+# OUT:
+#   'points'|<'text'>
+def tg_txtField(typ):
+    if typ == 'points':
+        return 'mark'
+    return 'text'
+
 # creates chunk tier (interpausal units) from MAU tier in TextGrid
 # IN:
 #   tg: textgrid dict
@@ -1000,6 +1068,53 @@ def tg_mau2chunk(tg,tn='MAU',cn='CHUNK',cl='c'):
     c['size']=j-1
     return c
 
+# merge tiers from >=1 TextGrid in tgf to new TextGrid
+# IN:
+#   tgf: string or list of TextGrid files
+#   tiers: string or list of tier names (contained in one of these files)
+#   opt: output TextGrid specs
+#       'format': <'long'>|'short'
+#       'name': <'mrg'>
+# OUT:
+#   tg_mrg: mergedTextGrid
+# REMARKS:
+#   - tier order in tg_mrg is defined by order in tiers
+#   - header is taken over from first TextGrid in tgf and from opt
+#   - if a tier occurs in more than one TextGrid, only its occurrence
+#     in the first one is considered
+def tg_mrg(tgf,tiers,opt={}):
+    opt = opt_default(opt,{'format':'long','name':'mrg'})
+    if type(tgf)==str:
+        tgf = [tgf]
+    if type(tiers)==str:
+        tiers = [tiers]
+        
+    ## d: myIdx -> 'tg': myTg, 'tn': [tierNames]
+    d = {}
+    for i in idx(tgf):
+        d[i] = {'tg': i_tg(tgf[i])}
+        d[i]['tn'] = tg_tn(d[i]['tg'])
+
+    ## output TextGrid
+    tg_mrg = {'type': 'TextGrid',
+              'format': opt['format'],
+              'name': opt['name'],
+              'head': cp.deepcopy(d[0]['tg']['head']),
+              'item_name': {},
+              'item': {}}
+    tg_mrg['head']['size']=0
+    # collect tiers
+    for x in tiers:
+        for i in numkeys(d):
+            if x not in d[i]['tn']:
+                continue
+            tier_x = tg_tier(d[i]['tg'],x)
+            tg_mrg = tg_add(tg_mrg,tier_x,{'repl':True})
+            break
+        
+    return tg_mrg
+
+        
 # replaces NA... values in list according to mapping in map
 # IN:
 #   x: 1-dim list
@@ -1047,6 +1162,8 @@ def nan2mean(x):
 #    fileName
 #    typ
 #    opt <{}> additional options
+#      'sep': <None>, resp ',' separator
+#      'to_str': <False> (transform all entries in pandas dataframe (returned as dict) to strings)
 # OUT:
 #    containedVariable
 # REMARK:
@@ -1061,7 +1178,7 @@ def nan2mean(x):
 #        context need to be replaced by np.nan... (e.g. machine learning)
 #        use myl.nan_repl() for this purpose
 def input_wrapper(f,typ,opt={}):
-    # col separator
+    # opt: col separator, string conversion
     if 'sep' in opt:
         sep = opt['sep']
     else:
@@ -1069,6 +1186,8 @@ def input_wrapper(f,typ,opt={}):
             sep = None
         else:
             sep = ','
+    opt = opt_default(opt, {'to_str':False})
+    
     # 1-dim list of rows
     if typ=='list':
         return i_list(f)
@@ -1111,7 +1230,9 @@ def input_wrapper(f,typ,opt={}):
         return o
     # csv with pandas: automatic type guessing
     if typ=='pandas_csv':
-        o = pd.read_csv(f,sep=sep)
+        o = pd.read_csv(f,sep=sep,engine='python')
+        if opt['to_str']:
+            o = o.astype(str)
         return o.to_dict('list')
     # par
     if typ=='par_as_tab':
@@ -1134,6 +1255,17 @@ def input_wrapper(f,typ,opt={}):
             return json.load(h)
         elif typ=='pickle':
             return pickle.load(h)
+    return False
+
+# returns True if string s is empty or equal pause label lab
+# IN:
+#  s someString
+#  lab pauseLabel <''>
+# OUT:
+#  boolean
+def is_pau(s,lab=''):
+    if re.search('^\s*$',s) or s==lab:
+        return True
     return False
 
 # decides whether name belongs to categorical variable 
@@ -1166,6 +1298,18 @@ def copa_opt_dynad(task,opt):
     
     return copa_opt
 
+# gets two range vectors, and limits first range to second
+# IN:
+#   x: range to be limited [on off]
+#   r: limiting range [on off]
+# OUT:
+#   x: limited range [on off]
+def rlim(x,r):
+    if x[0]<r[0]:
+        x[0]=r[0]
+    if x[1]>r[1]:
+        x[1]=r[1]
+    return x
 
 # [on off label] rows converted to 2-dim np.array and label list
 # IN:
@@ -1458,6 +1602,20 @@ def dfe(x):
 def stm(f):
     s = os.path.splitext(os.path.basename(f))[0]
     return s
+
+# replaces path (and extension) and keeps stem (and extension)
+# IN:
+#   f: 'my/dir/to/file.ext'
+#   d: 'my/new/dir'
+#   e: myNewExt <''>
+# OUT:
+#   n: 'my/new/dir/file.ext' / 'my/new/dir/file.myNewExt'
+def repl_dir(f,d,e=''):
+    dd,stm,ext = dfe(f)
+    if len(e)>0:
+        ext=e
+    return os.path.join(d,"{}.{}".format(stm,ext))
+
 
 # normalizes vector x according to
 #   opt.mtd|(rng|max|min)
@@ -2817,6 +2975,30 @@ def extract_xml_element(myTree,elementName,ret='element'):
     return False
 
 
+# log file opening/closing/writing
+# IN:
+#   opt: dict, that needs to contain log file name in o['fsys']['log']
+#   task: 'open'|'write'|'print'|'close'
+#   msg: message <''>
+# OUT:
+#   for task 'open': opt with new field opt['log'] containing file handle
+#   else: True
+def myLog(o,task,msg=''):
+    if task=='open':
+        h = open(o['fsys']['log'],'a')
+        h.write("\n## {}\n".format(isotime()))
+        o['log'] = h
+        return o
+    elif task=='write':
+        o['log'].write("{}\n".format(msg))
+    elif task=='print':
+        o['log'].write("{}\n".format(msg))
+        print(msg)
+    else:
+        o['log'].close()
+    return True
+
+
 def log_exit(f_log,msg):
     f_log.write("{}\n".format(msg))
     print(msg)
@@ -2915,6 +3097,15 @@ def dist_eucl(x,y,w=[]):
     if len(w)==0:
         w = np.ones(len(x))
     q = x-y
+    #print('!!!',w) #!cl
+    #stopgo() #!cl
+    #print('q:', q)
+    #print('q2:', q*q)
+    #print('wq2:', w*q*q)
+    #print('max(wq2):', max(w*q*q))
+    #print('sum(wq2):', (w*q*q).sum())
+    #print('sqrt(sum(wq2)):', np.sqrt((w*q*q).sum()))
+    #stopgo()
     return np.sqrt((w*q*q).sum())
 
 # calculates delta values x[i,:]-x[i-1,:] for values in x

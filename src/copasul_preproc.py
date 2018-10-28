@@ -264,6 +264,8 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
     tn_acc = pp_tiernames(opt['fsys'],'loc','tier_acc',i)
     tn_ag = pp_tiernames(opt['fsys'],'loc','tier_ag',i)
     stm = copa['data'][ii][i]['fsys']['loc']['stm']
+    #!aa
+    #print(stm)
     if len(tn_ag)>0:
         loc_ag, loc_ag_ut, lab_loc_ag = pp_read(annot_dat,opt['fsys']['chunk'],tn_ag[0],stm,'loc')
         tn_loc.add(tn_ag[0])
@@ -739,6 +741,15 @@ def pp_loc_merge(ag,lab_ag,acc,lab_acc,opt):
     for i in range(len(ag)):
         j = myl.find_interval(acc,ag[i,:])
         jj = -1
+
+        #!aa
+        #if len(j)>1:
+        #    print('err > 1')
+        #    myl.stopgo()
+        #elif len(j)<1:
+        #    print('err < 1')
+        #    myl.stopgo()
+            
         if len(j)==1:
             jj = j[0]
         elif len(j)>1 and opt['loc_align'] != 'skip':
@@ -923,6 +934,7 @@ def pp_tiernames(fsys,fld,typ,ci,tn_opt={}):
     if type(xx) is not list:
         xx = [xx]
     for x in xx:
+            
         # append channel idx for tiers generated in augmentation step
         # add bnd infix for syllable augmentation
         xc = "{}_{}".format(x,int(ci+1))
