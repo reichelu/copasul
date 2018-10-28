@@ -108,7 +108,8 @@
 		"sts": 0.01,
 		"win": 0.05,
 		"wintyp": "hamming",
-		"winparam": ""
+		"winparam": "",
+		"scale": 1
 	    },
 	    "rhy": {
 		"wintyp": "kaiser",
@@ -356,6 +357,13 @@
 		"tier_parent": "<myParentTier>"
 	    }
 	},
+	"chunk": {
+	    "tier": "<myChunkTier",
+	},
+	"pho": {
+	    "tier": "<myPhoneticTranscriptionTier>",
+	    "vow": "<myVowelPattern, e.g.:>[AEIOUYaeiouy29{]"
+	},
 	"glob": {
 	    "tier": [
 		"<myAnalysisTier>"
@@ -406,7 +414,7 @@
 	    ]
 	},
 	"channel": {
-	    "<myTier>": <myChannelNumber>
+	    "<myTier>": "<myChannelNumber>"
 	}
     }
 }
