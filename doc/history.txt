@@ -223,3 +223,5 @@
 	  of use e.g. for measuring downstep.
 	  d_o: onset difference
 	  d_m: difference of means
+20181028: 0.8.13
+	  - copasul_augment.<divers>(): increasing robustness.
