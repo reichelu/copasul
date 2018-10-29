@@ -225,3 +225,6 @@
 	  d_m: difference of means
 20181028: 0.8.13
 	  - copasul_augment.<divers>(): increasing robustness.
+20181029: 0.8.14
+	  - copasul_augment.aug_batch_ps(): bugfix; adjusting number of
+	    return arguments of aug_glob_fv()
