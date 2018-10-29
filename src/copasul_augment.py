@@ -195,8 +195,8 @@ def aug_batch_ps(dom,ff_wav,ff_annot,ff_f0,opt,add_mat):
             f0, t, z, bv = copp.pp_f0_preproc(f0,myl.trunc2(lng),opt)
             ## phrase/accent extraction ################## 
             if dom == 'glob':
-                fv,wgt,tc,is0,is1,i_nan,to,pt,pto,fto = aug_glob_fv(t,z,annot,opt,i,fstm,
-                                                                    f,lng,aug_spec['glob'])
+                fv,wgt,tc,is0,is1,i_nan,t,to,pt,pto,fto = aug_glob_fv(t,z,annot,opt,i,fstm,
+                                                                      f,lng,aug_spec['glob'])
                 # domain dependent input
                 psf = {'t':t, 'pt':pt,'pto':pto,'to':to,'fto':fto}
             else:
@@ -846,8 +846,6 @@ def aug_glob(ty,y,annot,opt,i,fstm,f,lng,spec):
         c, cntr, wgt = aug_cntr_wrapper('glob',fv,tc,wgt,opt,is0,is1,i_nan,
                                         opt['augment']['glob']['measure'])
     return aug_glob_seg(c,tc,t,to,pt,pto,fto,opt)
-
-
 
 # global segments by centroid-based classification
 # IN:
