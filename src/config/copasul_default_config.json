@@ -94,7 +94,8 @@
 	    "sts": 0.01,
 	    "win": 0.05,
 	    "wintyp": "hamming",
-	    "winparam": ""
+	    "winparam": "",
+	    "centering": 1
 	},
 	"rhy_f0": {
 	    "typ": "f0",
@@ -208,7 +209,8 @@
 		"f": [200,4000],
 		"btype": "band",
 		"ord": 5
-	    }
+	    },
+	    "force": 0
 	},
 	"glob": {
 	    "measure": "abs",
@@ -233,7 +235,9 @@
 	    "max_l_na": 0.1,
 	    "acc_select": "max",
 	    "ag_select": "max",
-	    "unit": "file"
+	    "unit": "file",
+	    "c_no_abs": 0,
+	    "force": 0
 	}
     },
     "plot": {
