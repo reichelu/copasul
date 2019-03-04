@@ -55,13 +55,21 @@ for ios to nos
   filedelete 'fo$'
   echo 'fileName$' --> 'fo$'
   # read audio into sound object
-  Read from file... 'dir$'/'fileName$'
+  aobj = Read from file... 'dir$'/'fileName$'
   call get_f0
+  call clean_up
 endfor
+
+## removing current objects #########################################
+procedure clean_up
+  select aobj
+  Remove
+  select pobj
+  Remove
+endproc
 
 
 ## gets name of output file (exchanges extension to ext$) ###########
-
 procedure get_of
   fstem$=left$(fileName$,rindex(fileName$,"."))
   fo$="'diro$'/'fstem$''f0_ext$'"
@@ -69,7 +77,6 @@ endproc
 
 
 ## extracts and outputs f0 contour ##################################
-
 procedure get_f0
   # from sound object to pitch object pobj
   pobj = To Pitch... framelength minfrequ maxfrequ

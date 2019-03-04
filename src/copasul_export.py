@@ -129,7 +129,7 @@ def export_summary(copa):
     suma = {}
 
     found_csv = False
-
+    
     # over feature sets
     for fs in sorted(fset):
         for u in ['segment', 'file']:
@@ -141,7 +141,7 @@ def export_summary(copa):
                 continue
             
             found_csv = True
-
+            
             d = myl.input_wrapper(f,'csv',{'sep':opt['fsys']['export']['sep']})
             fileIdx = myl.uniq(d['fi'])
             channelIdx = myl.uniq(d['ci'])
@@ -192,7 +192,6 @@ def upd_suma(suma,fs_in,d,fi,ci,fac,u):
     else:
         tiers = ['*']
 
-        
     # over tiers
     for t in tiers:
         if t=='*':
@@ -203,7 +202,6 @@ def upd_suma(suma,fs_in,d,fi,ci,fac,u):
         # over features
         for x in ds.keys():
             suma = upd_suma_feat(suma,fs,ds,fi,ci,fac,u,x,t)
-
             
     return suma
 
@@ -245,7 +243,7 @@ def upd_suma_feat(suma,fs,ds,fi,ci,fac,u,x,t):
         return suma
     # all other features
     suma[fi][ci][fs][key]={'v':v,'m':np.nan,'sd':np.nan,
-                       'med':np.nan,'iqr':np.nan,'u':u}
+                           'med':np.nan,'iqr':np.nan,'u':u}
     # segment- or file-level
     if u=='segment':
         if len(v)>0:
@@ -284,9 +282,11 @@ def suma2exp(suma,fo,fp,sep):
     # remove redundant grouping columns
     exp = exp_rm_redun(exp)
 
+    #!v
     #for x in exp:
-    #print(x,len(exp[x]))
-    
+    #    print(x,len(exp[x]))
+    #!v
+ 
     exp_to_file(exp,fo,'summary',checkFld='fi',facpat='',fullPath=fp,sep=sep)
 
 
@@ -458,7 +458,7 @@ def export_glob(c,fo,opt):
           'tl_c1','tl_c0','tl_r','tl_rate','tl_m',
           'rng_c1','rng_c0','rng_r','rng_rate','rng_m',
           'lab','m','sd','med','iqr','max','min','dur',
-          'is_init_chunk','is_fin_chunk']
+          'is_init_chunk','is_fin_chunk','tier']
     if 'class' in c[0][0]['glob'][0]:
         cn.append('class')
 
@@ -480,6 +480,7 @@ def export_glob(c,fo,opt):
                 d['lab'].append(c[ii][i]['glob'][j]['lab'])
                 d['is_init_chunk'].append(c[ii][i]['glob'][j]['is_init_chunk'])
                 d['is_fin_chunk'].append(c[ii][i]['glob'][j]['is_fin_chunk'])
+                d['tier'].append(c[ii][i]['glob'][j]['tier'])
                 for x in c[ii][i]['glob'][j]['gnl']:
                     d[x].append(c[ii][i]['glob'][j]['gnl'][x])
                 dd = c[ii][i]['glob'][j]['decl']
@@ -509,7 +510,8 @@ def export_loc(c,fo,opt):
     # base set
     cn = ['fi','ci','si','gi','stm','t_on','t_off','lab_ag',
           'lab_acc','m','sd','med','iqr','max','min','dur',
-          'is_init','is_fin','is_init_chunk','is_fin_chunk']
+          'is_init','is_fin','is_init_chunk','is_fin_chunk',
+          'tier_ag','tier_acc']
     # normalized values
     for x in cn:
         y = "{}_nrm".format(x)
@@ -519,10 +521,10 @@ def export_loc(c,fo,opt):
     if 'class' in c[0][0]['loc'][0]:
         cn.append('class')
     # gestalt feature set
-    cne = ['bl_rms','bl_sd','bl_d_init','bl_d_fin',
-           'ml_rms','ml_sd','ml_d_init','ml_d_fin',
-           'tl_rms','tl_sd','tl_d_init','tl_d_fin',
-           'rng_rms','rng_sd','rng_d_init','rng_d_fin']
+    cne = ['bl_rms','bl_sd','bl_d_init','bl_d_fin','bl_d',
+           'ml_rms','ml_sd','ml_d_init','ml_d_fin','ml_d',
+           'tl_rms','tl_sd','tl_d_init','tl_d_fin','tl_d',
+           'rng_rms','rng_sd','rng_d_init','rng_d_fin','rng_d']
     # declination feature set
     cnd = ['bl_c0','bl_c1','bl_rate','bl_m',
            'ml_c0','ml_c1','ml_rate','ml_m',
@@ -566,6 +568,8 @@ def export_loc(c,fo,opt):
                     d['t_off'].append(c[ii][i]['loc'][j]['to'][0])
                 d['lab_ag'].append(c[ii][i]['loc'][j]['lab_ag'])
                 d['lab_acc'].append(c[ii][i]['loc'][j]['lab_acc'])
+                d['tier_ag'].append(c[ii][i]['loc'][j]['tier_ag'])
+                d['tier_acc'].append(c[ii][i]['loc'][j]['tier_acc'])
                 if 'class' in cn:
                     d['class'].append(c[ii][i]['loc'][j]['class'])
                 for x in c[ii][i]['loc'][j]['gnl']:
@@ -578,13 +582,13 @@ def export_loc(c,fo,opt):
                     if 'gst' in c[ii][i]['loc'][j]:
                         gg = c[ii][i]['loc'][j]['gst']
                         for x in myl.lists():
-                            for y in ['rms','sd','d_init','d_fin']:
+                            for y in ['rms','sd','d_init','d_fin','d']:
                                 d["{}_{}".format(x,y)].append(gg[x][y])
                             for o in range(po+1):
                                 d["res_{}_c{}".format(x,o)].append(gg['residual'][x]['c'][po-o])
                     else: # e.g. empty segment. TODO, repair already in preproc!!
                         for x in myl.lists():
-                            for y in ['rms','sd','d_init','d_fin']:
+                            for y in ['rms','sd','d_init','d_fin','d']:
                                 d["{}_{}".format(x,y)].append('NA')
                             for o in range(po+1):
                                 d["res_{}_c{}".format(x,o)].append('NA')
@@ -787,7 +791,6 @@ def export_rhy(c,fo,opt,typ):
                         d[q].append(c[ii][i][typ][j][k]['rhy'][q])
                     # influence of tier_rates (syl, AG etc) in tier (chunk etc) 
                     for rt in seen_r:
-                        #print(tt,rt) ##!!
                         for kk in ['rate','mae','prop','dlm','dgm']:
                             zz = "{}_{}".format(rt,kk)
                             if rt in c[ii][i][typ][j][k]['rhy']['wgt']:
@@ -1167,7 +1170,7 @@ def copa_contains(c,dom,ft):
 #  v or abs(v)
 #
 # assym features:
-#   loc: c1, c3, bl|ml|tl|rng_c1|r|rate|d_init|d_fin|sd
+#   loc: c1, c3, bl|ml|tl|rng_c1|r|rate|d_init|d_fin|sd|d
 #   glob: bl|ml|tl|rng_c1|rate
 def selAbs(v,n,fset,sel=('glob','loc','bnd')):
     if fset not in sel:
@@ -1180,7 +1183,7 @@ def selAbs(v,n,fset,sel=('glob','loc','bnd')):
     if re.search('(f0|en)_c[13]',n):
         return abs(v)
     # glob/loc
-    if re.search('^([bmt]l|rng)_(r|c1|rate|d_(init|fin)|sd)$',n):
+    if re.search('^([bmt]l|rng)_(r|c1|rate|d_(init|fin)|s?d)$',n):
         return abs(v)
     # bnd
     if re.search('_([bmt]l|rng)_r$',n):

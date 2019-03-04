@@ -22,6 +22,8 @@ import subprocess
 import copy as cp
 import csv
 import matplotlib.pyplot as plt
+import matplotlib.mlab as mlab
+from pathlib import Path
 
 ###########################################################
 ### collection of general purpose functions ###############
@@ -35,6 +37,7 @@ import matplotlib.pyplot as plt
 # i_lol()      -> 1- or 2dim list of strings
 # i_seg_lab()  -> d.t [[on off]...]
 #                  .lab [label ...]
+# i_keyVal() -> dict z: a;b -> z["a"]="b"
 # i_numpy: calls np.loadtxt() returns np.array list of floats
 #          (1 col -> 1-dim array; else 1 sublist per row)
 #       'pandas_csv': csv file into dict colName -> colContent (using pandas)
@@ -102,7 +105,7 @@ import matplotlib.pyplot as plt
 # find(): simulation of matlab find functionality
 # find_interval(): indices of values within range, pretty slow
 # first_interval(): first index of row containint specific element
-
+#              IMPORTANT: ask whether idx is >=0 since -1 indicates not found
 
 # pushes 1 additional element y to array x (default: row-wise)
 # !! if x is not empty, i.e. not []: yDim must be xDim-1, e.g.
@@ -112,13 +115,26 @@ import matplotlib.pyplot as plt
 # Differences to np.append:
 #   append flattens arrays if dimension of x,y differ, push does not
 # REMARK: cmat() might be more appropriate if 2-dim is to be returned
+# IN:
+#   x array (can be empty)
+#   y array (if x not empty, then one dimension less than x)
+#   a axis (0: push row, 1: push column)
+# OUT:
+#   [x y]
 def push(x,y,a=0):
     if (listType(y) and len(y)==0):
         return x
     if len(x)==0:
         return np.array([y])
     return np.concatenate((x,[y]),axis=a)
-    
+
+# concatenate 2 1-dim arrays to 2-column 2d array
+def colconcat(x,y):
+    xt = np.reshape(np.asarray(x), (-1,1))
+    yt = np.reshape(np.asarray(y), (-1,1))
+    return np.concatenate((xt,yt),axis=1)
+
+
 # returns True if input is numpy array or list; else False
 def listType(y):
     if (type(y)==np.ndarray or type(y)==list):
@@ -154,6 +170,49 @@ def fileExists(n):
         return True
     return False
 
+# segment list into same element segments
+# IN:
+#   x: 1-dim list
+# OUT:
+#   y: 2-dim list
+# example:
+#   [a,a,b,b,a,c,c] -> [[a,a],[b,b],[a],[c,c]]
+def seg_list(x):
+    if len(x)==0:
+        return [[]]
+    y = [[x[0]]]
+    for i in range(1,len(x)):
+        if x[i] == x[i-1]:
+            y[-1].append(x[i])
+        else:
+            y.append([x[i]])
+    return y
+
+# reversi operation: replace captured element by surround ones
+# IN:
+#   x: 1-dim list
+#   opt:
+#     .infx: <1> infix max length
+#     .ngb_l: <2> left context min length
+#     .ngb_r: <2> right context max length
+# OUT:
+#   y: x or all elements replaced by first one
+# Examples (default options):
+#   [a,a,b,a,a] -> [a,a,a,a,a]
+#   [a,a,b,a]   -> [a,a,b,a] (right context too short)
+#   [a,a,b,c,c] -> [a,a,b,c,c] (left and right context not the same)
+#   [a,a,b,c,c] -> [a,a,b,a,c] (4 instead of 3 uniform-element sublists) 
+def reversi(x,opt={}):
+    opt = opt_default(opt,{"infx": 1, "ngb_l": 2, "ngb_r": 2})
+    if len(x) < opt["infx"]+opt["ngb_l"]+opt["ngb_r"]:
+        return x
+    y = seg_list(x)
+    if (len(y)==3 and y[0][0] == y[-1][0] and
+        len(y[0]) >= opt["ngb_l"] and
+        len(y[-1]) >= opt["ngb_r"] and
+        len(y[1]) <= opt["infx"]):
+        return [y[0][0]] * len(x)
+    return x
 
 # returns predefined lists or sets (e.g. to address keys in copa dict)
 # ret: return 'set' or 'list'
@@ -242,6 +301,13 @@ def split_by_grp(dd,gc):
 #           'title': <''> figure title
 #           'lw': <5> line width
 #           'concat_grp': <True> concatenate grouping variable name to plot['title']
+#     'sort': dict if values/featnames to be sorted by one groupingLevel of one
+#             groupVar (usually only makes sense if opt['grp'] contains only
+#             1 element). just working for single grpvar (since feature names
+#               are just stored once)
+#               'grp':  grpvar name <''>
+#               'level': groupingLevel <''>
+#               'reverse': True|<False> (default from low to high)
 #     (! = obligatory)
 # OUT:
 #   p: profile dict
@@ -256,7 +322,7 @@ def profile_wrapper(dd,opt):
     
     ### opt init
     opt = opt_default(opt,{'stat':'median', 'navigate':{},
-                           'absfeat':[], 'plot':{}})
+                           'absfeat':[], 'plot':{}, 'sort':{}})
     
     opt['navigate'] = opt_default(opt['navigate'],
                                   {'str2float': True,
@@ -265,9 +331,16 @@ def profile_wrapper(dd,opt):
                                    'nrm': True,
                                    'plot': False})
     opt['plot'] = opt_default(opt['plot'], {'bw': False, 'fs_ytick': 20,
+                                            'fs_title': 30,
                                             'fs_legend': 30, 'title': '',
                                             'lw': 5, 'figsize':(),
+                                            'loc_legend': 'upper left',
+                                            'lab_legend': [],
                                             'concat_grp': False})
+    opt['sort'] = opt_default(opt['sort'],{'grp': [],
+                                           'level': [],
+                                           'reverse': False})
+    
     opt['navigate']['dict2df']=True
     if 'stm' not in opt['plot']:
         opt['navigate']['plot'] = False
@@ -279,11 +352,39 @@ def profile_wrapper(dd,opt):
     
     ### profile
     p = pw_prof(d,opt)
+
+    ### sorting
+    if len(opt['sort']['grp'])>0:
+        p = pw_sort(p,opt)
     
     ### plotting
     if opt['navigate']['plot']:
         pw_plot(p,opt['plot'])
 
+    return p
+
+#      lab -> [featureNames]
+#      grp[myGrpVar][myGrpLevel] -> [values] same length and order as lab
+#     'sort': dict if values/featnames to be sorted by one groupingLevel of one
+#             groupVar (usually only makes sense if opt['grp'] contains only
+#             1 element)
+#            .myGroupingVar: 
+#               'level': myGroupingLevel
+#               'reverse': True|False (default from low to high)
+def pw_sort(p,opt):
+    os = opt['sort']
+    gv = os['grp']
+    gl = os['level']
+    # values to be sorted
+    y = p['grp'][gv][gl]
+    i = np.argsort(y)
+    if os['reverse']:
+        i = np.flip(i,0)
+    # sort featnames
+    p['lab'] = np.asarray(p['lab'])[i]
+    # sort mean values of all grp levels accordingly
+    for lev in p['grp'][gv]:
+        p['grp'][gv][lev] = np.asarray(p['grp'][gv][lev])[i]
     return p
 
 # called by profile_wrapper() for plotting
@@ -309,8 +410,13 @@ def pw_plot(p,opt):
         
         colI = 0
         y = p['grp'][g]
+
+        # file name
+        if len(p['grp'].keys())>1 or opt["concat_grp"]:
+            fo = "{}_{}.pdf".format(opt['stm'],g)
+        else:
+            fo = "{}.pdf".format(opt['stm'])
         
-        fo = "{}_{}.pdf".format(opt['stm'],g)
         fig = newfig(opt['figsize'])
         # over levels
         for lev in sorted(y.keys()):
@@ -319,11 +425,19 @@ def pw_plot(p,opt):
 
         plt.yticks(yi,p['lab'],fontsize = opt['fs_ytick'])
         if opt['concat_grp']:
-            plt.title("{}: {}".format(opt['title'],g))
+            plt.title("{}: {}".format(opt['title'],g),
+                      fontsize = opt['fs_title'])
         else:
-            plt.title(opt['title'])
-        plt.legend(fontsize = opt['fs_legend'])
+            plt.title(opt['title'],fontsize = opt['fs_title'])
+        if len(opt['lab_legend'])>0:
+            plt.legend(opt['lab_legend'],
+                       fontsize = opt['fs_legend'],
+                       loc = opt['loc_legend'])
+        else:
+            plt.legend(fontsize = opt['fs_legend'],
+                       loc = opt['loc_legend'])
         plt.show()
+        print(fo)
         fig.savefig(fo)
         #stopgo()
     return
@@ -410,6 +524,18 @@ def pw_preproc(d,opt):
     
     return d, opt
 
+# transforms dictionary/dataFrame to 2-dim array
+# (e.g. for machine learning input)
+# row in dict = row in array
+# IN:
+#   dict
+# OUT:
+#   2-dim array
+def dict2array(d):
+    x = ea()
+    for n in d:
+        x = push(x,d[n])
+    return x.T
         
 # column-wise string to float
 # IN:
@@ -509,6 +635,18 @@ def pw_abs(d,cn,do_add=False):
             d[c] = np.abs(d[c])
     return d, cna
 
+# replace +/-Inf values by np.nan (preprocessing for imputing)
+# IN:
+#   x: vector of floats
+# OUT:
+#   x: infs replaced (now np.array)
+def inf2nan(x):
+    x = np.asarray(x)
+    i = find(x,'is','inf')
+    if len(i)>0:
+        x[i] = np.nan
+    return x
+
 # center/scale feature values
 # IN:
 #  dict from input_wrapper(...,'pandas_csv')
@@ -527,10 +665,11 @@ def pw_centerScale(d,cn):
 # simulation of matlab find for 1-dim data
 # IN:
 #  1-dim array
-#  op
+#  op: >,<,==,is,isinfimum,issupremum
 #  value (incl. 'max'|'min'|'nan' etc. in combination with op 'is')
 # OUT:
 #  1-dim index array
+#    exceptions: is infimum/ is supremum: floats (nan if none)
 def find(x_in,op,v):
     x = np.asarray(x_in)
     if op=='==':
@@ -555,6 +694,16 @@ def find(x_in,op,v):
         return find(x,'==',np.max(x))
     elif (op=='is' and v=='min'):
         return find(x,'==',np.min(x))
+    elif (op=='isinfimum'):
+        xi = np.asarray((x<v).nonzero())[0,:]
+        if len(xi)==0:
+            return np.nan
+        return int(xi[-1])
+    elif (op=='issupremum'):
+        xi = np.asarray((x>v).nonzero())[0,:]
+        if len(xi)==0:
+            return np.nan
+        return int(xi[0])
     return xi.astype(int)
 
 # returns mean absolute error of vectors
@@ -620,8 +769,12 @@ def mse(x,y=[]):
     x=np.asarray(x)
     return np.mean((x-y)**2)
 
-# returns RMSD of two vectors
-# or of one vector and zeros
+# returns RMSD of two vectors or of one vector and zeros
+# IN:
+#  x: 1-dim array
+#  y: 1-dim array <zeros(len(x))>
+# OUT:
+#  root mean squared dev between x and y
 def rmsd(x,y=[]):
     if len(y)==0:
         y=np.zeros(len(x))
@@ -647,6 +800,7 @@ def find_interval(x,iv,fs=-1):
 #  iv 2-dim array, interval [on offset]
 # OUT:
 #  rowIdx <-1>
+# IMPORTANT: ask whether idx is >=0 since -1 indicates not found
 def first_interval(x,iv):
     ri = -1
     xi = sorted(intersect(find(iv[:,0],'<=',x),
@@ -700,10 +854,22 @@ def windowing(i,s):
 #    .rng [on, off] range of indices to be windowed
 # OUT:
 #  [on:1:off] in window around i
+# REMARK for short windows use windowing_idx1() !!
 def windowing_idx(i,s):
     on, off = windowing(i,s)
     return np.arange(on,off,1)
-    
+
+# as windowing(), but returning all indices from onset to offset
+#   i current index
+#   s
+#    .win window length
+#    .rng [on, off] range of indices to be windowed
+# OUT:
+#  [on:1:off] in window around i; off+1 !! 
+def windowing_idx1(i,s):
+    on, off = windowing(i,s)
+    return np.arange(on,off+1,1)
+
 
 # returns intersection list of two 1-dim lists
 def intersect(a,b):
@@ -868,16 +1034,73 @@ def outl_idx(y,opt):
 
     return io
 
+# splits continuous values into classes
+# IN:
+#   x: array of float
+#   opt:
+#     "splitAt": <val>|prct
+#               split at values in x or percentiles
+#     "bin":
+#        myCategory: [myLowerThreshold, myUpperTreshold]
+#        ! will lead to different feature/class vector lengths
+#          if featmat is not adjusted accordingly
+# OUT:
+#   y: array of strings (keys in opt.bin)
+#   ii: array of indices of x-values transformed to class labels
+# REMARK:
+# splitting: greedy from below
+# values outside all bins are not returned, thus output array
+# maybe shorter than input. Sync related feature matrices by ii
+def cont2class(x,opt):
+    opt = opt_default(opt,{"splitAt": "val", "bin": {}, "out": ""})
+    
+    # prct -> val
+    if opt["splitAt"] == "val":
+        bins = opt["bin"]
+    else:
+        bins = {}
+        for c in opt["bin"]:
+            bins[c] = list(np.percentile(x,opt["bin"][c]))
+
+    # sort classes by lower bin bound
+    cc = list(opt["bin"].keys())
+    for i in range(len(cc)-1):
+        for j in range(1,len(cc)):
+            if bins[cc[j]][0] < bins[cc[i]][0]:
+                b = cc[j]
+                cc[j] = cc[i]
+                cc[i] = b
+                
+    # float -> class
+    y = []
+    ii = eai()
+    for i in idx(x):
+        for c in cc:
+            if (x[i] >= bins[c][0] and x[i] <= bins[c][1]):
+                y.append(c)
+                ii = np.append(ii,i)
+                break
+    return y, ii
+                
+# returns interquertile range
+# IN:
+#   x array
+# OUT:
+#   iqr scalar
+def iqr(x):
+    return np.diff(np.percentile(x,[25,75]))
+
+
 # output wrapper, extendable, so far only working for typ 'pickle'
 # 'TextGrid' and 'list' (1-dim)
 # IN:
 #   anyVariable (for pickle; dict type for json, csv, csv_quote; TextGrid/list/string
 #   fileName
-#   typ: 'pickle'|'TextGrid'|'json'|'list'|'string'|'csv'|'csv_quote'
-#   opt dict used by some output types, e.g. 'sep' for csv
+#   typ: 'pickle'|'TextGrid'|'json'|'list'|'list1line'|'string'|'csv'|'csv_quote'
+#   opt dict used by some output types, e.g. 'sep', 'header' for csv
 # OUT:
 #   <fileOutput>
-def output_wrapper(v,f,typ,opt={'sep':','}):
+def output_wrapper(v,f,typ,opt={'sep':',','header': True}):
     if typ == 'pickle': m = 'wb'
     else: m = 'w'
     if typ == 'pickle':
@@ -888,9 +1111,13 @@ def output_wrapper(v,f,typ,opt={'sep':','}):
         o_tg(v,f)
     elif re.search('xml',typ):
         o_copa_xml(v,f)
-    elif re.search('(string|list)',typ):
+    elif re.search('(string|list|list1line)',typ):
         if typ=='list':
             x = "\n".join(v)
+            x += "\n"
+        elif typ=='list1line':
+            x = " ".join(v)
+            x += "\n"
         else:
             x = v
         h = open(f,mode='w',encoding='utf-8')
@@ -901,10 +1128,21 @@ def output_wrapper(v,f,typ,opt={'sep':','}):
             json.dump(v, h, indent="\t", sort_keys=True)
             h.close()
     elif typ == 'csv':
-        pd.DataFrame(v).to_csv("{}.csv".format(f),na_rep='NA',index_label=False, index=False, sep=opt['sep'])
+        if re.search('\.csv$',f):
+            pd.DataFrame(v).to_csv("{}".format(f),na_rep='NA',index_label=False,
+                                   index=False, sep=opt['sep'], header=opt['header'])
+        else:
+            pd.DataFrame(v).to_csv("{}.csv".format(f),na_rep='NA',index_label=False,
+                                   index=False, sep=opt['sep'], header=opt['header'])
     elif typ == 'csv_quote':
-        pd.DataFrame(d).to_csv("{}.csv".format(f),na_rep='NA',index_label=False, index=False,
-                               quoting=csv.QUOTE_NONNUMERIC, sep=opt['sep'])
+        if re.search('\.csv$',f):
+            pd.DataFrame(d).to_csv("{}".format(f),na_rep='NA',index_label=False, index=False,
+                                   quoting=csv.QUOTE_NONNUMERIC, sep=opt['sep'],
+                                   header=opt['header'])
+        else:
+            pd.DataFrame(d).to_csv("{}.csv".format(f),na_rep='NA',index_label=False, index=False,
+                                   quoting=csv.QUOTE_NONNUMERIC, sep=opt['sep'],
+                                   header=opt['header'])
         
 # TextGrid output of dict read in by i_tg()
 # (appended if file exists, else from scratch)
@@ -1129,18 +1367,24 @@ def nan_repl(x,mp={}):
         x[ x==z ] = mp[z]
     return x
 
-# replaces NaN and INF by column median values
+# replaces NaN and INF by median values
 # IN:
 #   x: vector
+#   v: value by which to replace, float or string <"median">,
 # OUT:
 #   y: vector with replaced NaN
-def nan2mean(x):
+def nan2mean(x,v="median"):
     inan = find(x,'is','nan')
     iinf = find(x,'is','inf')
     if max(len(inan),len(iinf))==0:
         return x
     ifi = find(x,'is','finite')
-    m = np.median(x[ifi])
+    if type(v) is not str:
+        m = v
+    elif v=="mean":
+        m = np.mean(x[ifi])
+    else:
+        m = np.median(x[ifi])
     if len(inan)>0:
         x[inan]=m
     if len(iinf)>0:
@@ -1149,8 +1393,9 @@ def nan2mean(x):
     return x
 
 # input wrapper, extendable, so far working for
-# 'json', 'pickle', 'TextGrid', 'tab'/'lol', 'par', 'xml', 'l_txt',
-# 'lol_txt', 'seg_lab', 'list','csv', 'copa_csv', 'pandas_csv'
+# 'json', 'pickle', 'TextGrid', 'tab'/'lol', 'par', 'xml', 'l_txt', 'string'
+# 'lol_txt', 'seg_lab', 'list','csv', 'copa_csv', 'pandas_csv', 'key_val',
+# 'glove'
 #   xml is restricted to copa_xml format 
 #   *csv: recommended: 'pandas_csv', since 'csv' treats all values as strings
 #   and 'copa_csv' is more explicit than 'pandas_csv' in type def but
@@ -1166,7 +1411,7 @@ def nan2mean(x):
 #      'to_str': <False> (transform all entries in pandas dataframe (returned as dict) to strings)
 # OUT:
 #    containedVariable
-# REMARK:
+# REMARKS:
 #    diff between lol and lol_txt:
 #    lol: numeric 2-dim np.array (text will be ignored)
 #    lol_txt: any 2-dim array
@@ -1177,6 +1422,9 @@ def nan2mean(x):
 #    csv: NA, NaN, Inf ... are kept as strings. In some
 #        context need to be replaced by np.nan... (e.g. machine learning)
 #        use myl.nan_repl() for this purpose
+#    key_val: split each 2-element row into key-value pairs in dict z
+#        e.g. a;b -> z["a"]="b"
+#    glove: word2vec[myWord] = myVec
 def input_wrapper(f,typ,opt={}):
     # opt: col separator, string conversion
     if 'sep' in opt:
@@ -1187,6 +1435,11 @@ def input_wrapper(f,typ,opt={}):
         else:
             sep = ','
     opt = opt_default(opt, {'to_str':False})
+
+    # string
+    if typ=='string':
+        with open(f, 'r') as h:
+            return h.read()
     
     # 1-dim list of rows
     if typ=='list':
@@ -1234,6 +1487,14 @@ def input_wrapper(f,typ,opt={}):
         if opt['to_str']:
             o = o.astype(str)
         return o.to_dict('list')
+    # glove input format: word vec
+    if typ=="glove":
+        o = {}
+        with open(f, encoding='utf-8') as h:
+            for z in h:
+                u = z.split()
+                o[u[0]] = np.asarray(u[1:len(u)]).astype(float)
+        return o
     # par
     if typ=='par_as_tab':
         return i_par(f)
@@ -1246,10 +1507,15 @@ def input_wrapper(f,typ,opt={}):
     # 1 dim list of blanksep items
     if typ == 'l_txt':
         return i_lol(f,sep='',frm='1d')
+    # 2 dim list
     if typ == 'lol_txt':
-        return i_lol(f)
+        return i_lol(f,sep=sep)
+    # d.t = [t] or [[on off]], d.lab = [label ...]
     if typ == 'seg_lab':
         return i_seg_lab(f)
+    if typ == 'key_val':
+        return i_keyVal(f,opt["sep"])
+    # json, pickle
     with open(f,m) as h:
         if typ=='json':
             return json.load(h)
@@ -1277,6 +1543,44 @@ def copa_categ_var(x):
         return True
     return False
 
+# replaces multiple channel rhy columns to single one that
+# contains values of respective channel idx+1
+# example row i:
+#   ci=0
+#   SYL_1_rate = 4
+#   SYL_2_rate = 0
+#  -> SYL_rate = 4
+# !! BEWARE: only works if channel-tier relations are expressed by index=ci+1 !!
+# IN:
+#  d: featdict
+# OUT:
+#  y: featdict with unified columns
+def copa_unifChannel(d):
+    y, z = {}, {}
+    for x in d:
+        if re.search('[12]_',x):
+            # key and subkey in z
+            k = re.sub('_*[12]_','_',x)
+            if k not in z:
+                z[k]={}
+            if re.search('1_',x):
+                sk = 0
+            else:
+                sk = 1
+            y[k] = []
+            z[k][sk]=d[x]
+        else:
+            y[x]=d[x]
+    # over unified columns
+    for k in z:
+        # over rows in y
+        for i in idx(y['fi']):
+            # channel idx -> key in z
+            ci = int(y['ci'][i])
+            y[k].append(z[k][ci][i])
+            
+    return y
+
 # dynamically adjusts 'fsys' part on copa options based on input
 # requires uniform config format as in wrapper_py/config/ids|hgc.json
 # IN:
@@ -1298,6 +1602,16 @@ def copa_opt_dynad(task,opt):
     
     return copa_opt
 
+# reads copasul output dataframe into dict, given copa config
+# IN:
+#    opt: copa options
+# OUT:
+#    df: copa feature dict
+def copa_read_export(opt):
+    f = os.path.join(opt['fsys']['export']['dir'],
+                     "{}.summary.csv".format(opt['fsys']['export']['stm']))
+    return input_wrapper(f,"copa_csv")
+
 # gets two range vectors, and limits first range to second
 # IN:
 #   x: range to be limited [on off]
@@ -1310,6 +1624,24 @@ def rlim(x,r):
     if x[1]>r[1]:
         x[1]=r[1]
     return x
+
+# returns dict z: z["a"]="b" from rows as a;b
+# rows with length <2 are skipped
+def i_keyVal(f,sep=''):
+    z = dict()
+    with open(f, encoding='utf-8') as h:
+        for u in h:
+            if len(sep)==0:
+                x = u.split()
+            else:
+                u = str_standard(u,True)
+                x = u.split(sep)
+            if len(x)<2:
+                continue
+            z[x[0]]=x[1]
+        h.close()
+    return z
+            
 
 # [on off label] rows converted to 2-dim np.array and label list
 # IN:
@@ -1392,7 +1724,24 @@ def count2prob(c,n):
         p[x] = c[x]/n
     return p
 
-# probs to entropy
+# bigram counter
+# IN:
+#   x - list of strings
+# OUT:
+#   c - dict
+#     c[x_i][x_i-1]=count
+def bg_counter(x):
+    c = {}
+    for i in range(1,len(x)):
+        if x[i] not in c:
+            c[x[i]]={}
+        if x[i-1] not in c[x[i]]:
+            c[x[i]][x[i-1]]=0
+        c[x[i]][x[i-1]]+=1
+    return c
+
+
+# probs to entropy from prob DICT
 # IN:
 #    p - dict: myType -> myProb from count2prob()
 # OUT:
@@ -1403,6 +1752,20 @@ def prob2entrop(p):
         if p[x]==0:
             continue
         h -= (p[x] * math.log(p[x],2))
+    return h
+
+# probs to entropy from prob LIST
+# IN:
+#    p - list: [myProb ...]
+#    b - <2> log base
+# OUT:
+#    h - entropy
+def problist2entrop(pp, b=2):
+    h = 0
+    for p in pp:
+        if p==0:
+            continue
+        h -= (p * math.log(p,b))
     return h
 
 # information radius of two probability distributions
@@ -1444,14 +1807,33 @@ def binlog(x):
 
 
 # wrapper around counter() and count2prob()
+# alternatively to be called with unigram language model
+#     -> assigns MLE without smoothing
 # IN:
-#   x - list of strings
+#   x - list or set of strings
+#   pm <None> unigram language model
 # OUT:
 #   p - dict
 #     myType -> myProb
-def list2prob(x):
-    c, n = counter(x)
-    return count2prob(c,n)
+def list2prob(x,pm=None):
+    if type(pm) is None:
+        c, n = counter(x)
+        return count2prob(c,n)
+    p = {}
+    for z in x:
+        p[z] = prob(z,pm)
+    return p
+
+# simply assigns mle prob or 0
+# IN:
+#   x: string
+#   pm: unigram probmod
+# OUT:
+#   prob
+def prob(x,pm):
+    if x in pm:
+        return pm[x]
+    return 0
 
 # wrapper around counter() and count2prob(), prob2entrop()
 # IN:
@@ -1617,6 +1999,18 @@ def repl_dir(f,d,e=''):
     return os.path.join(d,"{}.{}".format(stm,ext))
 
 
+# replaces extension
+# IN:
+#   f: 'my/dir/to/file.ext'
+#   ext: newext, if empty only dir/stm returned
+# OUT:
+#   f: 'my/dir/to/file.newext'
+def repl_ext(f,ext=""):
+    d,stm,e = dfe(f)
+    if len(ext)==0:
+        return os.path.join(d,stm)
+    return os.path.join(d,"{}.{}".format(stm,ext))
+
 # normalizes vector x according to
 #   opt.mtd|(rng|max|min)
 # mtd: 'minmax'|'zscore'|'std'
@@ -1731,12 +2125,20 @@ def ndim(x):
 # interval -> 2 dim (one row per segment) + lab
 # IN:
 #   t: tg tier (by tg_tier())
+#   opt dict
+#       .skip <""> regular expression for labels of items to be skipped
+#             if empty, only empty items will be skipped
 # OUT:
 #   x: 1- or 2-dim array of time stamps
 #   lab: corresponding labels
 # REMARK:
 #   empty intervals are skipped
-def tg_tier2tab(t):
+def tg_tier2tab(t,opt={}):
+    opt = opt_default(opt,{"skip": ""})
+    if len(opt["skip"])>0:
+        do_skip=True
+    else:
+        do_skip=False
     x = ea()
     lab = []
     if 'intervals' in t:
@@ -1744,11 +2146,16 @@ def tg_tier2tab(t):
             z = t['intervals'][i]
             if len(z['text'])==0:
                 continue
+            if do_skip and re.search(opt["skip"],z["text"]):
+                continue
+                
             x = push(x,[z['xmin'],z['xmax']])
             lab.append(z['text'])
     else:
         for i in numkeys(t['points']):
             z = t['points'][i]
+            if do_skip and re.search(opt["skip"],z["mark"]):
+                continue
             x = push(x,z['time'])
             lab.append(z['mark'])
     return x, lab
@@ -3166,7 +3573,12 @@ def ea(n=1):
     if n==5:
         return np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([])
     return
-      
+
+# return empty np integer array
+def eai():
+    return np.array([]).astype(int)
+
+
 # return empty np array(s) of type int
 # IN:
 #   n: <1> how many (up to 5)
@@ -3317,8 +3729,9 @@ def trs_pattern(x,pat,lng):
 def root_path():
     return os.path.abspath(os.sep)
 
-
-
+# returns home directory
+def myHome():
+    return str(Path.home())
 
 # wrapper around g2p (local or webservice)
 # IN:
@@ -3559,6 +3972,8 @@ def i_eaf(f,opt={}):
                             continue
                         xav = extract_xml_element(xaa,'ANNOTATION_VALUE')
                         lab = xav.text
+                        if lab is None:
+                            lab = ''
                         if opt['embed'] == 'igc':
                             lab = re.sub('\s*\-\-+\s*',', ',lab)
                             #lab = re.sub('\s*\?\?+\s*','',lab)
@@ -3685,28 +4100,35 @@ def list_switch(l,i,j):
 # executes copasul.py from other scripts
 # IN:
 #    c config filename (full path)
+#    as_sudo: boolean, if True: sudo-call
 # OUT:
 #    as specified in c
-def copasul_call(c):
+def copasul_call(c,as_sudo = False):
     d = os.path.dirname(os.path.realpath(__file__))
     cmd = os.path.join(d,'copasul.py')
+    if as_sudo:
+        cmd = "sudo {}".format(cmd)
     os.system("{} -c {}".format(cmd,c))
 
+# returns True if opt dict contains as_sudo key with value True
+def as_sudo(opt):
+    if ext_true(opt,'as_sudo'):
+        return True
+    return False
+    
 # extended not:
-# returns True if key not in dict or dict->key==False
+# returns True if (key not in dict) OR (dict.key is False)
 # IN:
 #  d: dict
 #  k: key
 # OUT:
 #  b: True|False
 def ext_false(d,k):
-    if k not in d:
-        return False
-    if d[k]:
+    if ((k not in d) or (not d[k])):
         return True
     return False
 
-# returns True if key in dict or dict->key==True
+# returns True if (key in dict) AND (dict.key is True)
 # IN:
 #  d: dict
 #  k: key
@@ -3840,23 +4262,120 @@ def lists2mi(x,y):
 #   y (same lengths!)
 # OUT:
 #   c['joint'][x][y]=myCount f.a. x,y in <xs, ys>
-#    ['margin'][x]=myCount
+#    ['margin_x'][x]=myCount
+#    ['margin_y'][y]=myCount
 #    ['N']: len(x)
 def lists2count(x,y):
-    c, n = {'joint':{},'margin':{}}, 0
+    c, n = {'joint':{},'margin_x':{},'margin_y':{}}, 0
     for i in idx_a(len(x)):
-        for z in [x[i],y[i]]:
-            if z not in c['margin']:
-                c['margin'][z]=0
+        if x[i] not in c['margin_x']:
+            c['margin_x'][x[i]]=0
+        if y[i] not in c['margin_y']:
+            c['margin_y'][y[i]]=0
         if x[i] not in c['joint']:
             c['joint'][x[i]]=dict()
         if y[i] not in c['joint'][x[i]]:
             c['joint'][x[i]][y[i]]=0
         c['joint'][x[i]][y[i]] += 1
-        c['margin'][x[i]] += 1
-        c['margin'][y[i]] += 1
+        c['margin_x'][x[i]] += 1
+        c['margin_y'][y[i]] += 1
     c['N'] = len(x)
     return c
+
+# returns (max likelihood) probability from list2count() dict
+# IN:
+#   what: 'x','y','x|y','y|x' which prob to calculate
+#   c: dict returned from myl.lists2count()
+#   x
+#   y
+# OUT:
+#   p prob
+def c2p(what,c,x='',y=''):
+    if what == 'x':
+        return c['margin_x'][x]/c['N']
+    if what == 'y':
+        return c['margin_y'][y]/c['N']
+    if what == 'y|x':
+        try:
+            return c['joint'][x][y]/c['margin_x'][x]
+        except:
+            return 0
+    if what == 'x|y':
+        try:
+            return c['joint'][x][y]/c['margin_y'][y]
+        except:
+            return 0
+    if what == '-x':
+        return (c['N'] - c['margin_x'][x])/c['N']
+    if what == '-y':
+        return (c['N'] - c['margin_y'][y])/c['N']
+    if what == 'y|-x':
+        try:
+            c_joint = c['margin_y'][y] - c['joint'][x][y]
+        except:
+            c_joint = c['margin_y'][y]
+        c_hist = c['N'] - c['margin_x'][x]
+        return c_joint/c_hist
+    if what == 'x|-y':
+        try:
+            c_joint = c['margin_x'][x] - c['joint'][x][y]
+        except:
+            c_joint = c['margin_x'][x]
+        c_hist = c['N'] - c['margin_y'][y]
+        return c_joint/c_hist
+    return np.nan
+
+## information gain
+# for categorical variables x (e.g. words) about y (e.g. sentiment)
+# IN:
+#   x: list or lol of word tokens
+#   y: corresponding classes
+# OUT:
+#   g: word -> it's information gain
+def infoGain(x_in,y_in):
+    
+    # flatten list
+    if listType(x_in[0]):
+        a, b = [], []
+        for i in idx(x_in):
+            a.extend(x_in[i])
+            b.extend([y_in[i]]*len(x_in[i]))
+        xx, yy = a, b
+    else:
+        xx, yy = cp.copy(x_in), cp.copy(y_in)
+
+    # c.joint|margin_x|margin_y|N
+    c = lists2count(xx,yy)
+    # word/class types
+    xc, yc = set(xx), set(yy)
+    
+    # class entropy: h = - sum_y P(y) log P(y)
+    h = 0
+    for y in yc:
+        p = c2p('y',c,'',y)
+        h -= p*binlog(p)
+    
+    # infogain per word
+    g = {}
+    for x in xc:
+        # px: p(x)
+        # pn: p(-x)
+        px = c2p('x',c,x,y)
+        pn = c2p('-x',c,x,y)
+        # gx: sum_y y|x
+        # gn: sum_y y|-x
+        gx, gn = 0,0
+        for y in yc:
+            p = c2p('y|x',c,x,y)
+            pn = c2p('y|-x',c,x,y)
+            if p>0:
+                gx += p*binlog(p)
+            if pn>0:
+                gn += pn*binlog(pn)
+        g[x] = h + px*gx + pn*gn
+    return g
+
+
 
 # mutual info based on lists2count() object
 # IN:
@@ -3876,6 +4395,31 @@ def count2mi(c):
             mi += (pxy * binlog(pxy/(py*py)))
     return mi
 
+# wrapper around Praat pulse extractor
+# config analogously to make_f0()
+# IN:
+#   opt
+# OUT:
+#   pulse files
+def make_pulse(opt):
+    pth = opt['fsys']['data']
+    par = opt['param']['pulse']
+
+    # clean up pulse subdir
+    sh.rmtree(pth['pulse'])
+    os.makedirs(pth['pulse'])
+
+    if as_sudo(opt['param']['pulse']):
+        cmd = "sudo praat"
+    else:
+        cmd = "praat"
+
+    os.system("{} {} {} {} {} {} wav pulse".format(cmd,par['tool'],
+                                                   par['param']['min'],
+                                                   par['param']['max'],
+                                                   pth['aud'],pth['pulse']))
+    return True
+
 # wrapper around Praat f0 extractor
 # example call: wrapper_py/hgc.py
 # needs opt of format config/hgc.json
@@ -3892,11 +4436,15 @@ def make_f0(opt):
     sh.rmtree(pth['f0'])
     os.makedirs(pth['f0'])
 
+    if as_sudo(opt['param']['f0']):
+        cmd = "sudo praat"
+    else:
+        cmd = "praat"
 
-    os.system("praat {} 0.01 {} {} {} {} wav f0".format(par['tool'],
-                                                        par['param']['min'],
-                                                        par['param']['max'],
-                                                        pth['aud'],pth['f0']))
+    os.system("{} {} 0.01 {} {} {} {} wav f0".format(cmd,par['tool'],
+                                                     par['param']['min'],
+                                                     par['param']['max'],
+                                                     pth['aud'],pth['f0']))
     return True
 
 ### figure init #################################
@@ -3923,3 +4471,380 @@ def fig_next(event):
 
 def fig_key(event):
     sys.exit()
+
+
+## 1811
+#### plotting ###############################################
+
+# plots x against y(s)
+# IN:
+#   x: array or dict of x values
+#   y: array or dict of y values
+#   opt: <{}>
+#      bw: boolean; False; black-white
+#      nrm_x: boolean; False; minmax normalize all x values
+#      nrm_y: boolean; False; minmax normalize all y values
+#      ls: dict; {}; linespecs (e.g. '-k'), keys as in y
+#      lw: dict; {}; linewidths, keys as in y
+#         ls and lw cfor y as dict input
+# OUT:
+#   True
+# REMARKS:
+# if y is dict:
+#     myKey1 -> [myYvals]
+#     myKey2 -> [myYvals] ...
+# if x is array: same x values for all y.myKey*
+#                if empty: indices 1:len(y) taken
+#         dict: same keys as for y
+# opt.ls|lw can only be used if y is passed as dict
+def myPlot(xin=[],yin=[],opt={}):
+    opt = opt_default(opt,{'nrm_x': False,
+                           'nrm_y': False,
+                           'bw': False,
+                           'ls': {},
+                           'lw': {}})
+    xin, yin = cp.deepcopy(xin), cp.deepcopy(yin)
+    ## uniform dict input (default key 'y')
+    if type(yin) is dict:
+        y = yin
+    else:
+        y = {'y': yin}
+    if type(xin) is dict:
+        x = xin
+    else:
+        x = {}
+        for lab in y:
+            xx = xin
+            if len(xin)==0:
+                xx = np.arange(0,len(y[lab]))
+            x[lab] = xx
+    ## minmax normalization
+    nopt = {'mtd':'minmax', 'rng': [0,1]}
+    if opt['nrm_x']:
+        for lab in x:
+            x[lab] = nrm_vec(x[lab],nopt)
+    if opt['nrm_y']:
+        for lab in y:
+            y[lab] = nrm_vec(y[lab],nopt)
+    ## plotting
+    fig = newfig()
+    
+    # line specs/widths
+    # defaults
+    if opt['bw']:
+        lsd = ['-k','-k','-k','-k','-k','-k','-k']
+    else:
+        lsd = ['-b','-g','-r','-c','-m','-k','-y']
+    while len(lsd) < len(y.keys()):
+        lsd.extend(lsd)
+    lwd = 4
+    i=0
+    # plot per label
+    for lab in y:
+        if lab in opt['ls']:
+            cls = opt['ls'][lab]
+        else:
+            cls = opt['ls'][lab] = lsd[i]
+            i+=1
+        if lab in opt['lw']:
+            clw = opt['lw'][lab]
+        else:
+            clw = lwd
+        plt.plot(x[lab],y[lab],cls,linewidth=clw)
+    
+    plt.show()
+
+
+#### audio processing #######################################
+
+# converts fi to mono and writes it to fo
+# IN:
+#   opt:
+#     i: input file name
+#     o: output file name
+#     c: int channel to be extracted
+#         0: both channels mixed
+#         1, 2: channel 1, 2
+#     as_sudo: False
+def sox_mono(opt):
+    cmd = myCmd("sox",opt)
+    if opt["c"]==0:
+        os.system("{} {} {} channels 1".format(cmd,opt["i"],opt["o"]))
+    else:
+        os.system("{} {} {} remix {}".format(cmd,opt["i"],
+                                             opt["o"],opt["c"]))
+    return True
+
+# trimming audio file
+# IN:
+#   opt:
+#     i: input file name
+#     o: output file name
+#     ons: start time stamp (sec)
+#     dur: duration time stamp (sec)
+#     as_sudo: False
+def sox_trim(opt):
+    cmd = myCmd("sox",opt)
+    os.system("{} {} {} trim {} {}".format(cmd,opt["i"],opt["o"],
+                                           opt["ons"],opt["dur"]))
+    return True
+    
+
+# returns command root +/- sudo
+# IN:
+#   cmd: name of command
+#   opt: dict that can contain key as_sudo with boolean value
+# OUT:
+#   o: command name +/- sudo prefix
+def myCmd(cmd,opt):
+    if as_sudo(opt):
+        return "sudo {}".format(cmd)
+    return(cmd)
+
+##### wrapper around copasul-related functionalities #############
+
+# option structure e.g. as in config/emo.json
+# integrated in some other wrapper pipeline e.g. as follows:
+# def myWrapper(args):
+#    opt = myl.args2opt(args)
+#    if opt["navigate"]["myCorpusSpecificProcess"]:
+#        fun_myCorpusSpecificProcess(opt)
+#    else:
+#        myl.copa_wrapper(opt)
+# Can be extended for any navigation field myFld that
+# allows for the call: copasul_call(opt["fsys"]["config"][myFld]
+# opt and call then should look like this:
+#     opt["navigate"][myField]=True
+#     opt["fsys"]["config"][myField] = myConfigFile.json
+#     copa_wrapper(opt,{"process": [myField]})
+# IN:
+#   opt with .navigate etc
+#   wopt wrapper workflow options
+#           .rm_copy: <True> purge augment security copies
+#           .process: <[]> list of navigation steps to be processed
+#              by copasul_call() if True; standard steps not needed
+def copa_wrapper(opt,wopt={}):
+    # standard keys
+    navi_standard = {"f0": False, "pulse": False,
+                     "augment": False, "feat": False}
+    opt = opt_default(opt,{"navigate": {}})
+    opt["navigate"] = opt_default(opt["navigate"],navi_standard)
+    wopt = opt_default(wopt,{"rm_copy": True,
+                             "process": []})
+    
+    # standard navigation
+    if opt["navigate"]["f0"]:
+        make_f0(opt)
+    if opt["navigate"]["pulse"]:
+        make_pulse(opt)
+    if opt["navigate"]["augment"]:
+        copasul_call(opt["fsys"]["config"]["augment"])
+        if wopt["rm_copy"]:
+            os.system("rm {}/*copy*".format(opt["fsys"]["data"]["annot"]))
+    if opt["navigate"]["feat"]:
+        copasul_call(opt["fsys"]["config"]["feat"])
+
+    # customized navigation
+    for x in wopt["process"]:
+        if x in navi_standard or ext_false(opt["navigate"],x):
+            continue
+        if x in opt["fsys"]["config"] and is_file(opt["fsys"]["config"][x]):
+            copasul_call(opt["fsys"]["config"][x])
+
+##### file/dir operations #######################
+
+# remove file x
+# IN:
+#   x: filename
+# OUT:
+#   True if file existed, else False
+def rm_file(x):
+    if is_file(x):
+        os.remove(x)
+        return True
+    return False
+
+# remove directory x
+# IN:
+#   x: dirname
+# OUT:
+#   True if dir existed, else False
+def rm_dir(x):
+    if is_dir(x):
+        sh.rmtree(x)
+        return True
+    return False
+
+# returns true if x is file, else false
+def is_file(x):
+    if os.path.isfile(x):
+        return True
+    return False
+
+# returns true if x is dir, else false
+def is_dir(x):
+    if os.path.isdir(x):
+        return True
+    return False
+
+# returns true if x is mac index dir
+def is_mac_dir(x):
+    if re.search("__MACOSX",x):
+        return True
+    return False
+
+# recursively create folders/subfolders
+def make_dir_rec(x):
+    os.makedirs(x, exist_ok=True)
+
+# create directory
+# IN:
+#   x: dir name
+#   purge: delete before so that x is empty
+def make_dir(x,purge=False):
+    if purge and is_dir(x):
+        sh.rmtree(x)
+    if not is_dir(x):
+        os.mkdir(x)
+
+# copy file x to y (y needs to be file name, too, and not just dir)
+def cp_file(x,y):
+    if is_file(x):
+        sh.copyfile(x,y)
+        return True
+    return False
+
+# copy file x to y (y needs to be file name, too, and not just dir)
+def mv_file(x,y):
+    if is_file(x):
+        sh.move(x,y)
+        return True
+    return False
+
+#### tool wrapper ########################################################
+
+# wrapper around my perl g2p, perma etc. tools
+# IN:
+#   opt:
+#     param.
+#       <all_params>: value
+#     cmd: command base string
+#     exec: <True>|False
+# OUT:
+#   cmd+options
+def tool_wrapper(opt):
+    opt = opt_default(opt,{'exec':True})
+    cmd = opt['cmd']
+    for o in opt['param']:
+        cmd += " -{} {}".format(o,opt['param'][o])
+    print(cmd)
+    if opt["exec"]:
+        os.system(cmd)
+    return cmd
+
+# creates boxplot
+# IN:
+#   x: vector of variable to be plotted (necessarily already imputed!)
+#   y: it's grouping vector (same length)
+#   opt:
+#      title - <""> plot title
+#      save - <""> output file name; if empty, not saved
+#      xlab - <"">
+#      ylab - <"">
+#      show - <True> present figure on screen
+#      fs - <()> figure size tuple
+#      v - <True> verbose plot
+def myBoxplot(x,y,opt={}):
+    opt = opt_default(opt,{"title":"","save": "","show": True,
+                           "notch": True, "showfliers": False,
+                           "xlab": "", "ylab": "", "fs": (),
+                           "v": True})
+    # prep boxplot data format
+    lab = uniq(y)
+    s = []
+
+    x = np.asarray(x)
+    y = np.asarray(y)
+    
+    # over grp levels
+    for lev in lab:
+        i = find(y,"==",lev)
+        s.append(x[i])
+
+    fig = newfig(fs = opt["fs"])
+    ax  = fig.add_subplot(111)
+    if len(opt["title"])>0:
+        ax.set_title(opt["title"],fontsize=18)
+    if len(opt["xlab"])>0:
+        ax.set_xlabel(opt["xlab"],fontsize=14)
+    if len(opt["ylab"])>0:
+        ax.set_ylabel(opt["ylab"],fontsize=14)
+
+    plt.boxplot(s,labels=lab,notch=opt["notch"],
+                showfliers=opt["showfliers"])
+    #if len(opt["title"])>0:
+    #    fig.suptitle(opt["title"])
+    if opt["v"]:
+        plt.show()
+    if len(opt["save"])>0:
+        fig.savefig(opt["save"])
+
+
+# histogram
+def myHistogram(x,opt={}):
+    opt = opt_default(opt,{"title":"","save": "","show": True,
+                           "lw": 4,
+                           "xlab": "", "ylab": "", "fs": (),
+                           "v": True, "facecolor": "blue",
+                           "num_bins": 10, "normed": 1,
+                           "add_fit": False, "alpha": 0.5})
+    
+    fig = newfig(fs = opt["fs"])
+    ax  = fig.add_subplot(111)
+
+    n, bins, patches = plt.hist(x, opt["num_bins"], normed=opt["normed"],
+                                facecolor=opt["facecolor"], alpha=opt["alpha"])
+    
+    if opt["add_fit"]:
+        mu, sigma = np.mean(x), np.std(x)
+        y = mlab.normpdf(bins, mu, sigma)
+        plt.plot(bins, y, 'r-',linewidth=opt["lw"])
+
+    if len(opt["title"])>0:
+        ax.set_title(opt["title"],fontsize=30)
+    if len(opt["xlab"])>0:
+        ax.set_xlabel(opt["xlab"],fontsize=20)
+    if len(opt["ylab"])>0:
+        ax.set_ylabel(opt["ylab"],fontsize=20)
+
+    if opt["v"]:
+        plt.show()
+    if len(opt["save"])>0:
+        fig.savefig(opt["save"])
+
+        
+
+# scatterplot
+def myScatter(x,y,opt={}):
+
+    opt = opt_default(opt,{"title":"","save": "","show": True,
+                           "lw": 4,
+                           "xlab": "", "ylab": "", "fs": (),
+                           "v": True})
+
+    
+    fig = newfig(fs = opt["fs"])
+    ax  = fig.add_subplot(111)
+    if len(opt["title"])>0:
+        ax.set_title(opt["title"],fontsize=30)
+    if len(opt["xlab"])>0:
+        ax.set_xlabel(opt["xlab"],fontsize=20)
+    if len(opt["ylab"])>0:
+        ax.set_ylabel(opt["ylab"],fontsize=20)
+
+    plt.scatter(x,y,linewidths=opt["lw"])
+    if opt["v"]:
+        plt.show()
+    if len(opt["save"])>0:
+        fig.savefig(opt["save"])
+        

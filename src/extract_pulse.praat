@@ -33,24 +33,35 @@ for ios to nos
   echo 'fileName$' --> 'fo$'
 
   # read audio
-  Read from file... 'dir$'/'fileName$'
+  aobj = Read from file... 'dir$'/'fileName$'
   mySound$ = selected$ ("Sound") 
 
   # pulse
   call get_pulse
+  call clean_up
 endfor
+
+## removing current objects #########################################
+procedure clean_up
+  select aobj
+  Remove
+  select pobj
+  Remove
+  select puobj
+  Remove
+endproc
 
 
 ## outputs pulse time stamps, one per row ###########################
 procedure get_pulse
 
   # pitch
-  To Pitch (cc)... 0.01 minfrequ 15 no 0.03 0.45 0.01 0.35 0.14 maxfrequ
+  pobj = To Pitch (cc)... 0.01 minfrequ 15 no 0.03 0.45 0.01 0.35 0.14 maxfrequ
 
   select Sound 'mySound$'
   plus Pitch 'mySound$'
 
-  To PointProcess (cc)
+  puobj = To PointProcess (cc)
   #Save as short text file... 'fo$'
 
   nop = Get number of points

@@ -20,15 +20,15 @@ import scipy.fftpack as sf
 # OUT:
 #   signal ndarray
 #   sampleRate
-def wavread(f,opt={'do_preproc':1}):
+def wavread(f,opt={'do_preproc':True}):
     ## signal input
     fs, s_in = sio.read(f)
     # int -> float
     s = myl.wav_int2float(s_in)
     # preproc
-    if opt['do_preproc']==1:
+    if opt['do_preproc']:
         s = myl.sig_preproc(s)
-
+        
     return s, fs
 
 # DCT
@@ -377,14 +377,125 @@ def dct_trunc(f,ci,opt):
         ilp = ci
     return myl.intersect(ihp,ilp)
 
+# wrapper around wavread and energy calculation
+# IN:
+#   f: wavFileName (any number of channels)
+#   opt: energy extraction and postprocessing
+#        .win, .wintyp, .winparam: window parameters
+#        .sts: stepsize for energy contour
+#        .do_preproc: centralizing signal
+#        .do_out: remove outliers
+#        .do_interp: linear interpolation over silence
+#        .do_smooth: smoothing (median or savitzky golay)
+#        .out dict; see pp_outl()
+#        .smooth dict; see pp_smooth()
+# OUT:
+#   y: time + energy contour 2-dim np.array
+#     (1st column: time, other columns: energy)
+def wrapper_energy(f,opt = {}):
+    opt = myl.opt_default(opt,{'wintyp':'hamming',
+                               'winparam':'',
+                               'sts':0.01,
+                               'win':0.05,
+                               'do_preproc': True,
+                               'do_out': False,
+                               'do_interp': False,
+                               'do_smooth': False,
+                               'out': {},
+                               'smooth': {}})
+    opt['out'] = myl.opt_default(opt['out'], {'f': 3,
+                                              'm': 'mean'})
+    opt['smooth'] = myl.opt_default(opt['smooth'],{"mtd": "sgolay",
+		                                   "win": 7,
+		                                   "ord": 3})
+    
+    s, fs = wavread(f,opt)
+    opt['fs']=fs
+    # convert to 2-dim array; each column represents a channel
+    if np.ndim(s)==1:
+        s = np.expand_dims(s, axis=1)
 
+    # output (.T-ed later, reserve first list for time) 
+    y = myl.ea()
+
+    # over channels
+    for i in np.arange(0,s.shape[1]):
+        e = sig_energy(s[:,i],opt)
+
+        # setting outlier to 0
+        if opt['do_out']:
+            e = pp_outl(e,opt['out'])
+        # interpolation over 0
+        if opt['do_interp']:
+            e = pp_interp(e)
+        # smoothing
+        if opt['do_smooth']:
+            e = pp_smooth(e,opt['smooth'])
+        # <0 -> 0
+        e[myl.find(e,'<',0)]=0
+
+        y = myl.push(y,e)
+
+    # output
+    if np.ndim(y)==1:
+        y = np.expand_dims(y, axis=1)
+    else:
+        y = y.T
+        
+    # concat time as 1st column
+    sts = opt['sts']
+    t = np.arange(0,sts*y.shape[0],sts)
+    if len(t) != y.shape[0]:
+        while len(t) > y.shape[0]:
+            t = t[0:len(t)-1]
+        while len(t) < y.shape[0]:
+            t = np.append(t,t[-1]+sts)
+    t = np.expand_dims(t, axis=1)
+    y = np.concatenate((t,y),axis=1)
+    
+    return y
+
+### replacing outliers by 0 ###################
+def pp_outl(y,opt):
+    # ignore zeros
+    opt['zi'] = True
+    io = myl.outl_idx(y,opt)
+    if np.size(io)>0:
+        y[io] = 0
+    return y
+
+
+### linear interpolation over 0 (+constant extrapolation) #############
+def pp_interp(y):
+    xi = myl.find(y,'==',0)
+    xp = myl.find(y,'>',0)
+    yp = y[xp]
+    yi = np.interp(xi,xp,yp)
+    y[xi]=yi
+    return y
+
+### smoothing ########################################
+# remark: savgol_filter() causes warning
+# Using a non-tuple sequence for multidimensional indexing is deprecated
+# will be out with scipy.signal 1.2.0
+# (https://github.com/scipy/scipy/issues/9086)
+def pp_smooth(y,opt):
+    if opt['mtd']=='sgolay':
+        if len(y) <= opt['win']:
+            return y
+        y = sis.savgol_filter(y,opt['win'],opt['ord'])
+    elif opt['mtd']=='med':
+        y = sis.medfilt(y,opt['win'])
+    return y
+
+    
 # calculates energy contour from acoustic signal
 #    do_preproc per default False. If not yet preprocessed by myl.sig_preproc()
 #    set to True
 # IN:
 #   x ndarray signal
 #   opt['fs']  - sample frequency
-#      ['wintyp'] - <'none'>, any type supported by
+#      ['wintyp'] - <'hamming'>, any type supported by
 #                   scipy.signal.get_window()
 #      ['winparam'] - <''> additionally needed window parameters,
 #                     scalar, string, list ...
@@ -397,7 +508,7 @@ def sig_energy(x,opt):
     opt = myl.opt_default(opt,dflt)
     # stepsize and winlength in samples
     sts = round(opt['sts']*opt['fs'])
-    win = min([len(x)/2,round(opt['win']*opt['fs'])])
+    win = min([math.floor(len(x)/2),round(opt['win']*opt['fs'])])
     # weighting window
     w = sig_window(opt['wintyp'],win,opt['winparam'])
     # energy values
@@ -512,10 +623,10 @@ def pau_detector(s,opt={}):
 #   t [[on off]...] merged
 #   e [e_rat ...] merged (simply mean of merged segments taken)
 def pau_detector_merge(t,e,opt):
-    # min lengths in samples
+    ## min pause and chunk length in samples
     mpl = myl.sec2smp(opt['min_pau_l'],opt['fs'])
     mcl = myl.sec2smp(opt['min_chunk_l'],opt['fs'])
-    #print("\n\nt:\n", t, "\nmpl:\n", mpl, "\nmcl:\n", mcl)
+
     ## merging chunks across short pauses
     tm = np.asarray([])
     em = np.asarray([])
@@ -525,7 +636,13 @@ def pau_detector_merge(t,e,opt):
             tm = myl.push(tm,t[i,:])
             em = myl.push(em,e[i])
 
-
+    # nothing done in previous step?
+    if len(tm)==0:
+        tm = cp.deepcopy(t)
+        em = cp.deepcopy(e)
+    if len(tm)==0:
+        return t, e
+    
     ## merging pauses across short chunks
     tn = np.asarray([tm[0,:]])
     en = np.asarray([em[0]])
@@ -538,7 +655,7 @@ def pau_detector_merge(t,e,opt):
             tn = myl.push(tn,tm[i,:])
             en = myl.push(en,em[i])
     
-    #print("tm:\n", tm, "\ntn:\n", tn)
+    #print("t:\n", t, "\ntm:\n", tm, "\ntn:\n", tn) #!v
     return tn, en
 
 
@@ -892,7 +1009,7 @@ def syl_ncl(s,opt={}):
     if 'fs' not in opt:
         sys.exit('syl_ncl: opt does not contain key fs.')
     dflt = {'flt':{'f':np.asarray([200,4000]),'btype':'band','ord':5},
-            'e_rel':1.07, 'l':0.08,'l_ref':0.15, 'd_min':0.05, 'e_min':0.16,
+            'e_rel':1.05,'l':0.08,'l_ref':0.15, 'd_min':0.12, 'e_min':0.1,
             'ons':0}
     opt = myl.opt_default(opt,dflt)
     opt['flt']['fs'] = opt['fs']
@@ -910,8 +1027,10 @@ def syl_ncl(s,opt={}):
     # stepsize
     sts = max([1,math.floor(0.03*opt['fs'])])
     # minimum distance between subsequent nuclei
-    # (num of items left and right potential locmax are compared with)
-    md = math.floor(opt['d_min']*opt['fs']/sts)
+    # (in indices)
+    #md = math.floor(opt['d_min']*opt['fs']/sts)
+    md = math.floor(opt['d_min']*opt['fs'])
+    
     # bandpass filtering
     flt = fu_filt(s,opt['flt'])
     y = flt['y']
@@ -922,7 +1041,7 @@ def syl_ncl(s,opt={}):
     i_steps = np.arange(1,ls,sts)
     for i in i_steps:
         yi = np.arange(i,min([ls,i+ml-1]),1)
-        e_y = myl.push(e_y,myl.rmsd(y[yi]))
+        e_y = np.append(e_y,myl.rmsd(y[yi]))
     e_min = opt['e_min']*max(e_y)
     # output vector collecting nucleus sample indices
     t = np.asarray([])
@@ -943,25 +1062,66 @@ def syl_ncl(s,opt={}):
         #ri = np.arange(rw[0],rw[1],1)
         rs = y[ri]
         e_rw = myl.rmsd(rs)
-        all_i = myl.push(all_i,i)
-        all_e = myl.push(all_e,e_y)
-        all_r = myl.push(all_r,e_rw)
+        all_i = np.append(all_i,i)
+        all_e = np.append(all_e,e_y)
+        all_r = np.append(all_r,e_rw)
 
     # local energy maxima
-    idx = sis.argrelmax(all_e,order=md)
+    # (do not use min duration md for order option, since local
+    #  maximum might be obscured already by energy increase
+    #  towards neighboring peak further away than md, and not only by
+    #  closer than md peaks)
+    idx = sis.argrelmax(all_e,order=1)
 
-    # maxima related to syl ncl
-    t = np.asarray([])
-    e_ratio = np.asarray([])
+    #plot_sylncl(all_e,idx) #!v   
+    #print(opt["ons"]/opt["fs"] + np.array(idx)*sts/opt["fs"]) #!v
+    #myl.stopgo() #!v
+
+    
+    ### maxima related to syl ncl
+    ## a) energy constraints
+    # timestamps (idx)
+    tx = np.asarray([])
+    # energy ratios
+    e_ratiox = np.asarray([])
     # idx in all_i
-    ti = np.asarray([])
+    tix = np.asarray([]).astype(int)
     for i in idx[0]:
         if ((all_e[i] >= all_r[i]*opt['e_rel']) and (all_e[i] > e_min)):
-            t = myl.push(t,all_i[i])
-            ti = myl.push(ti,i)
-            e_ratio = myl.push(e_ratio, all_e[i]/all_r[i])
+            tx = np.append(tx,all_i[i])
+            tix = np.append(tix,i)
+            e_ratiox = np.append(e_ratiox, all_e[i]/all_r[i])
 
-    # minima related to syl bnd
+    if len(tx)==0:
+        dflt = {'ti':myl.ea(),
+                't':myl.ea(),
+                'e_ratio':myl.ea()}
+        return dflt, dflt
+
+
+    #plot_sylncl(all_e,tix) #!v
+    
+    ## b) min duration constraints
+    # init by first found ncl
+    t = np.array([tx[0]])
+    e_ratio = np.array([e_ratiox[0]])
+    ti = np.array([tix[0]]).astype(int)
+    for i in range(1,len(tx)):
+        # ncl too close
+        if np.abs(tx[i]-t[-1]) < md:
+            # current ncl with higher energy: replace last stored one
+            if e_ratiox[i] > e_ratio[-1]:
+                t[-1] = tx[i]
+                ti[-1] = tix[i]
+                e_ratio[-1] = e_ratiox[i]
+        else:
+            t = np.append(t,tx[i])
+            ti = np.append(ti,tix[i])
+            e_ratio = np.append(e_ratio,e_ratiox[i])
+
+    #plot_sylncl(all_e,ti) #!v
+    
+    ### minima related to syl bnd
     tb = np.asarray([])
     e_ratio_b = np.asarray([])
     if len(t)>1:
@@ -971,8 +1131,8 @@ def syl_ncl(s,opt={}):
             if len(j_min)==0: j_min=[0]
             # bnd idx
             bj = j[0]+j_min[0]
-            tb = myl.push(tb,all_i[bj])
-            e_ratio_b = myl.push(e_ratio_b, all_e[bj]/all_r[bj])
+            tb = np.append(tb,all_i[bj])
+            e_ratio_b = np.append(e_ratio_b, all_e[bj]/all_r[bj])
 
     # add onset
     t = t+opt['ons']
@@ -1016,7 +1176,377 @@ def fu_filt(y,opt):
     yf = sis.filtfilt(b,a,y)
     return {'y':yf,'b':b,'a':a}
 
-#### discontinuity analysis
+
+##### discontinuity measurement #######################################
+
+# measures delta and linear fit discontinuities between 
+# adjacent array elements in terms of:
+#  - delta
+#  - reset of regression lines
+#  - root mean squared deviation between overall regression line and
+#       -- preceding segment's regression line
+#       -- following segment's regression line
+#       -- both, preceding and following, regression lines
+#  - extrapolation rmsd between following regression line
+#       and following regression line, extrapolated by regression
+#       on preceding segment
+# IN:
+#   x: nx2 array [[time val] ...]
+#          OR
+#      nx1 array [val ...]
+#          for the latter indices are taken as time stamps
+#   ts: nx1 array [time ...] of time stamps (or indices for size(x)=nx1)
+#         at which to calculate discontinuity; if empty, discontinuity is
+#         calculated at each point in time. If size(x)=nx1 ts MUST contain
+#         indices
+#       nx2 array [[t_off t_on] ...] to additionally account for pauses
+#   opt: dict
+#         .win: <'glob'>|'loc' calculate discontinuity over entire sequence
+#                              or within window
+#         .l: <3> if win==loc, length of window in sec or idx
+#             (splitpoint - .l : splitpoint + .l)
+# OUT:
+#   d dict
+#    (s1: pre-bnd segment [i-l,i[,
+#     s2: post-bnd segment [i,i+l]
+#     sc: joint segment [i-l,i+l])
+#       dlt: delta
+#       res: reset
+#       ry1: s1, rmsd between joint vs pre-bnd fit
+#       ry2: s2, rmsd between joint vs post-bnd fit
+#       ryc: sc, rmsd between joint vs pre+post-bnd fit
+#       ry2e: s2: rmsd between pre-bnd fit extrapolated to s2 and post-bnd fit
+#       rx1: s1, rmsd between joint fit and pre-boundary x-values
+#       rx2: s2, rmsd between joint fit and post-boundary x-values
+#       rxc: sc, rmsd between joint fit and pre+post-boundary x-values
+#       rr1: s1, ratio rmse(joint_fit)/rmse(pre-bnd_fit)
+#       rr2: s2, ratio rmse(joint_fit)/rmse(post-bnd_fit)
+#       rrc: sc, ratio rmse(joint_fit)/rmse(pre+post-bnd_fit)
+
+#       ra1: c1-rate s1
+#       ra2: c1-rate s2
+#       dlt_ra: ra2-ra1
+#       s1_c3: cubic fitting coefs of s1
+#       s1_c2
+#       s1_c1
+#       s1_c0
+#       s2_c3: cubic fitting coefs of s2
+#       s2_c2
+#       s2_c1
+#       s2_c0
+#       dlt_c3: s2_c3-s1_c3
+#       dlt_c2: s2_c2-s1_c2
+#       dlt_c1: s2_c1-s1_c1
+#       dlt_c0: s2_c0-s1_c0
+#       eucl_c: euclDist(s1_c*,s2_c*)
+#       corr_c: corr(s1_c*,s2_c*)
+#       v1: variance in s1
+#       v2: variance in s2
+#       vc: variance in sc
+#       vr: variance ratio (mean(v1,v2))/vc
+#       dlt_v: v2-v1
+#       m1: mean in s1
+#       m2: mean in s2
+#       dlt_m: m2-m1
+#       p: pause length (in sec or idx depending on numcol(x);
+#                        always 0, if t is empty or 1-dim)
+
+#    i in each list refers to discontinuity between x[i-1] and x[i]
+#    dimension of each list: if len(ts)==0: n-1 array (first x-element skipped)
+#                            else: mx6; m is number of ts-elements in range of x[:,0],
+#                                  resp. in index range of x[1:-1]
+## variables:
+#    x1: original f0 contour for s1
+#    x2: original f0 contour for s2
+#    xc: original f0 contour for sc
+#    y1: line fitted on segment a
+#    y2: line fitted on segment b
+#    yc: line fitted on segments a+b
+#    yc1: yc part for x1
+#    yc2: yc part for x2
+#    ye: x1/y1-fitted line for x2
+#    cu1: cubic fit coefs of time-nrmd s1
+#    cu2: cubic fit coefs of time-nrmd s2
+#    yu1: polyval(cu1)
+#    yu2: polyval(cu2); yu1 and yu2 are cut to same length
+def discont(x,ts=[],opt={}):
+
+    # time: first column or indices
+    if np.ndim(x)==1:
+        t = np.arange(0,len(x))
+        x = np.asarray(x)
+    else:
+        t = x[:,0]
+        x = x[:,1]
+
+    # tsi: index pairs in x for which to derive discont values
+    #      [[infimum supremum]...] s1 right-aligned to infimum, s2 left-aligne to supremum
+    #      for 1-dim ts both values are adjacent [[i-1, i]...]
+    # zp: zero pause True for 1-dim ts input, False for 2-dim
+    tsi, zp = discont_tsi(t,ts)
+
+    # opt init
+    opt = myl.opt_default(opt,{'win':'glob','l':3})
+    
+    # output
+    d = discont_init()
+
+    # linear fits
+    # over time stamp pairs
+    for ii in tsi:
+
+        ## delta
+        d['dlt'].append(x[ii[1]]-x[ii[0]])
+        
+        ## segments (x, y values of pre-, post, joint segments)
+        t1,t2,tc,x1,x2,xc,y1,y2,yc,yc1,yc2,ye,cu1,cu2,yu1,yu2 = discont_seg(t,x,ii,opt)
+        d = discont_feat(d,t1,t2,tc,x1,x2,xc,y1,y2,yc,yc1,yc2,ye,cu1,cu2,yu1,yu2,zp)
+
+    # to np.array
+    for x in d:
+        d[x] = np.asarray(d[x])
+        
+    return d
+
+# init discont dict
+def discont_init():
+    return {"dlt": [],
+            "res": [],
+            "ry1": [],
+            "ry2": [],
+            "ryc": [],
+            "ry2e": [],
+            "rx1": [],
+            "rx2": [],
+            "rxc": [],
+            "rr1": [],
+            "rr2": [],
+            "rrc": [],
+            "ra1": [],     
+            "ra2": [],
+            "dlt_ra": [],     
+            "s1_c3": [],
+            "s1_c2": [],     
+            "s1_c1": [],
+            "s1_c0": [],     
+            "s2_c3": [],
+            "s2_c2": [],     
+            "s2_c1": [],
+            "s2_c0": [],     
+            "dlt_c3": [],
+            "dlt_c2": [],     
+            "dlt_c1": [],
+            "dlt_c0": [],
+            "eucl_c": [],
+            "corr_c": [],
+            "eucl_y": [],
+            "corr_y": [],
+            "v1": [],
+            "v2": [],
+            "vc": [],
+            "vr": [],
+            "dlt_v": [],
+            "m1": [],
+            "m2": [],
+            "dlt_m": [],
+            "p": []}
+
+# pre/post-boundary and joint segments        
+def discont_seg(t,x,ii,opt):
+    # preceding, following segment indices
+    i1, i2 = discont_idx(t,ii,opt)
+    #print(ii,"\n-> ", i1,"\n-> ", i2) #!v
+    #myl.stopgo() #!v
+    
+    t1, t2, x1, x2 = t[i1], t[i2], x[i1], x[i2]
+    tc = np.concatenate((t1,t2))
+    xc = np.concatenate((x1,x2))
+
+    # normalized time (only needed for reported polycoefs, not
+    # for putput lines
+    tn1 = myl.nrm_vec(t1,{'mtd': 'minmax',
+                          'rng': [-1, 1]})
+    tn2 = myl.nrm_vec(t2,{'mtd': 'minmax',
+                          'rng': [-1, 1]})
+
+    # linear fit coefs
+    c1 = myPolyfit(t1,x1,1)
+    c2 = myPolyfit(t2,x2,1)
+    cc = myPolyfit(tc,xc,1)
+
+    # cubic fit coefs (for later shape comparison)
+    cu1 = myPolyfit(tn1,x1,3)
+    cu2 = myPolyfit(tn2,x2,3)
+    yu1 = np.polyval(cu1,tn1)
+    yu2 = np.polyval(cu2,tn2)
+
+    # cut to same length (from boundary)
+    ld = len(yu1)-len(yu2)
+    if ld>0:
+        yu1=yu1[ld:len(yu1)]
+    elif ld<0:
+        yu2=yu2[0:ld]
+    # robust treatment
+    while len(yu2)<len(yu1):
+        yu2 = np.append(yu2,yu2[-1])
+    while len(yu1)<len(yu2):
+        yu1 = np.append(yu1,yu1[-1])
+    
+    # fit values
+    y1 = np.polyval(c1,t1)
+    y2 = np.polyval(c2,t2)
+    yc = np.polyval(cc,tc)
+    # distrib yc over t1 and t2
+    yc1, yc2 = yc[0:len(y1)], yc[len(y1):len(yc)]
+    # linear extrapolation
+    ye = np.polyval(c1,t2)
+        
+    ## plotting linear fits
+    #myPlot({"o":tc,"s1":t1,"s2":t2,"sc":tc,"se":t2},
+    #       {"o":xc,"s1":y1,"s2":y2,"sc":yc,"se":ye})
+    ##
+
+    return t1,t2,tc,x1,x2,xc,y1,y2,yc,yc1,yc2,ye,cu1,cu2,yu1,yu2
+
+
+## features
+def discont_feat(d,t1,t2,tc,x1,x2,xc,y1,y2,yc,yc1,yc2,ye,cu1,cu2,yu1,yu2,zp):
+    ## reset
+    d["res"].append(y2[0]-y1[-1])
+    ## y-RMSD between regression lines: 1-pre, 2-post, c-all
+    d["ry1"].append(myl.rmsd(yc1,y1))
+    d["ry2"].append(myl.rmsd(yc2,y2))
+    d["ryc"].append(myl.rmsd(yc,np.concatenate((y1,y2))))
+    ## extrapolation y-RMSD
+    d["ry2e"].append(myl.rmsd(y2,ye))
+    ## xy-RMSD between regression lines and input values: 1-pre, 2-post, c-all
+    rx1 = myl.rmsd(yc1,x1)
+    rx2 = myl.rmsd(yc2,x2)
+    rxc = myl.rmsd(yc,xc)
+    d["rx1"].append(rx1)
+    d["rx2"].append(rx2)
+    d["rxc"].append(rxc)
+    ## xy-RMSD ratios of joint fit divided by single fits RMSD
+    # (the higher, the more discontinuity)
+    d["rr1"].append(myl.robust_div(rx1,myl.rmsd(y1,x1)))
+    d["rr2"].append(myl.robust_div(rx2,myl.rmsd(y2,x2)))
+    d["rrc"].append(myl.robust_div(rxc,myl.rmsd(np.concatenate((y1,y2)),xc)))
+    ## rates
+    d["ra1"].append(drate(t1,y1))
+    d["ra2"].append(drate(t2,y2))
+    d["dlt_ra"].append(d["ra2"][-1]-d["ra1"][-1])    
+    ## means
+    d["m1"].append(np.mean(x1))
+    d["m2"].append(np.mean(x2))
+    d["dlt_m"].append(d["m2"][-1]-d["m1"][-1])
+    ## variances
+    d["v1"].append(np.var(x1))
+    d["v2"].append(np.var(x2))
+    d["vc"].append(np.var(xc))
+    d["vr"].append(np.mean([d["v1"][-1],d["v2"][-1]])/d["vc"][-1])
+    d["dlt_v"].append(d["v2"][-1]-d["v1"][-1])
+    ## shapes
+    d["s1_c3"].append(cu1[0])
+    d["s1_c2"].append(cu1[1])
+    d["s1_c1"].append(cu1[2])
+    d["s1_c0"].append(cu1[3])
+    d["s2_c3"].append(cu2[0])
+    d["s2_c2"].append(cu2[1])
+    d["s2_c1"].append(cu2[2])
+    d["s2_c0"].append(cu2[3])
+    d["eucl_c"].append(myl.dist_eucl(cu1,cu2))
+    rr = np.corrcoef(cu1,cu2)
+    d["corr_c"].append(rr[0,1])
+    d["dlt_c3"].append(d["s2_c3"][-1]-d["s1_c3"][-1])
+    d["dlt_c2"].append(d["s2_c2"][-1]-d["s1_c2"][-1])
+    d["dlt_c1"].append(d["s2_c1"][-1]-d["s1_c1"][-1])
+    d["dlt_c0"].append(d["s2_c0"][-1]-d["s1_c0"][-1])
+    d["eucl_y"].append(myl.dist_eucl(yu1,yu2))
+    rry = np.corrcoef(yu1,yu2)
+    d["corr_y"].append(rry[0,1])
+    ## pause
+    if zp:
+        d["p"].append(0)
+    else:
+        d["p"].append(t2[0]-t1[-1])
+    
+    return d
+
+# returns declination rate of y over time t
+# IN:
+#   t: time vector
+#   y: vector of same length
+# OUT:
+#   r: change in y over time t
+def drate(t,y):
+    if len(t)==0 or len(y)==0:
+        return np.nan
+    return (y[-1]-y[0])/(t[-1]/t[0])
+
+
+# indices in t for which to derive discont values
+# IN:
+#   t: all time stamps/indices
+#   ts: selected time stamps/indices, can be empty, 1-dim or 2-dim
+# OUT:
+#   ii
+#     ==t-index pairs [[i-1, i]...] for i>=1, if ts empty
+#     ==index of [[infimum supremum]...] t-elements for ts stamps or intervals, else
+#   zp
+#     zero pause; True for 1-dim ts, False for 2-dim 
+def discont_tsi(t,ts):
+    ii = []
+    # return all index pairs [i-1, i]
+    if len(ts)==0:
+        for i in np.arange(1,len(t)):
+            ii = myl.push(ii,[i-1,i])
+        return ii
+    # zero pause
+    if myl.of_list_type(ts[0]):
+        zp = False
+    else:
+        zp = True
+    # return selected index pairs
+    for x in ts:
+        # supremum and infimum
+        if myl.of_list_type(x):
+            xi, xs = x[0], x[1]
+        else:
+            xi, xs = x, x
+        if xi==xs:
+            op = '<'
+        else:
+            op = '<='
+        sup = myl.find(t,'>=',xs)
+        inf = myl.find(t,op,xi)
+        if len(sup)==0 or len(inf)==0 or sup[0]==0 or inf[-1]==0:
+            continue
+        ii.append([inf[-1],sup[0]])
+
+    return ii, zp
+
+# preceding, following segment indices around t[i]
+# defined by opt[win|l]
+# IN:
+#   t: 1- or 2-dim time array [timeStamp ...] or [[t_off t_on] ...], the latter
+#         accounting for pauses 
+#   ii: current idx pair in t
+#   opt: cf discont
+# OUT:
+#   i1, i2: pre/post boundary index arrays
+# REMARK:
+#   i is part of i2
+def discont_idx(t,ii,opt):
+    lx = len(t)
+    i, j = ii[0], ii[1]
+    # glob: preceding, following segment from start/till end
+    if opt['win']=='glob':
+        return np.arange(0,ii[0]), np.arange(ii[1],lx)
+    i1 = myl.find_interval(t,[t[i]-opt['l'], t[i]])
+    i2 = myl.find_interval(t,[t[j], t[j]+opt['l']])
+    return i1, i2
+
+#### discontinuity analysis: some bugs, use discont() instead
 # measures delta and linear fit discontinuities between 
 # adjacent array elements in terms of:
 #  - delta  
@@ -1038,7 +1568,7 @@ def fu_filt(y,opt):
 # >> x = np.random.rand(20)
 # >> d = ds.discont(x)
 
-def discont(x):
+def discont_deprec(x):
 
     do_plot=False
 
@@ -1104,11 +1634,25 @@ def myPolyfit(x,y,o=1):
         return np.zeros(o+1)
     if len(x)<=o:
         return myl.push(np.zeros(o),np.mean(y))
-    return np.polyfit(x,y,1)
+    return np.polyfit(x,y,o)
 
 
-#syl_ncl_wrapper()
-
+# plot extracted yllable nuclei (can be plotted before pruning, too)
+# IN:
+#   y: energy contour
+#   idx: ncl indices (in y)
+def plot_sylncl(y,idx):
+    x_dict = {"y": myl.idx(y)}
+    y_dict = {"y": y}
+    r = [0,0.15]
+    opt = {"ls": {"y": "-k"}}
+    # over locmax idxs
+    for i in myl.idx(idx):
+        z = "s{}".format(i)
+        x_dict[z] = [idx[i], idx[i]]
+        y_dict[z] = r
+        opt["ls"][z] = "-b"
+    myl.myPlot(x_dict,y_dict,opt)
 
 # init new figure with onclick->next, keypress->exit
 # OUT:

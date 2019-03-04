@@ -85,14 +85,29 @@ def copa_opt_init(conf):
                     continue
                 if 'tier' not in opt['fsys']['augment'][x]:
                     opt['fsys']['augment'][x]['tier'] = opt['fsys']['augment']['syl']['tier_out_stm']
-
+                    
+    # unify bnd, gnl_* and rhy_* tiers as lists
+    for x in ['bnd','gnl_en','gnl_f0','rhy_en','rhy_f0','voice']:
+        for y in ['tier', 'tier_rate']:
+            if x in opt['fsys'] and y in opt['fsys'][x]:
+                if type(opt['fsys'][x][y]) is not list:
+                    opt['fsys'][x][y] = [opt['fsys'][x][y]]
+                    
     # dependencies
     if re.search('^seed',opt['augment']['glob']['cntr_mtd']):
         if not opt['augment']['glob']['use_gaps']:
             print('Init: IP augmentation by means of {} centroid method requires value 1 for use_gaps. Changed to 1.'.format(opt['augment']['glob']['cntr_mtd']))
             opt['augment']['glob']['use_gaps']=1
 
+    # force at least 1 ncl and accent to be in file. Otherwise creation summary statistics table fails
+    # due to unequal number of rows
+    if myl.ext_true(opt['fsys']['export'],'summary'):
+        opt['augment']['loc']['force']=True
+    if myl.ext_true(opt['augment']['loc'],'force'):
+        opt['augment']['syl']['force']=True
+    
 
+        
     # distribute label and channel specs to subdicts
     # take over dir|typ|ext from 'annot'
     # needed e.g. to extract tiers by pp_tiernames()

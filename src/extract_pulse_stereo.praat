@@ -39,6 +39,7 @@ for ios to nos
 
   # pulse
   call get_pulse_stereo
+  call clean_up
 endfor
 
 

@@ -14,9 +14,12 @@ import os
 #
 #  adjust input for os.path.join() as follows:
 #    os.path.join('homes','myHome','tools','copasul')
-#
+
+
 def copa_root():
     r = os.path.abspath(os.sep)
     x = r + os.path.join('homes','reichelu','repos','repo_pl','src','copasul_py')
+    if not os.path.isdir(x):
+        x = r + os.path.join('home','ureichel','work','src','copasul_py')
     return x
 

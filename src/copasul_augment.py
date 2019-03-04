@@ -51,10 +51,10 @@ def aug_main(copa,f_log_in):
                                 opt['fsys']['aud']['ext'])
     # annot files
     ff_annot = myl.file_collector(opt['fsys']['annot']['dir'],
-                                opt['fsys']['annot']['ext'])
+                                  opt['fsys']['annot']['ext'])
     # f0 files
     ff_f0 = myl.file_collector(opt['fsys']['f0']['dir'],
-                                opt['fsys']['f0']['ext'])
+                               opt['fsys']['f0']['ext'])
 
     # additional material for acc extraction
     add_mat={'ff':copp.pp_file_collector(opt)}
@@ -63,6 +63,8 @@ def aug_main(copa,f_log_in):
     timeStamp = myl.isotime()
     for i in myl.idx_a(len(ff_wav)):
 
+        print(myl.stm(ff_wav[i])) #!v
+
         # add to existing file or generation from scratch
         annot, fstm, fo = aug_annot_init(ff_annot,ff_wav,i,opt,timeStamp)
         add_mat['fi']=i
@@ -70,7 +72,7 @@ def aug_main(copa,f_log_in):
         # extending annotation by chunk, syl tiers f.a. channel
         # if unit=='file' glob and loc tiers are also added
         annot = aug_sub(ff_wav[i],ff_f0[i],annot,fstm,opt,add_mat)
-
+        
         myl.output_wrapper(annot,fo,opt['fsys']['annot']['typ'])
 
     # boundaries batch clustering
@@ -83,7 +85,7 @@ def aug_main(copa,f_log_in):
         
     return
 
-
+            
 # batch clustering
 # IN:
 #   dom: domain 'glob'|'loc'
@@ -91,7 +93,6 @@ def aug_main(copa,f_log_in):
 #   ff_annot: annotation file list
 #   ff_f0: f0 file list
 #   opt: copa['config']
-
 # OUT:
 #   (adding tiers to annotation files)
 def aug_batch(dom,ff_wav,ff_annot,ff_f0,opt,add_mat):
@@ -99,13 +100,25 @@ def aug_batch(dom,ff_wav,ff_annot,ff_f0,opt,add_mat):
     # feature vectors for entire corpus: ['batch'] subdict
     #    and for each file: ['file'] subdict
     ps = aug_batch_ps(dom,ff_wav,ff_annot,ff_f0,opt,add_mat)
+
+    #!take:
+    # lol ps['file'][myFileIdx][myChannelIdx]['fv'])
+    # l ps['file'][myFileIdx][myChannelIdx]['tc']
+    
     # clustering over all data
     d = ps['batch']
     #print(d['fv'], d['wgt'], ps['file'][0][0]['fv'])
-
+    
     c, cntr, wgt = aug_cntr_wrapper(dom,d['fv'],d['tc'],d['wgt'],opt,
                                     d['is0'],d['is1'],d['i_nan'],
                                     opt['augment'][dom]['measure'])
+
+    # export featvecs and time stamps to sto files, e.g. for supervised learning
+    if 'export' in opt['fsys']['augment'][dom] and len(opt['fsys']['augment'][dom]['export'])>0:
+        myl.output_wrapper(d,"{}/{}.pickle".format(opt['fsys']['export']['dir'],
+                                                   opt['fsys']['augment'][dom]['export']),'pickle')
+
+    
     #print("wgt {}: ".format(dom), wgt) #!wgt
     #myl.stopgo() #!wgt
     # distributing c to files
@@ -120,6 +133,8 @@ def aug_batch(dom,ff_wav,ff_annot,ff_f0,opt,add_mat):
             else:
                 d = aug_loc_acc(psf['c'],psf['fv'],psf['wgt'],psf['to'],psf['ato'],
                                 psf['do_postsel'],cntr)
+                if len(d)==0 and opt["augment"]["loc"]["force"]:
+                    d = force_acc(ff_wav[ii])
             annot = aug_annot_upd(dom,annot,{'t':d},i,opt,psf['lng'])
         myl.output_wrapper(annot,fo,opt['fsys']['annot']['typ'])
     return
@@ -198,7 +213,7 @@ def aug_batch_ps(dom,ff_wav,ff_annot,ff_f0,opt,add_mat):
                 fv,wgt,tc,is0,is1,i_nan,t,to,pt,pto,fto = aug_glob_fv(t,z,annot,opt,i,fstm,
                                                                       f,lng,aug_spec['glob'])
                 # domain dependent input
-                psf = {'t':t, 'pt':pt,'pto':pto,'to':to,'fto':fto}
+                psf = {'t':t,'pt':pt,'pto':pto,'to':to,'fto':fto}
             else:
                 fv,wgt,tc,is0,is1,i_nan,to,ato,do_postsel = aug_loc_fv(t,z,bv,annot,opt,i,
                                                                        fstm,f,lng,add_mat,
@@ -376,7 +391,8 @@ def aug_batch_ps_upd(ps,dom,ii,i,fv,wgt,tc,is0,is1,i_nan,lng,psf,oi):
     # file/channel assignment
     fi = (np.ones((len(fv),1))*ii).astype(int)
     ci = (np.ones((len(fv),1))*i).astype(int)
-    ps['batch']['ij'] = myl.cmat(fi,ci,1)
+    ij_add = myl.cmat(fi,ci,1)
+    ps['batch']['ij'] = myl.cmat(ps['batch']['ij'],ij_add,0)
     # time stamps (onset adding not needed, since file/channel assignment prevents
     # from comparisons across files/channels)
     ps['batch']['tc'] = np.append(ps['batch']['tc'],tc)
@@ -457,8 +473,8 @@ def aug_annot_init(ff_annot,ff_wav,i,opt,timeStamp=''):
 # OUT:
 #   annot with added tiers
 def aug_sub(f,f_f0,annot,fstm,opt,add_mat):
-
-    print(fstm)
+    
+    #!sil print(fstm)
     #myLog(fstm) ##!!t
 
     aug_spec, fs, s, lng, f0_dat, ncol = aug_sig(f,f_f0,opt)
@@ -478,24 +494,25 @@ def aug_sub(f,f_f0,annot,fstm,opt,add_mat):
         f0, t, z, bv = copp.pp_f0_preproc(f0,myl.trunc2(lng),opt)        
         ## Chunking ##################################
         if opt['navigate']['do_augment_chunk']:
-            print("\tchunking ...")
+            #print("\tchunking ...")
             chunk = sif.pau_detector(y,opt_chunk)
             annot = aug_annot_upd('chunk',annot,{'t':chunk['tc']},i,opt,lng)
         ## Syllable nucleus + boundary detection #####
         if opt['navigate']['do_augment_syl']:
-            print("\tsyllable nucleus extraction ...")
+            #print("\tsyllable nucleus extraction ...")
             d,sb = aug_syl(y,annot,opt,fs,i,fstm,f,lng,aug_spec['syl'])
             annot = aug_annot_upd('syl',annot,{'t':d},i,opt,lng)
-            annot = aug_annot_upd('syl',annot,{'t':sb},i,opt,lng,'bnd')
+            if 'ncl_only' not in opt['fsys']['augment']['syl']:
+                annot = aug_annot_upd('syl',annot,{'t':sb},i,opt,lng,'bnd')
         ## Global segments ###########################
         if opt['navigate']['do_augment_glob'] and opt['augment']['glob']['unit']=='file':
-            print("\tphrase segmentation ...")
+            #print("\tphrase segmentation ...")
             d = aug_glob(t,z,annot,opt,i,fstm,f,lng,aug_spec['glob'])
             annot = aug_annot_upd('glob',annot,{'t':d},i,opt,lng)
 
         ## Accents ####################################
         if opt['navigate']['do_augment_loc'] and opt['augment']['loc']['unit']=='file':
-            print("\taccent location ...")
+            #print("\taccent location ...")
             d = aug_loc(t,z,bv,annot,opt,i,fstm,f,lng,add_mat,aug_spec['loc'])
             annot = aug_annot_upd('loc',annot,{'t':d},i,opt,lng)
 
@@ -738,6 +755,9 @@ def aug_syl(y,annot,opt,fs,i,fstm,f,lng,spec):
         opt_syl['ons'] = ii[0]
         # add syllable time stamps
         s,b = sif.syl_ncl(cs,opt_syl)
+        # force at least 1 syllable to be in each parent tier unit
+        if opt["augment"]["syl"]["force"] and len(s['t'])==0:
+            s['t'] = np.array([myl.idx2sec(maxi+opt_syl['ons'],fs)])
         syl = np.append(syl,s['t'])
         bnd = np.append(bnd,b['t'])
         # add parent-tier final time stamp
@@ -839,6 +859,8 @@ def aug_viol(t,spec,tq):
 #   glob: [[on off]...]
 def aug_glob(ty,y,annot,opt,i,fstm,f,lng,spec):
     fv, wgt, tc, is0, is1, i_nan, t, to, pt, pto, fto = aug_glob_fv(ty,y,annot,opt,i,fstm,f,lng,spec)
+    #!take lol fv, l tc
+    
     # c[j]==1: bnd following after segment j
     c = myl.eai()
     if len(tc)>0:
@@ -1162,7 +1184,7 @@ def aug_certain_bnd(r,j):
 #   opt: copa['config']
 #   i: channel idx
 #   fstm: annot file stem for error msg
-#   f: signal file name for error msg
+#   f: signal file name
 #   lng: signal file length (in sec)
 #   add_mat: dict with additional material
 #       ['copa']: dict after copa_init()
@@ -1174,7 +1196,8 @@ def aug_certain_bnd(r,j):
 def aug_loc(ty,y,bv,annot,opt,i,fstm,f,lng,add_mat,spec):
     fv, wgt, tc, is0, is1, i_nan, to, ato, do_postsel = aug_loc_fv(ty,y,bv,annot,opt,i,
                                                                    fstm,f,lng,add_mat,spec)
-    
+
+    #!take lol fv, l tc
     # all accents to be returned
     if len(fv)==0:
         return to
@@ -1183,9 +1206,22 @@ def aug_loc(ty,y,bv,annot,opt,i,fstm,f,lng,add_mat,spec):
     # c[j]==1: bnd following after segment j 
     c, cntr, wgt = aug_cntr_wrapper('loc',fv,tc,wgt,opt,is0,is1,i_nan,
                                     opt['augment']['loc']['measure'])
+    d = aug_loc_acc(c,fv,wgt,to,ato,do_postsel,cntr)
+    if len(d)==0 and opt["augment"]["loc"]["force"]:
+        d = force_acc(f)
+    return d
 
-    return aug_loc_acc(c,fv,wgt,to,ato,do_postsel,cntr)
-
+# called if list of found pitch accents is empty and
+# at least one accent needs to be detected in file
+# IN:
+#   f: signal file
+# OUT:
+#   d: 1 element vector with time point (in sec) of energy max
+def force_acc(f):
+    y = sif.wrapper_energy(f)
+    ima = np.argmax(y[:,1])
+    return np.array([y[ima,0]])
+    
 # returns accent time stamps
 # IN:
 #  c: 0|1 class vector
@@ -1197,7 +1233,7 @@ def aug_loc(ty,y,bv,annot,opt,i,fstm,f,lng,add_mat,spec):
 #  cntr: centroid dict
 #    [0|1]->centroid vector
 # OUT:
-#  d: [[timeStamp]] accent time stamps
+#  d: [timeStamp ...] accent time stamps
 def aug_loc_acc(c,fv,wgt,to,ato,do_postsel,cntr):
     # getting all accents
     d, fva = myl.ea(2)
@@ -1209,7 +1245,6 @@ def aug_loc_acc(c,fv,wgt,to,ato,do_postsel,cntr):
     # selecting max in analysis tier segments
     if do_postsel:
         d, loc_i = aug_loc_postsel(d,fva,wgt,ato,cntr)
-        
     return d
 
 # acc feature vectors
@@ -1240,7 +1275,7 @@ def aug_loc_acc(c,fv,wgt,to,ato,do_postsel,cntr):
 #           has to be chosen per segment after prom classification, i.e.
 #           if ['acc_select']=='max'
 def aug_loc_fv(ty,y,bv,annot,opt,i,fstm,f,lng,add_mat,spec):
-
+    
     global f_log
     msg = aug_msg('loc',f)
 
@@ -1285,7 +1320,7 @@ def aug_loc_fv(ty,y,bv,annot,opt,i,fstm,f,lng,add_mat,spec):
     #   left/rightmost syl in analysis tier segments
     if (lopt['ag_select']=='all' and
         do_postsel==False and len(at)>0 and myl.ncol(at)==2):
-        return [], [], [], [], [], to, [], do_postsel
+        return [], [], [], [], [], [], to, [], do_postsel
 
     ## fallback: file segments
     ft, fto, flab = t_file_parent(lng)
@@ -1299,7 +1334,7 @@ def aug_loc_fv(ty,y,bv,annot,opt,i,fstm,f,lng,add_mat,spec):
 
     # reduce accent candidates to the ones within parent segments
 
-    ## no needed, will be done in pp_channel()
+    ## not needed, will be done in pp_channel()
     #t, to, lab_t = aug_loc_parented(t,to,lab_t,pt)
 
     add_mat['lng']=lng
@@ -1324,7 +1359,7 @@ def aug_loc_fv(ty,y,bv,annot,opt,i,fstm,f,lng,add_mat,spec):
         copa, t_upd, to_upd = aug_prep_copy(t,to,fto,annot,i,opt,add_mat)
         copa = cost.styl_glob(copa)
         if 0 not in copa['data'][ii][i]['glob']:
-            return myl.ea()
+            return [], [], [], [], [], [], to, [], do_postsel
 
     t = t_upd
     to = to_upd
@@ -1365,7 +1400,7 @@ def aug_loc_fv(ty,y,bv,annot,opt,i,fstm,f,lng,add_mat,spec):
 
     # merge featset-related featmats and weights to single matrices
     fv, wgt, i_nan = aug_fv_mrg(fx,wx)
-    if len(fv)==0: return myl.ea()
+    if len(fv)==0: return [], [], [], [], [], [], to, [], do_postsel
 
     # get seed candidates for stressed and unstressed words
     # if entroid method is seed_{split|kmeans} and there is an AG
@@ -1383,7 +1418,7 @@ def aug_loc_fv(ty,y,bv,annot,opt,i,fstm,f,lng,add_mat,spec):
     # get is0 seeds from min_l next to is1 candidates
     if len(is1)>0 and re.search('^seed',lopt['cntr_mtd']):
         is0 = aug_is0(tc,is0,is1,lopt['min_l'])
-
+        
     # abs, delta, abs+delta
     # if specified: delta values, weight vector doubling in case of abs+delta
     fv, wgt = aug_fv_measure(fv,wgt,lopt['measure'])
@@ -1593,6 +1628,9 @@ def aug_loc_feat(typ,copa,ii,i):
     fv, wgt, tc, tco = myl.ea(4)
     # feat -> userWeight
     sel = copa['config']['augment']['loc']['wgt'][typ]
+    # do not use absolute values of coefs (only recommended if creating supervised ml input,
+    # not for clustering)
+    noAbs = myl.ext_true(copa['config']['augment']['loc'],'c_no_abs')
     if typ in copa['data'][ii][i]['loc'][0]:
         # acc, gst, decl
         c = copa['data'][ii][i]['loc']
@@ -1615,7 +1653,7 @@ def aug_loc_feat(typ,copa,ii,i):
         if fld not in c[j]:
             continue
         # segment-related row in feat matrix
-        v,w = aug_loc_feat_sub(myl.ea(),myl.ea(),c[j][fld],sel)
+        v,w = aug_loc_feat_sub(myl.ea(),myl.ea(),c[j][fld],sel,noAbs)
         if len(v)==0: continue
         fv = myl.push(fv,v)
         if do_wgt:
@@ -1645,6 +1683,7 @@ def aug_loc_feat(typ,copa,ii,i):
 #        e.g. 'gst', 'ml', 'rms' (recursively stepped through until
 #                                 non-dict value is reached)
 #   sel: corresponding dict in copa['augmentation']...['wgt']...
+#   noAbs: <False> do not use abs values for coefs (not recommended for bootstrap clustering)
 # OUT:
 #   fv: updated featvec
 #   wgt: updated weigths
@@ -1653,7 +1692,7 @@ def aug_loc_feat(typ,copa,ii,i):
 #     if value is dict -> recursive processing
 #     if value is list -> collect values, uniform or element-wise weighting
 #     if value is scalar-> collect value, weighting
-def aug_loc_feat_sub(fv,wgt,c,sel):
+def aug_loc_feat_sub(fv,wgt,c,sel,noAbs=False):
     #print('\n\nentering fv_sub ...')
     #print('select:', sel)
     #print('in:', c)
@@ -1669,13 +1708,13 @@ def aug_loc_feat_sub(fv,wgt,c,sel):
         if type(sel[x]) is dict:
             #print('--> recursive...')
             # recursive processing
-            fv,wgt = aug_loc_feat_sub(fv,wgt,c[x],sel[x])
+            fv,wgt = aug_loc_feat_sub(fv,wgt,c[x],sel[x],noAbs)
         elif myl.of_list_type(c[x]):
             #print('--> list term.')
             # list of variables (e.g. coef vector)
             for i in range(len(c[x])):
                 # for polycoefs use abs values
-                if x=='c':
+                if x=='c' and not noAbs:
                     fv = np.append(fv,abs(c[x][i]))
                 else:
                     fv = np.append(fv,c[x][i])
@@ -2013,8 +2052,10 @@ def aug_cntr_wrapper_sub(x,i0,i1,wgt,topt):
     # 'seed_wgt': set seed centroids, weighted dist fv assignment
     if re.search('^seed',topt['cntr_mtd']) and len(i1)>0:
         cntr, ww = aug_cntr_seed(x,{0:i0,1:i1},topt)
+        #print(1,cntr)
     else:
         # 'split': centroids from fv above, below defined percentile
+        # also fallback if no seeds retrieved from data
         cntr, ww = aug_cntr_split(x,topt)
 
     return cntr, ww
@@ -2134,6 +2175,7 @@ def aug_wgt(mtd,x,c):
     return myl.ea()
 
 # define 2 cluster centroids as medians above, below percentile p
+#    (separately for each feature)
 # IN:
 #  x: feature matrix
 #  opt: 

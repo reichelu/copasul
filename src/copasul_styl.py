@@ -56,10 +56,15 @@ def styl_gnl_file(copa,ii,fld,opt):
 
     # wav of f0 input (wav to be loaded once right here)
     if opt['type']=='en':
+        # mean subtraction? (default; translates to do_preproc)
+        if (('centering' not in opt) or opt['centering']):
+            meanSub=True
+        else:
+            meanSub=False
         iii = myl.numkeys(copa['data'][ii])
         fp = copa['data'][ii][iii[0]]['fsys']['aud']
         f = "{}/{}.{}".format(fp['dir'],fp['stm'],fp['ext'])
-        y_raw_in, fs_sig = sif.wavread(f)
+        y_raw_in, fs_sig = sif.wavread(f,{'do_preproc': meanSub})
     else:
         myFs = copa['config']['fs']
 
@@ -281,6 +286,121 @@ def styl_ys(iv,fs,y):
 #### voice characteristics ###############################
 ##########################################################
 
+# standalone version of styl_voice to be called outside
+# of copasul env
+# IN:
+#   f_pul: name of pulse file (pulse and wav file must have same number of
+#   f_wav: name of wav file    columns/channels)
+#   ts: dict
+#      .myChannelIdx: 2-dim array [[on off] ...] of intervals
+#           in which features to be extracted  <{}>
+#           ! channel idx starting with 0
+#   opt
+#     .sts: stepsize in sec <0.01>
+#     .win: window length in sec (sts and win only needed if no
+#           len(ts)=0 <0.05>
+#     .jit
+#     .shim
+# OUT:
+#   voi.myChanIdx.t analysis windows (evtl copied from ts)
+#                .shim.v list of shimmer values
+#                     .c lol of polycoefs
+#                .jit.v
+#                    .v_abs
+#                    .m
+#                    .c
+#      all lists have same length
+
+def styl_voice_standalone(f_pul,f_wav,ts={},opt={}):
+    opt = myl.opt_default(opt,{"sts": 0.01, "win": 0.05})
+    # pulses and signal
+    #    ... as 2-dim list, one column per channel
+    pul = myl.input_wrapper(f_pul,'lol',{'colvec':True})
+    
+    sig_all, fs_sig = sif.wavread(f_wav)
+    opt['fs_sig']=fs_sig
+    nc = pul.shape[1]
+    ## voi init
+    voi = voi_init(nc)
+    ## over channels
+    for ci in range(nc):
+        # analyis windows
+        if ci not in ts or len[ts][ci]==0:
+            opt["max"]=np.max(pul[:,ci])
+            t = voi_win(opt)
+        else:
+            t = ts[ci]
+            
+        # channel-related signal column
+        if np.ndim(sig_all)>1:
+            sig = sig_all[:,ci]
+        else:
+            sig = sig_all
+        ## over time segments
+        for b in t:
+            # cut out pulse window (sig cutting is done in subfun)
+            pul_i = myl.intersect(myl.find(pul[:,ci],'>=',b[0]),
+                                  myl.find(pul[:,ci],'<=',b[1]))
+            # extraction
+            v = styl_voice_feat(pul[pul_i,ci],sig,opt)
+            # update
+            voi = voi_upd(voi,v,b,ci)
+    return voi
+
+# returns analyses windows of length opt["win"] with stepsize opt["sts"]
+# up to opt["max"]
+# IN: opt
+# OUT: w [[on off] ...]
+def voi_win(opt):
+    on = 0
+    s,l,m = opt["sts"],opt["win"],opt["max"]
+    w = []
+    while on < m:
+        w = myl.push(w,[max(0,on-l/2),min(on+l/2,m)])
+        on += s
+    return w
+    
+# init voi (called by styl_voice_standalone)
+# IN:
+#   nc: number of channels
+# OUT:
+#   voi: initialized voi
+def voi_init(nc):
+    voi = {}
+    fx = {'jit': ["v","v_abs","m","c"],
+          'shim': ["v","c"]}
+    for i in range(nc):
+        voi[i]={'t':[]}
+        for x in fx:
+            voi[i][x] = {}
+            for y in fx[x]:
+                voi[i][x][y] = []
+    return voi
+
+# update voi
+# IN:
+#   voi dict
+#   v current featdict
+#   t [on off] of analysis window
+#   ci channel idx
+# OUT:
+#   voi
+def voi_upd(voi,v,t,ci):
+    voi[ci]["t"] = myl.push(voi[ci]["t"],t)
+    # over jit, shim
+    for x in v:
+        # over features
+        for y in v[x]:
+            if y not in voi[ci][x]:
+                continue
+            if myl.of_list_type(v[x][y]): 
+                voi[ci][x][y] = myl.push(voi[ci][x][y],v[x][y])
+            else:
+                voi[ci][x][y].append(v[x][y])
+    return voi
+        
+            
+            
 # IN:
 #   copa
 #   logFile
@@ -369,17 +489,21 @@ def styl_voice_file(copa,ii,fld,opt):
 #       'jit': see styl_voice_jit()
 #       'shim': see styl_voice_shim()
 def styl_voice_feat(pul,sig,opt):
-
     # remove -1 padding from input file
     pul = pul[myl.find(pul,'>',0)]
+    opt = opt_voice_default(opt)
+    jit = styl_voice_jit(pul,opt['jit'])
+    shim = styl_voice_shim(pul,sig,opt['shim'])
+    return {'jit': jit, 'shim': shim}
+
+# returns default options for voice analyses
+def opt_voice_default(opt={}):
     opt = myl.opt_default(opt,{'shim':{},'jit':{}})
     opt['shim'] = myl.opt_default(opt['shim'],{'fs_sig': opt['fs_sig']})
     opt['jit'] = myl.opt_default(opt['jit'],{'fs_sig': opt['fs_sig'],
                                              't_max': 0.02, 't_min': 0.0001,
                                              'fac_max': 1.3})
-    jit = styl_voice_jit(pul,opt['jit'])
-    shim = styl_voice_shim(pul,sig,opt['shim'])
-    return {'jit': jit, 'shim': shim}
+    return opt
 
 # shimmer: average of abs diff between amplitudes of subsequent pulses
 #          divided by mean amplitude
@@ -396,13 +520,21 @@ def styl_voice_shim(pul,sig,opt):
     a = myl.ea()
     # time stamps
     t = myl.ea()
+
+    # robust return
+    robRet = {'v': np.nan,
+              'c': np.asarray([np.nan, np.nan, np.nan, np.nan])}
+    
     for i in myl.idx(pul):
         j = myl.sec2idx(pul[i],opt['fs_sig'])
-        #print(j,'->',len(sig)) #!v
         if j >= len(sig):
             break
         a = np.append(a,np.abs(sig[j]))
         t = np.append(t,pul[i])
+        
+    if len(a)==0:
+        return robRet
+        
     d = np.abs(np.diff(a))
     ma = np.mean(a)
     # shimmer
@@ -415,8 +547,12 @@ def styl_voice_shim(pul,sig,opt):
     # normalized to [-1 1] by range of [pul[0] pul[-1]]
     if ma>0:
         d = d/ma
-    x = myl.nrm_vec(t[1:len(t)], {'mtd': 'minmax', 'rng': [-1,1]})
-    c = styl_polyfit(x,d,3)
+        
+    if len(t)<2:
+        c = robRet['c']
+    else:
+        x = myl.nrm_vec(t[1:len(t)], {'mtd': 'minmax', 'rng': [-1,1]})
+        c = styl_polyfit(x,d,3)
 
     #print(s,c) #!v
     #myl.stopgo() #!v
@@ -547,6 +683,7 @@ def styl_glob_file(copa,ii,opt,reg,err_sum,N):
         # over glob segments
         for j in myl.numkeys(copa['data'][ii][i]['glob']):
             gt = copa['data'][ii][i]['glob'][j]['t']
+            
             # to for std_feat dur calculation; for interval tier input only
             # tor: time for declination rate calculation
             if len(copa['data'][ii][i]['glob'][j]['to'])>1:
@@ -1326,6 +1463,7 @@ def styl_loc_ext_file(copa,ii,gopt,lopt):
 #             ['ord']   polyorder for residual
 # OUT:
 #   gst[myRegister]['rms'] RMSD between corresponding lines in globseg and locseg
+#                  ['d'] mean distance between corresponding lines in globseg and locseg. Directed as opposed to 'rms'
 #                  ['sd']  slope diff
 #                  ['d_init'] y[0] diff
 #                  ['d_fin']  y[-1] diff
@@ -1360,7 +1498,9 @@ def styl_gestalt(obj):
         yg = dfg[x]['y']
         # rms
         dcl[x]['rms'] = myl.rmsd(yl,yg)
-        # slope diff
+        # mean distance d
+        dcl[x]['d'] = np.mean(yl-yg)
+        # slope diff sd
         dcl[x]['sd'] = ((yl[-1]-yl[0])-(yg[-1]-yg[0]))/l
         # d_init, d_fin
         dcl[x]['d_init'] = yl[0]-yg[0]
@@ -1581,7 +1721,7 @@ def styl_rhy(copa,typ,f_log_in=''):
 
     # over files
     for ii in myl.numkeys(copa['data']):
-        #print(ii) #!v
+        #print(copa['data'][ii][0]['fsys']['aud']['stm']) #!v
         copa = styl_rhy_file(copa,ii,fld,opt)
 
     return copa
@@ -1739,8 +1879,7 @@ def styl_speech_rhythm(y,r={},opt={},copaConfig={}):
     # domain weight features + ['wgt'][myDomain]['prop'|'mae'|'rate']
     rhy = rhy_sub(y,r,rhy,opt)
 
-    #print(rhy) #!
-    #myl.stopgo() #!
+    #myl.stopgo(rhy) #!v
 
     copl.plot_main({'call':'browse','state':'online','fit':rhy,
                     'type':"rhy_{}".format(opt['type']),'set':'rhy',

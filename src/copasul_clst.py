@@ -111,9 +111,10 @@ def clst_main(copa,dom,f_log_in):
 # IN:
 #   x: n x m feature matrix
 #   c: n x 1 cluster index vector (must be numeric!)
+#   do_nrm: <True> normalize features
 # OUT:
 #   w: 1 x m weight vector
-def featweights(x,c):
+def featweights(x,c,do_nrm=True):
     w = np.ones(myl.ncol(x))
     c = np.asarray(c).astype(int)
     # only one class -> equal wgt
@@ -124,7 +125,10 @@ def featweights(x,c):
         s = sm.silhouette_score(x[:,i].reshape(-1,1),c,metric='euclidean')
         w[i] = np.mean(s)+1
     # normalize
-    w = w/np.sum(w)
+    if do_nrm:
+        w = w/np.sum(w)
+    else:
+        w -= 1
     return w
 
 # log file output (if filehandle), else terminal output

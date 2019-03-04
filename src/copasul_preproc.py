@@ -7,7 +7,7 @@ import mylib as myl
 import pandas as pd
 import numpy as np
 import scipy as si
-import scipy.signal as ssi
+import sigFunc as sif
 import sys
 import re
 import copy as cp
@@ -35,8 +35,8 @@ import copy as cp
 #                       ['f0'|'aud'|'glob'|'loc'|'bnd']['dir'|'stm'|'ext'|'typ']
 #                                                ['tier*']
 #                       ['f0']['t'|'y'|'bv']
-#                       ['glob'][j]['t'|'to'|'ri'|'lab']
-#                       ['loc'][j]['t'|'to'|'ri'|'lab_ag'|'lab_acc']
+#                       ['glob'][j]['t'|'to'|'ri'|'lab'|'tier']
+#                       ['loc'][j]['t'|'to'|'ri'|'lab_ag'|'lab_acc'|'tier_ag'|'tier_acc']
 #                       ['bnd'][k][l]['t'|'to'|'lab'|'tier']
 #                       ['gnl_f0'][k][l]['t'|'to'|'lab'|'tier']
 #                       ['gnl_en'][k][l]['t'|'to'|'lab'|'tier']
@@ -145,7 +145,7 @@ def pp_f0_grp_bv(fg,opt):
         yi = myl.find(fg[x],'>',0)
         cbv, b = pp_bv(fg[x][yi],opt)
         bv[x] = cbv
-
+        
     return bv
 
 # grp-wise semitone conversion
@@ -196,8 +196,8 @@ def pp_grp_wrapper(copa):
 #                      ['f0'|'aud'|'glob'|'loc'|'bnd']['dir'|'stm'|'ext'|'typ']
 #                                                     ['tier']
 #                   ['f0']['t'|'y'|'bv']
-#                   ['glob'][j]['t'|'to'|'ri'|'lab']
-#                   ['loc'][j]['t'|'to'|'ri'|'lab_ag'|'lab_acc']
+#                   ['glob'][j]['t'|'to'|'ri'|'lab'|'tier']
+#                   ['loc'][j]['t'|'to'|'ri'|'lab_ag'|'lab_acc'|'tier_ag'|'tier_acc']
 #                   ['bnd'][k][l]['t'|'to'|'lab'|'tier']
 #                   ['gnl_f0'][k][l]['t'|'to'|'lab'|'tier']
 #                   ['gnl_en'][k][l]['t'|'to'|'lab'|'tier']
@@ -264,8 +264,6 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
     tn_acc = pp_tiernames(opt['fsys'],'loc','tier_acc',i)
     tn_ag = pp_tiernames(opt['fsys'],'loc','tier_ag',i)
     stm = copa['data'][ii][i]['fsys']['loc']['stm']
-    #!aa
-    #print(stm)
     if len(tn_ag)>0:
         loc_ag, loc_ag_ut, lab_loc_ag = pp_read(annot_dat,opt['fsys']['chunk'],tn_ag[0],stm,'loc')
         tn_loc.add(tn_ag[0])
@@ -378,6 +376,7 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
         is_init, is_fin = pp_initFin(rci,j)
         copa['data'][ii][i]['glob'][j]['is_init_chunk'] = is_init
         copa['data'][ii][i]['glob'][j]['is_fin_chunk'] = is_fin
+        copa['data'][ii][i]['glob'][j]['tier']=tn[0]
         
     ## copa.loc #############################
     copa['data'][ii][i]['loc'] = {}
@@ -419,6 +418,15 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
         copa['data'][ii][i]['loc'][jj]['is_fin'] = is_fin
         copa['data'][ii][i]['loc'][jj]['is_init_chunk'] = is_init_chunk
         copa['data'][ii][i]['loc'][jj]['is_fin_chunk'] = is_fin_chunk
+        if len(tn_ag)>0:
+            copa['data'][ii][i]['loc'][jj]['tier_ag'] = tn_ag[0]
+        else:
+            copa['data'][ii][i]['loc'][jj]['tier_ag'] = ''
+        if len(tn_acc)>0:
+            copa['data'][ii][i]['loc'][jj]['tier_acc'] = tn_acc[0]
+        else:
+            copa['data'][ii][i]['loc'][jj]['tier_acc'] = ''
+            
         #### labels
         if len(lab_ag)>0:
             copa['data'][ii][i]['loc'][jj]['lab_ag'] = lab_ag[j]
@@ -431,6 +439,7 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
         copa['data'][ii][i]['loc'][jj]['t'] = locSl
         copa['data'][ii][i]['loc'][jj]['to'] = loc_ut[j,:]
         copa['data'][ii][i]['loc'][jj]['tn'] = loc_tn
+
         loc_t = np.append(loc_t,locSl[2])
         if (ri[j]>-1):
             copa['data'][ii][i]['glob'][ri[j]]['ri'] = np.concatenate((copa['data'][ii][i]['glob'][ri[j]]['ri'],[jj]),axis=0)
@@ -704,11 +713,11 @@ def pp_f0_preproc(f0,t_max,opt):
     if np.max(y)==0:
         return y, t, y, 1
     # setting outlier to 0
-    y = pp_outl(y,opt['preproc']['out'])
+    y = sif.pp_outl(y,opt['preproc']['out'])
     # interpolation over 0
-    y = pp_interp(y)
+    y = sif.pp_interp(y)
     # smoothing
-    y = pp_smooth(y,opt['preproc']['smooth'])
+    y = sif.pp_smooth(y,opt['preproc']['smooth'])
     # <0 -> 0
     y[myl.find(y,'<',0)]=0
     # semitone transform, base ref value (in Hz)
@@ -981,6 +990,8 @@ def pp_file_collector(opt):
     # annotation files can be generated from scratch
     #    in this case stems of f0 (or aud) files are taken over
     l = max(len(ff['f0']),len(ff['aud']),len(ff['annot']))
+
+    #print(len(ff['f0']),len(ff['aud']),len(ff['annot']))
     
     if l==0:
         myLog("Fatal! Neither signal nor annotation files found!",True)
@@ -1420,7 +1431,7 @@ def pp_read(an,opt,tn='',fn='',call=''):
             myLog("Fatal! {}: does not contain tier {}".format(fn,tn))
         d = myl.ea()
         # selected tier
-        #print(an['item_name'])
+        #print(an['item_name']) #!v
         #!e
         t = an['item'][an['item_name'][tn]]
         # 'interals'/'text' or 'points'/'mark'
@@ -1583,19 +1594,6 @@ def pp_bv(yp,opt):
     b = max(bv,1)
     return bv, b
 
-### smoothing ########################################
-# remark: savgol_filter() causes warning
-# Using a non-tuple sequence for multidimensional indexing is deprecated
-# will be out with scipy.signal 1.2.0
-# (https://github.com/scipy/scipy/issues/9086)
-def pp_smooth(y,opt):
-    if opt['mtd']=='sgolay':
-        y = ssi.savgol_filter(y,opt['win'],opt['ord'])
-    elif opt['mtd']=='med':
-        y = ssi.medfilt(y,opt['win'])
-    return y
-
-
 ### zero padding ##############################
 # IN:
 #   f0: [[t f0]...]
@@ -1628,25 +1626,6 @@ def pp_zp(f0,t_max,opt,extrap=False):
 
     return f0
 
-
-### replacing outliers by 0 ###################
-def pp_outl(y,opt):
-    # ignore zeros
-    opt['zi'] = True
-    io = myl.outl_idx(y,opt)
-    if np.size(io)>0:
-        y[io] = 0
-    return y
-
-
-### linear interpolation over 0 (+constant extrapolation) #############
-def pp_interp(y):
-    xi = myl.find(y,'==',0)
-    xp = myl.find(y,'>',0)
-    yp = y[xp]
-    yi = np.interp(xi,xp,yp)
-    y[xi]=yi
-    return y
 
 ### copa init/preproc diagnosis #######################################
 # warnings to logfile:
