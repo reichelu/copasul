@@ -228,3 +228,23 @@
 20181029: 0.8.14
 	  - copasul_augment.aug_batch_ps(): bugfix; adjusting number of
 	    return arguments of aug_glob_fv()
+20190116: 0.8.15
+          - new loc features: {bl|ml|tl|rng}_d: mean distance between local
+	  regression line and corrsponding part of global regression line.
+	  The higher, the more the local is above the global line.
+20190301: 0.8.16
+          - new options .fsys.augment.{syl|loc}.force = <0>|1.
+	  Dependencies: if .fsys.export.summary==1, both .force are set to 1.
+	  If loc.force==1, also syl.force is set to 1.
+	  If syl.force is 1, at least one syllable nucleus is to be found per parent tier
+	  segment. In case no nucleus is extracted within a segment, a nucleus is placed at the
+	  energy maximum.
+	  If loc.force is 1, at least one pitch accent is to be found in a file. In case
+	  no accent is extracted, an accent is placed at the energy maximum.
+	  Both ensures, that for all files (also e.g. very short or noisy ones) all selected feature
+	  sets can be extracted, which is needed for .fsys.export.summary==1, so that all columns have the
+	  same number of rows.
+          - copasul_augment.aug_loc_fv(): bugfix; adjusting number of
+	    return arguments
+
+

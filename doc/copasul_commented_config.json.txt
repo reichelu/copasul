@@ -154,13 +154,21 @@
 	    # syllable nucleus extraction
 	    "syl": {
 		"tier_parent": ["CHUNK_1", "CHUNK_2"],
-		"tier_out_stm": "SYL"
+		"tier_out_stm": "SYL",
+		# if 1: output only syllable nucleus tier(s)
+		# if 0: output both syllable nucleus and boundary tier(s)
+		"ncl_only": 0
 	    },
 	    "glob": {
 		"tier_parent": ["CHUNK_1", "CHUNK_2"],
 		# tier with boundary candidates (here: word boundaries)
 		"tier": ["ORT_1", "ORT_2"],
-		"tier_out_stm": "IP"
+		"tier_out_stm": "IP",
+		# specification of export file name stem STM if a feature table
+		# should be stored for later supervised machine learning
+		# (targets must be added by user)
+		# file will be stored as fsys.export.dir/STM.glob.pickle
+		"export": ""
 	    },
 	    "loc": {
 		"tier_parent": ["IP_1","IP_2"],
@@ -169,7 +177,12 @@
 		# tier with accent group candidates (e.g. words)
 		# not obligatory. If provided, maximally one accent per AG is assigned
 		"tier_ag": ["ORT_1","ORT_2"],
-		"tier_out_stm": "A"
+		"tier_out_stm": "A",
+		# specification of export file name stem if a feature table
+		# should be stored for later supervised machine learning
+		# (targets must be added by user)
+		# file will be stored as fsys.export.dir/STM.glob.pickle
+		"export": ""
 	    }
 	},
 	# tier names for feature extraction
@@ -403,7 +416,11 @@
             "wgt": {
 		# z-scored vowel length (closest to accent marker)
                 "pho": 1,
-		# accent features: polycoefs
+		# accent features: polycoefs. (Only) for these features
+		# absolute values are taken (unless c_no_abs below is set to 1)
+		# abs values are better for unsupervised clustering
+		# not abs values might be benefitial if feature matrix is exported
+		# for supervised learning
                 "acc": {
                     "c": 1
                 },
@@ -461,7 +478,10 @@
 	    # 'max'. all the prominent ones
             "ag_select": "max",
 	    # +/- use heuristics from ORT tier (MAUS output)
-            "heuristics": "ORT"
+            "heuristics": "ORT",
+	    # per default absolute polycoef values are used. This can be
+	    # switched off by setting c_no_abs to 1
+	    "c_no_abs": 0
 	}
     },
     ## feature extraction options
