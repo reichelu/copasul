@@ -246,5 +246,14 @@
 	  same number of rows.
           - copasul_augment.aug_loc_fv(): bugfix; adjusting number of
 	    return arguments
-
-
+20190316: 0.8.17
+	  - new glob features of use for end-of-utterance anticiptaion
+	  stored in copa.data.fi.ci.glob.si.eou as
+	  .{tl|ml|bl|rng}_drop: actual f0 drop in IP, i.e. dur*rate
+	  .tl_ml_cross_t|f0, .tl_bl_cross_t|f0, .ml_bl_cross_t|f0
+	  	time and f0 of crossing point of respective line pair 
+	  content is in glob table columns {tl|ml|bl|rng}_drop and
+	  tl_ml_cross_t|f0
+20190322: 0.8.18
+	  - increasing robustness against vector length variation
+	  in copasul_preproc.pp_zp()

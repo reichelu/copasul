@@ -15,8 +15,9 @@ import copy as cp
 # calling plot_main for selected feature sets
 # do clst first (single plot)
 def plot_browse(copa):
-
+    
     c = copa['data']
+    
     opt = copa['config']
     o = opt['plot']['browse']
 
@@ -49,6 +50,7 @@ def plot_browse(copa):
 #   ii fileIdx
 #   i channelIdx
 def plot_browse_channel(copa,typ,s,ii,i):
+    
     c = copa['data']
     po = copa['config']['plot']['browse']
     # time, f0, f0-residual
@@ -104,9 +106,12 @@ def plot_browse_channel(copa,typ,s,ii,i):
 
                     plot_main(obj,copa['config'])
             else:
-                myFit = c[ii][i][dom][j][s]
+                myFit = cp.deepcopy(c[ii][i][dom][j][s])
                 myLoc = plot_loc(c,ii,i,dom,j,myStm)
 
+                if dom == "glob" and s == "decl" and "eou" in c[ii][i][dom][j]:
+                    myFit["eou"] = c[ii][i][dom][j]["eou"]
+                
                 if s=='acc':
                     ys = myl.copa_yseg(copa,dom,ii,i,j,t,r)
                 else:
@@ -557,6 +562,7 @@ def plot_styl_cont(obj,opt):
 
     # type=='glob' --> 'set'=='decl'
     if obj['set']=='decl':
+        
         bl = obj['fit']['bl']['y']
         ml = obj['fit']['ml']['y']
         tl = obj['fit']['tl']['y']
@@ -571,7 +577,7 @@ def plot_styl_cont(obj,opt):
             plt.plot(myTn,myY,'k.',linewidth=1)
 
         # color specs
-        if opt['plot']['color']:
+        if ("plot" in opt and myl.ext_true(opt['plot'],'color')) or myl.ext_true(opt,'color'):
             cc = ['-g','-r','-c']
             lw = [4,4,4]
         else:
@@ -587,6 +593,14 @@ def plot_styl_cont(obj,opt):
         plt.plot(tml,yml,cc[1],linewidth=lw[1])
         plt.plot(ttl,ytl,cc[2],linewidth=lw[2])
         #plt.plot(tbl,ybl,cc[0],tml,yml,cc[1],ttl,ytl,cc[2],linewidth=4)
+
+
+        # plot line crossings #!v
+        #if "eou" in obj["fit"]:
+        #    z = obj["fit"]["eou"]
+        #    plt.plot([z["tl_ml_cross_t"],z["tl_bl_cross_t"],z["ml_bl_cross_t"]],
+        #             [z["tl_ml_cross_f0"],z["tl_bl_cross_f0"],z["ml_bl_cross_f0"]],"or",linewidth=20)
+
     else:
         if 'y' in obj:
             myTn,myY = phal(tn,obj['y'])
@@ -594,7 +608,7 @@ def plot_styl_cont(obj,opt):
         myTn,myY = phal(tn,obj['fit']['y'])
 
         # color specs
-        if opt['plot']['color']:
+        if ("plot" in opt and myl.ext_true(opt['plot'],'color')) or myl.ext_true(opt,'color'):
             cc = '-b'
         else:
             cc = '-k'

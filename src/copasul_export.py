@@ -447,8 +447,11 @@ def export_csv(copa):
     export_merge(fo,'gnl',df_gnl,opt)
     export_merge(fo,'rhy',df_rhy,opt)
 
+    #     .tl_ml_cross_f0|t
+#     .tl_bl_cross_f0|t
+#     .ml_bl_cross_f0|t
+#     .{tl|ml|bl|rng}_drop
 
-    
 #### glob ###################################################
 
 def export_glob(c,fo,opt):
@@ -458,7 +461,12 @@ def export_glob(c,fo,opt):
           'tl_c1','tl_c0','tl_r','tl_rate','tl_m',
           'rng_c1','rng_c0','rng_r','rng_rate','rng_m',
           'lab','m','sd','med','iqr','max','min','dur',
-          'is_init_chunk','is_fin_chunk','tier']
+          'is_init_chunk','is_fin_chunk','tier',
+          'tl_ml_cross_f0', 'tl_ml_cross_t',
+          'tl_bl_cross_f0', 'tl_bl_cross_t',
+          'ml_bl_cross_f0', 'ml_bl_cross_t',
+          'tl_drop', 'ml_drop', 'bl_drop', 'rng_drop']
+
     if 'class' in c[0][0]['glob'][0]:
         cn.append('class')
 
@@ -484,14 +492,26 @@ def export_glob(c,fo,opt):
                 for x in c[ii][i]['glob'][j]['gnl']:
                     d[x].append(c[ii][i]['glob'][j]['gnl'][x])
                 dd = c[ii][i]['glob'][j]['decl']
+                eou = c[ii][i]['glob'][j]['eou']
                 for x in myl.lists():
                     d["{}_c1".format(x)].append(dd[x]['c'][0])
                     d["{}_c0".format(x)].append(dd[x]['c'][1])
                     d["{}_r".format(x)].append(dd[x]['r'])
                     d["{}_rate".format(x)].append(dd[x]['rate'])
                     d["{}_m".format(x)].append(dd[x]['m'])
+                    q = "{}_drop".format(x)
+                    d[q].append(eou[q])
                 if 'class' in cn:
                     d['class'].append(c[ii][i]['glob'][j]['class'])
+                # line crossings
+                for ra in myl.lists():
+                    for rb in myl.lists():
+                        qx = "{}_{}_cross_t".format(ra,rb)
+                        qy = "{}_{}_cross_f0".format(ra,rb)
+                        if qx not in eou:
+                            continue
+                        d[qx].append(eou[qx])
+                        d[qy].append(eou[qy])
                 # grouping
                 d = export_grp_upd(d,c[ii][i]['grp'])
 
@@ -1086,6 +1106,10 @@ def export_grp_upd(d,grp):
 #             R template
 #   sep: <','> column separator
 def exp_to_file(d,fo,infx,checkFld='fi',facpat='',fullPath=False,sep=','):
+    
+    #for x in d: #!v
+    #print(x,":",len(d[x])) #!v
+    
     if ((checkFld in d) and (len(d[checkFld])>0)):
         pd.DataFrame(d).to_csv("{}.{}.csv".format(fo,infx),na_rep='NA',index_label=False, index=False, sep=sep)
         exp_R(d,"{}.{}".format(fo,infx),facpat,fullPath,sep)

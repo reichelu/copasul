@@ -379,7 +379,8 @@ def dct_trunc(f,ci,opt):
 
 # wrapper around wavread and energy calculation
 # IN:
-#   f: wavFileName (any number of channels)
+#   f: wavFileName (any number of channels) or array containing
+#          the signal (any number of channels=columns)
 #   opt: energy extraction and postprocessing
 #        .win, .wintyp, .winparam: window parameters
 #        .sts: stepsize for energy contour
@@ -389,10 +390,11 @@ def dct_trunc(f,ci,opt):
 #        .do_smooth: smoothing (median or savitzky golay)
 #        .out dict; see pp_outl()
 #        .smooth dict; see pp_smooth()
+#  fs: <-1> needed if f is array
 # OUT:
 #   y: time + energy contour 2-dim np.array
 #     (1st column: time, other columns: energy)
-def wrapper_energy(f,opt = {}):
+def wrapper_energy(f,opt = {}, fs = -1):
     opt = myl.opt_default(opt,{'wintyp':'hamming',
                                'winparam':'',
                                'sts':0.01,
@@ -408,8 +410,13 @@ def wrapper_energy(f,opt = {}):
     opt['smooth'] = myl.opt_default(opt['smooth'],{"mtd": "sgolay",
 		                                   "win": 7,
 		                                   "ord": 3})
-    
-    s, fs = wavread(f,opt)
+    if type(f) is str:
+        s, fs = wavread(f,opt)
+    else:
+        if fs < 0:
+            sys.exit("array input requires sample rate fs. Exit.")
+        s = f
+        
     opt['fs']=fs
     # convert to 2-dim array; each column represents a channel
     if np.ndim(s)==1:
@@ -421,7 +428,6 @@ def wrapper_energy(f,opt = {}):
     # over channels
     for i in np.arange(0,s.shape[1]):
         e = sig_energy(s[:,i],opt)
-
         # setting outlier to 0
         if opt['do_out']:
             e = pp_outl(e,opt['out'])
@@ -435,7 +441,7 @@ def wrapper_energy(f,opt = {}):
         e[myl.find(e,'<',0)]=0
 
         y = myl.push(y,e)
-
+        
     # output
     if np.ndim(y)==1:
         y = np.expand_dims(y, axis=1)
@@ -452,7 +458,7 @@ def wrapper_energy(f,opt = {}):
             t = np.append(t,t[-1]+sts)
     t = np.expand_dims(t, axis=1)
     y = np.concatenate((t,y),axis=1)
-    
+
     return y
 
 ### replacing outliers by 0 ###################
@@ -1205,6 +1211,8 @@ def fu_filt(y,opt):
 #                              or within window
 #         .l: <3> if win==loc, length of window in sec or idx
 #             (splitpoint - .l : splitpoint + .l)
+#         .do_plot: <0> plots orig contour and linear stylization
+#         .plot: <{}> dict with plotting options; cf. discont_seg()
 # OUT:
 #   d dict
 #    (s1: pre-bnd segment [i-l,i[,
@@ -1255,6 +1263,8 @@ def fu_filt(y,opt):
 #    dimension of each list: if len(ts)==0: n-1 array (first x-element skipped)
 #                            else: mx6; m is number of ts-elements in range of x[:,0],
 #                                  resp. in index range of x[1:-1]
+## REMARKS:
+# for all variables but corr_c and vr higher values indicate higher discontinuity
 ## variables:
 #    x1: original f0 contour for s1
 #    x2: original f0 contour for s2
@@ -1286,7 +1296,8 @@ def discont(x,ts=[],opt={}):
     tsi, zp = discont_tsi(t,ts)
 
     # opt init
-    opt = myl.opt_default(opt,{'win':'glob','l':3})
+    opt = myl.opt_default(opt,{'win':'glob','l':3,'do_plot':False,
+                               'plot': {}})
     
     # output
     d = discont_init()
@@ -1363,7 +1374,7 @@ def discont_seg(t,x,ii,opt):
     xc = np.concatenate((x1,x2))
 
     # normalized time (only needed for reported polycoefs, not
-    # for putput lines
+    # for output lines
     tn1 = myl.nrm_vec(t1,{'mtd': 'minmax',
                           'rng': [-1, 1]})
     tn2 = myl.nrm_vec(t2,{'mtd': 'minmax',
@@ -1400,12 +1411,41 @@ def discont_seg(t,x,ii,opt):
     yc1, yc2 = yc[0:len(y1)], yc[len(y1):len(yc)]
     # linear extrapolation
     ye = np.polyval(c1,t2)
-        
-    ## plotting linear fits
-    #myPlot({"o":tc,"s1":t1,"s2":t2,"sc":tc,"se":t2},
-    #       {"o":xc,"s1":y1,"s2":y2,"sc":yc,"se":ye})
-    ##
 
+    # legend_loc: 'upper left'
+                                            
+    ## plotting linear fits
+    # segment boundary
+    xb = []
+    xb.extend(yu1)
+    xb.extend(yu2)
+    xb.extend(ye)
+    xb.extend(x1)
+    xb.extend(x2)
+    xb = np.asarray(xb)
+    if opt['do_plot'] and len(xb)>0:
+        lw1, lw2 = 5,3
+        yb = [np.min(xb), np.max(xb)]
+        tb = [t1[-1], t1[-1]]
+        po = opt["plot"]
+        po = myl.opt_default(po,{"legend_loc": "best",
+                                 "fs_legend": 35,
+                                 "fs": (20,12),
+                                 "fs_title": 40,
+                                 "fs_ylab": 30,
+                                 "fs_xlab": 30,
+                                 "title": "",
+                                 "xlab": "time",
+                                 "ylab": ""})
+        po["ls"] = {"o": "--k", "b": "-k", "s1": "-g", "s2": "-g",
+                    "sc": "-r", "se": "-c"}
+        po["lw"] = {"o": lw2, "b": lw2, "s1": lw1, "s2": lw1, "sc": lw1, "se": lw2}
+        po["legend_order"] = ["o", "b", "s1", "s2", "sc", "se"]
+        po["legend_lab"] = {"o": "orig", "b": "bnd", "s1": "fit s1", "s2": "fit s2",
+                            "sc": "fit joint", "se": "pred s2"}
+        myl.myPlot({"o": tc, "b": tb, "s1": t1, "s2": t2, "sc": tc, "se": t2},
+                   {"o": xc, "b": yb, "s1": y1, "s2": y2, "sc": yc, "se": ye},
+                   po)
     return t1,t2,tc,x1,x2,xc,y1,y2,yc,yc1,yc2,ye,cu1,cu2,yu1,yu2
 
 

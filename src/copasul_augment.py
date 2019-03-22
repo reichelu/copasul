@@ -62,7 +62,7 @@ def aug_main(copa,f_log_in):
     # over wav files
     timeStamp = myl.isotime()
     for i in myl.idx_a(len(ff_wav)):
-
+        
         print(myl.stm(ff_wav[i])) #!v
 
         # add to existing file or generation from scratch
@@ -135,6 +135,8 @@ def aug_batch(dom,ff_wav,ff_annot,ff_f0,opt,add_mat):
                                 psf['do_postsel'],cntr)
                 if len(d)==0 and opt["augment"]["loc"]["force"]:
                     d = force_acc(ff_wav[ii])
+                    #print("force acc:", d) #!frc
+                    #if len(d)==0: myl.stopgo("!!!") #!frc
             annot = aug_annot_upd(dom,annot,{'t':d},i,opt,psf['lng'])
         myl.output_wrapper(annot,fo,opt['fsys']['annot']['typ'])
     return
@@ -757,7 +759,8 @@ def aug_syl(y,annot,opt,fs,i,fstm,f,lng,spec):
         s,b = sif.syl_ncl(cs,opt_syl)
         # force at least 1 syllable to be in each parent tier unit
         if opt["augment"]["syl"]["force"] and len(s['t'])==0:
-            s['t'] = np.array([myl.idx2sec(maxi+opt_syl['ons'],fs)])
+            s['t'] = force_syl(cs,fs) + opt_syl['ons']/fs
+            #print("force syl:", s["t"]) #!frc
         syl = np.append(syl,s['t'])
         bnd = np.append(bnd,b['t'])
         # add parent-tier final time stamp
@@ -767,6 +770,19 @@ def aug_syl(y,annot,opt,fs,i,fstm,f,lng,spec):
 
 
     return syl, bnd
+
+# called if list of found syllables is empty and
+# at least one syllable needs to be detected in file
+# IN:
+#   s: signal segment (e.g. chunk)
+#   fs: signal sample rate
+# OUT:
+#   d: 1 element vector with time point (in sec) of energy max
+def force_syl(s,fs):
+    y = sif.wrapper_energy(s,{},fs)
+    ima = np.argmax(y[:,1])
+    return np.array([y[ima,0]])
+
 
 # returns first tier name in list which is available in annot file and fullfills all criteria
 # criteria: 
@@ -1209,6 +1225,8 @@ def aug_loc(ty,y,bv,annot,opt,i,fstm,f,lng,add_mat,spec):
     d = aug_loc_acc(c,fv,wgt,to,ato,do_postsel,cntr)
     if len(d)==0 and opt["augment"]["loc"]["force"]:
         d = force_acc(f)
+        #print("force acc:", d) #!frc
+        #if len(d)==0: myl.stopgo("!!!") #!frc
     return d
 
 # called if list of found pitch accents is empty and

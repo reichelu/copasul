@@ -524,6 +524,24 @@ def pw_preproc(d,opt):
     
     return d, opt
 
+
+# transforms dictionary/dataFrame to 2-dim array
+# (e.g. for machine learning input)
+# IN:
+#   d: dict
+#   cn: <[]> selected column names; if empty all taken
+# OUT:
+#   x: matrix; columns in order of cn (if given), else sorted alphanumerically
+def dict2mat(d,cn=[]):
+    if len(cn)==0:
+        cn = sorted(d.keys())
+    x = ea()
+    for z in cn:
+        x = push(x,d[z])
+    # transpose
+    return x.T
+
+# DEPREC! use dict2mat()
 # transforms dictionary/dataFrame to 2-dim array
 # (e.g. for machine learning input)
 # row in dict = row in array
@@ -4486,7 +4504,9 @@ def fig_key(event):
 #      nrm_y: boolean; False; minmax normalize all y values
 #      ls: dict; {}; linespecs (e.g. '-k'), keys as in y
 #      lw: dict; {}; linewidths, keys as in y
-#         ls and lw cfor y as dict input
+#         ls and lw for y as dict input
+#      legend_order; []; order of keys in x and y to appear in legend
+#      legend_lab; {}; mapping of keys to labels in dict
 # OUT:
 #   True
 # REMARKS:
@@ -4502,7 +4522,18 @@ def myPlot(xin=[],yin=[],opt={}):
                            'nrm_y': False,
                            'bw': False,
                            'ls': {},
-                           'lw': {}})
+                           'lw': {},
+                           'legend_order': [],
+                           'legend_lab': {},
+                           'legend_loc': 'best',
+                           'fs_legend': 40,
+                           'fs': (25,15),
+                           'fs_ylab': 20,
+                           'fs_xlab': 20,
+                           'fs_title': 30,
+                           'title': '',
+                           'xlab': '',
+                           'ylab': ''})
     xin, yin = cp.deepcopy(xin), cp.deepcopy(yin)
     ## uniform dict input (default key 'y')
     if type(yin) is dict:
@@ -4527,7 +4558,15 @@ def myPlot(xin=[],yin=[],opt={}):
         for lab in y:
             y[lab] = nrm_vec(y[lab],nopt)
     ## plotting
-    fig = newfig()
+    fig = newfig(fs = opt["fs"])
+    ax  = fig.add_subplot(111)
+    if len(opt["title"])>0:
+        ax.set_title(opt["title"],fontsize=opt["fs_title"])
+    if len(opt["xlab"])>0:
+        ax.set_xlabel(opt["xlab"],fontsize=opt["fs_xlab"])
+    if len(opt["ylab"])>0:
+        ax.set_ylabel(opt["ylab"],fontsize=opt["fs_ylab"])
+
     
     # line specs/widths
     # defaults
@@ -4539,8 +4578,17 @@ def myPlot(xin=[],yin=[],opt={}):
         lsd.extend(lsd)
     lwd = 4
     i=0
+    
+    leg = []
+    if len(opt["legend_order"])>0:
+        labelKeys = opt["legend_order"]
+        for lk in labelKeys:
+            leg.append(opt["legend_lab"][lk])
+    else:
+        labelKeys = sorted(y.keys())
+    
     # plot per label
-    for lab in y:
+    for lab in labelKeys:
         if lab in opt['ls']:
             cls = opt['ls'][lab]
         else:
@@ -4551,7 +4599,12 @@ def myPlot(xin=[],yin=[],opt={}):
         else:
             clw = lwd
         plt.plot(x[lab],y[lab],cls,linewidth=clw)
-    
+
+    if len(leg)>0:
+        plt.legend(leg,
+                   fontsize = opt['fs_legend'],
+                   loc = opt['legend_loc'])
+        
     plt.show()
 
 

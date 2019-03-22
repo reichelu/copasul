@@ -300,7 +300,7 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
     if len(loc)==0:
         lab_ag = []
         lab_acc = []
-
+        
     ## F0 (2) ################################
     ## preproc + filling copa.f0 #############
     if 'skip_f0' not in opt:
@@ -447,7 +447,7 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
     if len(bad_j)>0:
         loc = loc[good_j,]
         loc_ut = loc_ut[good_j,]
-
+        
     ### bnd, gnl_*, rhy_* input #############################
     # additional tier index layer, since features can be derived
     # from several tiers
@@ -1612,9 +1612,16 @@ def pp_zp(f0,t_max,opt,extrap=False):
     else:
         zpl, zpr = 0, 0 
 
-    prf = np.arange(sts,f0[0][0],sts)
-    sfx = np.arange(f0[-1,0]+sts,t_max+sts,sts)
+    if sts < f0[0,0]:
+        prf = np.arange(sts,f0[0,0],sts)
+    else:
+        prf = myl.ea()
 
+    if f0[-1,0] < t_max:
+        sfx = np.arange(f0[-1,0]+sts,t_max+sts,sts)
+    else:
+        sfx = myl.ea()
+        
     if len(prf)>0:
         zz = zpl*np.ones(len(prf))
         prf = np.concatenate(([prf],[zz]),axis=0).T

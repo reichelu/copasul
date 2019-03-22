@@ -695,11 +695,19 @@ def styl_glob_file(copa,ii,opt,reg,err_sum,N):
             yi = styl_yi(gt,myFs,y)
             ys = y[yi]
             df = styl_decl_fit(ys,opt,med[yi,:],tor)
+
+            # utterance end prediction parameter set
+            # consisting of line crossing and rate*duration parameters
+            #       (the latter measuring actually observed declination)
+            eou = styl_df_eou(df,myFs)
+            
             copl.plot_main({'call':'browse','state':'online',
                             'fit':df,'type':'glob','set':'decl','y':ys,
                             'infx':"{}-{}-{}".format(ii,i,j)},copa['config'])
             # coefs + fitted line
             copa['data'][ii][i]['glob'][j]['decl'] = df
+            # end-of-utterance prediction features derived from df
+            copa['data'][ii][i]['glob'][j]['eou'] = eou
             # standard features
             copa['data'][ii][i]['glob'][j]['gnl'] = styl_std_feat(ys,opt,to)
             # coefs without intersection for clustering
@@ -1082,7 +1090,52 @@ def styl_residual(y,df,r):
             y[i] = myl.nrm(y[i],opt)
     return y
 
+#### calcualte x,y coordinates of bl, ml, tl crossings
+# IN:
+#   df: dict returned by styl_decl_fit()
+# OUT:
+#   eou
+#     .tl_ml_cross_f0|t
+#     .tl_bl_cross_f0|t
+#     .ml_bl_cross_f0|t
+#     .{tl|ml|bl|rng}_drop
+def styl_df_eou(df,fs):
+    dur = len(df['tn'])/fs
+    eou = {}
+    # drop parameters
+    for r in myl.lists("register"):
+        eou["{}_drop".format(r)] = df[r]['rate']*dur
+        
+    # line crossing coordinates
+    #   (time and value automatically normalized according
+    #    to ST and timenorm specs)
+    for ra in ['tl', 'ml']:
+        for rb in ['ml', 'bl']:
+            if ra == rb:
+                continue
+            x, y = line_intersect(df[ra]['c'],df[rb]['c'])
+            eou["{}_{}_cross_t".format(ra,rb)] = x
+            eou["{}_{}_cross_f0".format(ra,rb)] = y
 
+    return eou
+
+# x and y coordinates of line intersection
+# IN:
+#    c1: [slope intercept] of line 1
+#    c2: [slope intercept] of line 2
+# OUT:
+#    x: x value (np.nan if lines are parallel)
+#    y: y value (np.nan if lines are parallel)
+def line_intersect(c1,c2):
+    a, c = c1[0], c1[1]
+    b, d = c2[0], c2[1]
+    if a==b:
+        return np.nan, np.nan
+    x = (d-c)/(a-b)
+    y = a*x+c
+    return x,y
+    
+    
 #### fit register level and range ###########
 # IN:
 #   y 1-dim array f0
@@ -1098,6 +1151,7 @@ def styl_residual(y,df,r):
 #     [myRegister]['c']   base/mid/topline/range coefs [slope intercept]
 #                 ['y']   line
 #                 ['rate'] rate (ST per sec, only if input t is not empty)
+#                 ['drop'] rate * len(tn); actual drop of f0 in segment
 #                 ['m']   mean value of line (resp. line dist)
 #        myRegister :=
 #          'bl' - baseline
