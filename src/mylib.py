@@ -833,9 +833,16 @@ def first_interval(x,iv):
 #   s
 #     .win: window length
 #     .rng: [on, off] range of indices to be windowed
+#     .align: <center>|left|right
 # OUT: [[on off] ...]
 def seq_windowing(s):
-    vecwin = np.vectorize(windowing)
+    s = opt_default(s,{"align":"center"})
+    if s["align"]=="center":
+        vecwin = np.vectorize(windowing)
+    elif s["align"]=="right":
+        vecwin = np.vectorize(windowing_rightAligned)
+    elif s["align"]=="left":
+        vecwin = np.vectorize(windowing_leftAligned)
     r = s['rng']
     ww = np.asarray(vecwin(range(r[0],r[1]),s))
     return ww.T
@@ -863,6 +870,36 @@ def windowing(i,s):
             on = max([r[0], on-d])
         elif off < r[1]:
             off = min([off+d, r[1]])
+    return on, off
+
+# window around each sample so that it is at the right end (no look-ahead)
+def windowing_rightAligned(i,s):
+    wl, r = int(s['win']), s['rng']
+    on = max([r[0],i-wl])
+    off = min([i,r[1]])
+    # extend window (left only)
+    d = wl - (off-on)
+    if d>0:
+        if on>r[0]:
+            on = max([r[0], on-d])
+    # relax 0,0 case (zero length win)
+    if off == on:
+        off += 1
+    return on, off
+
+# window around each sample so that it is at the left end (no looking back)
+def windowing_leftAligned(i,s):
+    wl, r = int(s['win']), s['rng']
+    on = max([r[0],i])
+    off = min([i+wl,r[1]])
+    # extend window (right only)
+    d = wl - (off-on)
+    if d>0:
+        if off<r[1]:
+            off = min([r[1], off+d])
+    # relax -1, -1 case (zero length win)
+    if on == off:
+        on -= 1
     return on, off
 
 # as windowing(), but returning all indices from onset to offset

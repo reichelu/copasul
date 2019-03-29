@@ -715,9 +715,10 @@ def pp_f0_preproc(f0,t_max,opt):
     # setting outlier to 0
     y = sif.pp_outl(y,opt['preproc']['out'])
     # interpolation over 0
-    y = sif.pp_interp(y)
+    y = sif.pp_interp(y,opt['preproc']['interp'])
     # smoothing
-    y = sif.pp_smooth(y,opt['preproc']['smooth'])
+    if 'smooth' in opt['preproc']:
+        y = sif.pp_smooth(y,opt['preproc']['smooth'])
     # <0 -> 0
     y[myl.find(y,'<',0)]=0
     # semitone transform, base ref value (in Hz)

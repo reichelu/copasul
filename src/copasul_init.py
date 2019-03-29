@@ -85,7 +85,11 @@ def copa_opt_init(conf):
                     continue
                 if 'tier' not in opt['fsys']['augment'][x]:
                     opt['fsys']['augment'][x]['tier'] = opt['fsys']['augment']['syl']['tier_out_stm']
-                    
+
+    # add empty interp subdict to opt["preproc"]
+    if 'interp' not in opt['preproc']:
+        opt['preproc']['interp'] = {}
+
     # unify bnd, gnl_* and rhy_* tiers as lists
     for x in ['bnd','gnl_en','gnl_f0','rhy_en','rhy_f0','voice']:
         for y in ['tier', 'tier_rate']:
@@ -106,8 +110,6 @@ def copa_opt_init(conf):
     if myl.ext_true(opt['augment']['loc'],'force'):
         opt['augment']['syl']['force']=True
     
-
-        
     # distribute label and channel specs to subdicts
     # take over dir|typ|ext from 'annot'
     # needed e.g. to extract tiers by pp_tiernames()

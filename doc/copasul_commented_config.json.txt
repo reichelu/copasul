@@ -250,6 +250,7 @@
     ## f0 preprocessing options
     "preproc": {
 	# outlier definition
+	# (omit if no outlier removal wanted)
 	"out": {
 	    # factor (2*sd)
 	    "f": 2,
@@ -280,6 +281,12 @@
 	    "win": 7,
 	    # polynomial order
 	    "ord": 3
+	},
+	# interpolation (can be omitted for simple linear interp)
+	# "kind" as in scipy.interpolate.interp1d()
+	# in any case horizontal extrapolation
+	"interp" {
+	    "kind": "linear"
 	},
 	# point_win: length of analysis window centered on events
 	#            in TextTiers (sec)
@@ -497,6 +504,8 @@
 	    },
 	    # window length for register input median calculation (sec)
 	    "decl_win": 0.1,
+	    # median window alignment: <center>, left (no lookback), right (no lookahead)
+	    "align": "center",
 	    # f0 percentiles for base- and topline fitting input
 	    "prct": {
 		"bl": 10,

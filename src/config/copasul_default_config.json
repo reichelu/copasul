@@ -53,6 +53,7 @@
 		"rng": [0,1]
 	    },
 	    "decl_win": 0.1,
+	    "align": "center",
 	    "prct": {
 		"bl": 10,
 		"tl": 90

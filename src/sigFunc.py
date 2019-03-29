@@ -2,6 +2,7 @@
 
 import scipy.io.wavfile as sio
 import scipy.signal as sis
+from scipy import interpolate
 import numpy as np
 import math
 import matplotlib.pyplot as plt
@@ -11,7 +12,7 @@ import copy as cp
 import re
 import scipy.fftpack as sf
 
-# NOTE: int2float might be removed after scipy update
+# NOTE: int2float might be removed after scipy update/check
 #       (check defaults in myl.sig_preproc)
 
 # read wav file
@@ -463,6 +464,8 @@ def wrapper_energy(f,opt = {}, fs = -1):
 
 ### replacing outliers by 0 ###################
 def pp_outl(y,opt):
+    if "m" not in opt:
+        return y
     # ignore zeros
     opt['zi'] = True
     io = myl.outl_idx(y,opt)
@@ -470,15 +473,22 @@ def pp_outl(y,opt):
         y[io] = 0
     return y
 
-
-### linear interpolation over 0 (+constant extrapolation) #############
-def pp_interp(y):
+### interpolation over 0 (+constant extrapolation) #############
+def pp_interp(y,opt={}):
     xi = myl.find(y,'==',0)
     xp = myl.find(y,'>',0)
     yp = y[xp]
-    yi = np.interp(xi,xp,yp)
+    if "kind" in opt:
+        f = interpolate.interp1d(xp,yp,kind=opt["kind"],
+                                 fill_value=(yp[0],yp[-1]))
+        yi = f(xi)
+    else:
+        yi = np.interp(xi,xp,yp)
     y[xi]=yi
+    
     return y
+
+#!check
 
 ### smoothing ########################################
 # remark: savgol_filter() causes warning

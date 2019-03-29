@@ -257,3 +257,9 @@
 20190322: 0.8.18
 	  - increasing robustness against vector length variation
 	  in copasul_preproc.pp_zp()
+20190323: 0.8.19
+	  - new parameter: opt.styl.glob.align for median window alignment
+	  center (default), left (no lookback), right (no lookahead)
+	  - new parameter subdict: opt.preproc.interp with element .kind
+	  If set then scipy.interpolate.interp1d() is used with "kind" argument
+	  instead of default linear interpolation by numpy.interp()

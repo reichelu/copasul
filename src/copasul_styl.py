@@ -1236,8 +1236,14 @@ def styl_decl_fit(y,opt,med=myl.ea(),t=myl.ea()):
 def styl_reg_med(y,opt):
     # window [on off] on F0 indices
     dw = round(opt['decl_win']*opt['fs'])
-    yw = myl.seq_windowing({'win':dw,'rng':[0,len(y)]})
-
+    # window alignment <center>|left|right
+    if "align" in opt:
+        al = opt["align"]
+    else:
+        al = "center"
+        
+    yw = myl.seq_windowing({'win':dw,'rng':[0,len(y)],'align':al})
+    
     # median sequence for base/mid/topline
     # med [[med_bl med_ml med_tl]...]
     med = myl.ea()
