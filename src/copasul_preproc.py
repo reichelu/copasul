@@ -49,7 +49,7 @@ def pp_main(copa,f_log_in=''):
     opt = cp.deepcopy(copa['config'])
     # ff['f0'|'aud'|'annot'|'pulse'] list of full/path/files
     ff = pp_file_collector(opt)
-
+    
     # over files
     for ii in range(len(ff['f0'])):
 
@@ -977,6 +977,7 @@ def pp_tiernames(fsys,fld,typ,ci,tn_opt={}):
 # checks for list lengths
 def pp_file_collector(opt):
     ff={}
+    
     for x in myl.lists('afa'):
         if x not in opt['fsys']:
             continue

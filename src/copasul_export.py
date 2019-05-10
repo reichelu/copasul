@@ -934,7 +934,7 @@ def export_gnl(c,fo,opt,typ):
     # segment-/file-level
     cn = ['m','sd','med','iqr','max','min','dur']
     cnf = cp.deepcopy(cn)
-    # en: rms, *_nrm, and sb (*_nrm and sb for segment level only) 
+    # en: rms, *_nrm, r_en_f0, and sb (*_nrm and sb for segment level only) 
     # f0: *_nrm, bv for file level only
     for x in cp.deepcopy(cn):
         cn.append("{}_nrm".format(x))
@@ -943,6 +943,7 @@ def export_gnl(c,fo,opt,typ):
         cn.append('rms_nrm')
         #cnf.append('rms')
         cn.append('sb')
+        cn.append('r_en_f0')
     else:
         cnf.append('bv')
     

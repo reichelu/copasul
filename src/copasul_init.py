@@ -35,6 +35,7 @@ def copa_opt_init(conf):
         opt=conf
     else:
         opt = myl.input_wrapper(conf,'json')
+
     ## defaults
     myCwd = coro.copa_root()
     f_dfl = os.path.join(myCwd,'config','copasul_default_config.json')

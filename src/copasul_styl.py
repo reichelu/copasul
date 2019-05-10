@@ -13,6 +13,7 @@ import sigFunc as sif
 import sys
 import re
 import math
+from scipy import interpolate
 
 ###############################################################
 #### general f0 and en features (mean and sd) #################
@@ -24,7 +25,8 @@ import math
 # OUT: (ii=fileIdx, i=channelIdx, j=tierIdx, k=segmentIdx)
 #   + ['data'][ii][i]['gnl_f0|en_file']; see styl_std_feat()
 #   + ['data'][ii][i]['gnl_f0|en'][j][k]['std'][*]; see styl_std_feat()
-#   ['gnl_en']...['std'] additionally contains ...['sb'] for spectral balance
+#   ['gnl_en']...['std'] additionally contains ...['sb'] for spectral balance,
+#           and ['r_en_f0'] for correlation with f0
 def styl_gnl(copa,typ,f_log_in=''):
     global f_log
     f_log = f_log_in
@@ -76,7 +78,11 @@ def styl_gnl_file(copa,ii,fld,opt):
             t = copa['data'][ii][i]['f0']['t']
             y = copa['data'][ii][i]['f0']['y']
             opt['fs']=myFs
+            y_f0i, r_ef = None, None
         else:
+            # for f0-energy correlation
+            t_f0 = copa['data'][ii][i]['f0']['t']
+            y_f0 = copa['data'][ii][i]['f0']['y']
             if np.ndim(y_raw_in)>1:
                 y_raw = y_raw_in[:,i]
             else:
@@ -84,7 +90,7 @@ def styl_gnl_file(copa,ii,fld,opt):
             # preemphasis for spectral balance calculation
             # deprec
             #y_raw_pe = sif.pre_emphasis(y_raw,opt['alpha'],fs_sig)
-            t_raw = myl.smp2sec(myl.idx_seg(1,len(y_raw)),fs_sig,0)
+            #t_raw = myl.smp2sec(myl.idx_seg(1,len(y_raw)),fs_sig,0)
             # signal fs for energy extraction
             opt['fs']=fs_sig
             # energy
@@ -93,11 +99,25 @@ def styl_gnl_file(copa,ii,fld,opt):
             t = myl.smp2sec(myl.idx_seg(1,len(y)),myFs,0)
             # energy fs for standard feature extraction
             opt['fs']=myFs
+            
+            # sync f0 contour to energy contour
+            interp = interpolate.interp1d(t_f0,y_f0,kind="linear",
+                                          fill_value=(y_f0[0],y_f0[-1]))
+            y_f0i = interp(t)
 
+            # correlation of energy and f0 contour
+            # plot orig f0 (green), resampled f0 (red) and energy (blue)
+            #myl.myPlot({"en": t, "f0": t_f0, "f0i": t},
+            #           {"en": y*500, "f0": y_f0, "f0i": y_f0i},
+            #           {"ls": {"en": "-b", "f0": "-g", "f0i": "-r"}})
+            r_ef = np.corrcoef(y,y_f0i)
+            
         # file wide
         yz = "{}_file".format(fld)
         copa['data'][ii][i][yz] = styl_std_feat(y,opt)
         copa['data'][ii][i][yz] = styl_std_quot(y,opt,copa['data'][ii][i][yz])
+        if r_ef is not None:
+            copa['data'][ii][i][yz]["r_en_f0"] = r_ef[0,1]
 
         # over tiers
         for j in myl.numkeys(copa['data'][ii][i][fld]):
@@ -120,7 +140,7 @@ def styl_gnl_file(copa,ii,fld,opt):
                 sf = styl_std_nrm(sf,y[yin],opt,tn)
                 # quotients/shape
                 sf = styl_std_quot(y[yi],opt,sf)
-                # add spectral balance and rmsd for en
+                # add spectral balance, rmsd, and r_en_f0 for en
                 if (opt['type']=='en'):
                     yi_raw = styl_yi(copa['data'][ii][i][fld][j][k]['t'],fs_sig,y_raw)
                     yin_raw = styl_yi(tn,fs_sig,y_raw)
@@ -133,6 +153,9 @@ def styl_gnl_file(copa,ii,fld,opt):
                     sf['sb'] = sb
                     sf['rms'] = rms_y
                     sf['rms_nrm'] = rms_y/rms_yn
+                    r_ef = np.corrcoef(y[yi],y_f0i[yi])
+                    sf['r_en_f0'] = r_ef[0,1]
+                    
                 copa['data'][ii][i][fld][j][k]['std'] = sf
     return copa
 

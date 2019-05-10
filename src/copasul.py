@@ -40,7 +40,7 @@ def copasul(args={}):
         if not os.path.isfile(args['config']):
             sys.exit("no predefined config file {}. Specify your own.".format(f_config))
     opt = coin.copa_opt_init(args['config'])
-
+    
     # generate new copa dict?
     # or load it/take it from input args
     if opt['navigate']['from_scratch']:
@@ -241,7 +241,7 @@ if __name__ == "__main__":
     #myCwd = os.getcwd()
     myCwd = coro.copa_root()
     ##### command line input ####################################
-    parser = argparse.ArgumentParser(description="copasul.py -- Intonation analysis tool version 0.8.19")
+    parser = argparse.ArgumentParser(description="copasul.py -- Intonation analysis tool version 0.8.20")
     parser.add_argument('-c','--config', help='myConfigFile.json', required=True)
     args = vars(parser.parse_args())
     copa = copasul(args)

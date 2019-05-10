@@ -1951,7 +1951,7 @@ def lol(f,opt={}):
         x = np.loadtxt(f)
     except:
         x = f
-
+        
     if x.ndim==1:
         x=x.reshape((-1,x.size))
     x=np.asarray(x)
