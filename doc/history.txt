@@ -246,6 +246,13 @@
 	  same number of rows.
           - copasul_augment.aug_loc_fv(): bugfix; adjusting number of
 	    return arguments
+20190316: 0.8.17
+ 	  - new glob features stored in copa.data.fi.ci.glob.si.eou as
+ 	  .{tl|ml|bl|rng}_drop: actual f0 drop in IP, i.e. dur*rate
+ 	  .tl_ml_cross_t|f0, .tl_bl_cross_t|f0, .ml_bl_cross_t|f0
+ 	  	time and f0 of crossing point of respective line pair 
+ 	  content is in glob table columns {tl|ml|bl|rng}_drop and
+ 	  tl_ml_cross_t|f0
 20190322: 0.8.18
 	  - increasing robustness against vector length variation
 	  in copasul_preproc.pp_zp()
@@ -255,6 +262,8 @@
 	  - new parameter subdict: opt.preproc.interp with element .kind
 	  If set then scipy.interpolate.interp1d() is used with "kind" argument
 	  instead of default linear interpolation by numpy.interp()
-20190510: 0.8.20
-	  - new energy gnl feature: "r_en_f0", i.e. correlation between energy
-	  and f0 contour
+20190909: 0.8.22
+	  - uniform ylim in contour grouping and clustering plots
+	  - data underlying the grouping and plotting plots is stored in pickle files in
+	    the opt.fsys.pic subdirectory (see copasul_plot.plot_grp() and copasul_plot.plot_clst()
+	    for details)

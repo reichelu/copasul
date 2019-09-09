@@ -1012,6 +1012,12 @@ def pRef(typ):
 #      ['d_min'] - min distance between subsequent nuclei (in sec)
 #      ['e_min'] - min energy required for nucleus as a proportion to max energy <0.16>
 #      ['e_rel'] - min energy quotient analysisWindow/referenceWindow
+#      ['e_val'] - quotient, how sagged the energy valley between two nucleus
+#                  candidates should be. Measured relative to the lower energy
+#                  candidate. The lower, the deeper the required valley between
+#                  two peaks. Meaningful range ]0, 1]. Recommended range:
+#                  [0.9 1[
+#      ['center'] - boolean; subtract mean energy
 # OUT:
 #   ncl['t'] - vector of syl ncl time stamps (in sec)
 #      ['ti'] - corresponding vector idx in s
@@ -1026,7 +1032,7 @@ def syl_ncl(s,opt={}):
         sys.exit('syl_ncl: opt does not contain key fs.')
     dflt = {'flt':{'f':np.asarray([200,4000]),'btype':'band','ord':5},
             'e_rel':1.05,'l':0.08,'l_ref':0.15, 'd_min':0.12, 'e_min':0.1,
-            'ons':0}
+            'ons':0, 'e_val': 1, 'center': False}
     opt = myl.opt_default(opt,dflt)
     opt['flt']['fs'] = opt['fs']
     
@@ -1058,6 +1064,10 @@ def syl_ncl(s,opt={}):
     for i in i_steps:
         yi = np.arange(i,min([ls,i+ml-1]),1)
         e_y = np.append(e_y,myl.rmsd(y[yi]))
+
+    if bool(opt['center']):
+        e_y -= np.mean(e_y)
+        
     e_min = opt['e_min']*max(e_y)
     # output vector collecting nucleus sample indices
     t = np.asarray([])
@@ -1103,6 +1113,17 @@ def syl_ncl(s,opt={}):
     # idx in all_i
     tix = np.asarray([]).astype(int)
     for i in idx[0]:
+
+        # valley between this and previous valley deep enough?
+        if len(tix)>0:
+            ie = all_e[tix[-1]:i]
+            if len(ie)<3:
+                continue
+            valley = np.min(ie)
+            nclmin = np.min([ie[0],all_e[i]])
+            if valley >= opt['e_val'] * nclmin:
+                continue
+        
         if ((all_e[i] >= all_r[i]*opt['e_rel']) and (all_e[i] > e_min)):
             tx = np.append(tx,all_i[i])
             tix = np.append(tix,i)
@@ -1121,6 +1142,7 @@ def syl_ncl(s,opt={}):
     # init by first found ncl
     t = np.array([tx[0]])
     e_ratio = np.array([e_ratiox[0]])
+    # idx in all_i
     ti = np.array([tix[0]]).astype(int)
     for i in range(1,len(tx)):
         # ncl too close

@@ -4475,6 +4475,34 @@ def make_pulse(opt):
                                                    pth['aud'],pth['pulse']))
     return True
 
+# wrapper around Praat formant extractor
+# example call: wrapper_py/ids.py
+# opt analogously to make_f0
+# IN:
+#   opt
+# OUT:
+#   formant table files (5 formant freq and bws)
+def make_formants(opt):
+    pth = opt['fsys']['data']
+    par = opt['param']['formants']
+
+    # clean up formants subdir
+    sh.rmtree(pth['f0'])
+    os.makedirs(pth['f0'])
+
+    if as_sudo(par):
+        cmd = "sudo praat"
+    else:
+        cmd = "praat"
+
+    os.system("{} {} {} {} {} {} {} {} wav frm".format(cmd,par['tool'],
+                                                       par['param']['winlength'],
+                                                       par['param']['shift'],
+                                                       par['param']['maxfrequ'],
+                                                       par['param']['preemp'],
+                                                       pth['aud'],pth['formants']))
+    return True
+    
 # wrapper around Praat f0 extractor
 # example call: wrapper_py/hgc.py
 # needs opt of format config/hgc.json

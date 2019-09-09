@@ -341,23 +341,54 @@ def plot_grp(obj,opt):
     # normalized time
     t = np.linspace(opt['styl'][dom]['nrm']['rng'][0],opt['styl'][dom]['nrm']['rng'][1],100)
 
-    # over groupings
-    #   might require if-else by type, too
+    ## over groupings
+    # pickle file storing the underlying data
+    #    as dict:
+    #      'x': normalized time
+    #      'ylim': [minF0, maxF0] over all groupings for unifying the plots ylims 
+    #      'y':
+    #         myGroup:
+    #           if mySet=="acc":
+    #              F0 array
+    #           if mySet=="decl":
+    #              'bl'|'ml'|'tl':
+    #                 F0 array
+    # getting ylim over all groups for unified yrange
+    fo_data = "{}_{}_{}_{}_grpPlotData.pickle".format(fb,obj['call'],obj['type'],obj['set'])
+    plot_data = {'x': t, 'ylim': [], 'y': {}}
+    all_y = []
+    for x in h:
+        if mySet=='acc':
+            y = np.polyval(np.mean(h[x],axis=0),t)
+            plot_data["y"][x] = y
+            all_y.extend(y)
+        elif mySet=='decl':
+            plot_data["y"][x] = {}
+            for reg in ['bl','ml','tl']:
+                y = np.polyval(np.mean(h[x][reg],axis=0),t)
+                plot_data["y"][x][reg] = y
+                all_y.extend(y)
+    plot_data['ylim'] = [np.min(all_y)-0.2, np.max(all_y)+0.2]
+
+    # again over all groups, this time plotting
     for x in h:
         fo = "{}_{}_{}_{}_{}.png".format(fb,obj['call'],obj['type'],obj['set'],x)
         if mySet=='acc':
-            y = np.polyval(np.mean(h[x],axis=0),t)
-            fig = plot_styl_cont({'fit':{'tn':t, 'y':y},'type':dom,'set':mySet,'show':False},opt)
+            fig = plot_styl_cont({'fit':{'tn':t, 'y':plot_data["y"][x]},
+                                  'type':dom,'set':mySet,'show':False,
+                                  'ylim':plot_data['ylim']},opt)
             fig.savefig(fo)
             plt.close()
         elif mySet=='decl':
-            o = {'fit':{'tn':t},'type':dom,'set':mySet,'show':False}
-            for y in ['bl','ml','tl']:
-                o['fit'][y]={}
-                o['fit'][y]['y'] = np.polyval(np.mean(h[x][y],axis=0),t)
+            o = {'fit':{'tn':t},'type':dom,'set':mySet,'show':False,'ylim':plot_data['ylim']}
+            for reg in ['bl','ml','tl']:
+                o['fit'][reg]={}
+                o['fit'][reg]['y'] = plot_data["y"][x][reg]
             fig = plot_styl_cont(o,opt)
             fig.savefig(fo)
             plt.close()
+
+    myl.output_wrapper(plot_data,fo_data,'pickle')
 
 # returns dict with feature matrices of glob|loc etc for each grouping key
 # IN:
@@ -614,6 +645,11 @@ def plot_styl_cont(obj,opt):
             cc = '-k'
 
         plt.plot(myTn,myY,cc,linewidth=6)
+
+    # ylim
+    if 'ylim' in obj:
+        plt.ylim((obj['ylim'][0], obj['ylim'][1]))
+        
     if obj['tnrm']:
         plt.xlabel('time (nrm)')
     else:
@@ -702,6 +738,15 @@ def plot_styl_rhy(obj,opt):
 # IN:
 #   copa dict
 #   opt copa['config']
+# OUT:
+#   fig object
+#   pickle file output to "opt[fsys][dir]/opt[fsys][stm]_clstPlotData.pickle"
+#     that stores dict of the following structure:
+#       {"glob"|"loc"}
+#         "ylim": ylim for uniform y-range in all subplots
+#         "x": array of normalized time
+#         "y":
+#           myClassIndex: F0 Array
 def plot_clst(obj,opt):
     copa = obj['fit']
 
@@ -758,13 +803,14 @@ def plot_clst(obj,opt):
     ylim_l = [int(math.floor(np.min(np.min(yl)))),
               int(math.ceil(np.max(np.max(yl))))]
 
+    plot_data = {"glob": {"ylim": ylim_g, "x": tg, "y": {}},
+                 "loc": {"ylim": ylim_l, "x": tl, "y": {}}}
     
-
     for i in range(nsp):
         if i==0:
             for j in range(len(yg)):
-                ##!!clst
                 spl[i_row,i_col].plot(tg,yg[j,:],cc,label="{}".format(j+1))
+                plot_data["glob"]["y"][j] = yg[j,:]
             spl[i_row,i_col].set_title("g_*")
             spl[i_row,i_col].set_ylim(ylim_g)
             spl[i_row,i_col].set_xlabel('time (nrm)')
@@ -774,6 +820,7 @@ def plot_clst(obj,opt):
             spl[i_row,i_col].plot(tl,yl[i-1,:],cc)
             spl[i_row,i_col].set_title("l_{}".format(i))
             spl[i_row,i_col].set_ylim(ylim_l)
+            plot_data["loc"]["y"][i-1] = yl[i-1,:]
             if i>1:
                 spl[i_row,i_col].set_xticks([])
                 spl[i_row,i_col].set_yticks([])
@@ -782,6 +829,10 @@ def plot_clst(obj,opt):
             i_col=0
         else:
             i_col+=1
+    
+    fo_data = "{}/{}_clstPlotData.pickle".format(opt["fsys"]["pic"]["dir"],
+                                                 opt["fsys"]["pic"]["stm"])
+    myl.output_wrapper(plot_data,fo_data,"pickle")
     plt.show()
     return fig
 
