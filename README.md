@@ -30,6 +30,8 @@
 
 ## example call
 
+* configuration in config/minex.json
+
     ```
     (venv_copasul) $ cd src
     (venv_copasul) $ python copasul.py -c ../config/minex.json
