@@ -28,28 +28,23 @@
     (venv_copasul) $ pip install -r requirements.txt
     ```
 
-## call
-
-* from command line
+## example call
 
     ```
     (venv_copasul) $ cd src
-    (venv_copasul) $ python copasul.py -c myConfigFile.json
-
-* in Python environment:
-
+    (venv_copasul) $ python copasul.py -c ../config/minex.json
     ```
-    (venv_copasul) $ python
-    $ import copasul
-    $ myCopa = copasul.copasul({'config': 'myConfigFile.json'})
-    ```
+
+* processes input files in minex/input/
+* outputs feature tables in minex/output/
+
 
 ## further information
 
 * manual: doc/copasul_manual_latest.pdf
 * example configuration: config/example.json
 
-# License, Disclaimer
+## License, Disclaimer
 
 * doc/LEGAL
 
@@ -59,19 +54,5 @@
 
 ## please cite
 
-* if you use the toolkit for publications
+Reichel, U.D. (2017). CoPaSul Manual: Contour-based, parametric, and superpositional intonation stylization, arXiv:1612.04765.
 
-```
-Manual{copasulManual,
-  title = 	 {CoPaSul manual},
-  OPTkey = 	 {},
-  author = 	 {Reichel, U.D.},
-  organization = {RIL, HAS},
-  address = 	 {Budapest, Hungary},
-  OPTedition = 	 {},
-  OPTmonth = 	 {},
-  year = 	 {2016},
-  note = 	 {arXiv:1612.04765},
-  OPTannote = 	 {}
-}
-```
