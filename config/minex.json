@@ -312,7 +312,7 @@
 	    "ext": "TextGrid"
 	},
 	"export": {
-	    "dir": "../minex/res",
+	    "dir": "../minex/output",
 	    "stm": "test",
 	    "csv": 1,
 	    "sep": ";",
@@ -322,7 +322,7 @@
 	    "f0_resyn": 0
 	},
 	"pic": {
-            "dir": "../minex/res",
+            "dir": "../minex/output",
             "stm": ""
         },
 	"grp": {
