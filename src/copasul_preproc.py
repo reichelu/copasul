@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 
 # author: Uwe Reichel, Budapest, 2016
 
@@ -822,6 +821,9 @@ def pp_f_rate(tg,opt,ft,i):
     tn_opt = {'ignore_sylbnd':True}
     for rt in pp_tiernames(opt['fsys'],ft,'tier_rate',i,tn_opt):
         if rt in rate: continue
+        # hacky workaround since pp_tiernames() also outputs tier names not in TextGrid
+        if rt not in tg['item_name']:
+            continue
         if rt not in tg['item_name']:
             # if called by augmentation
             if 'sloppy' in opt:

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 
 import scipy.io.wavfile as sio
 import scipy.signal as sis
@@ -1102,7 +1101,6 @@ def syl_ncl(s,opt={}):
     #plot_sylncl(all_e,idx) #!v   
     #print(opt["ons"]/opt["fs"] + np.array(idx)*sts/opt["fs"]) #!v
     #myl.stopgo() #!v
-
     
     ### maxima related to syl ncl
     ## a) energy constraints
@@ -1114,7 +1112,7 @@ def syl_ncl(s,opt={}):
     tix = np.asarray([]).astype(int)
     for i in idx[0]:
 
-        # valley between this and previous valley deep enough?
+        # valley between this and previous nucleus deep enough?
         if len(tix)>0:
             ie = all_e[tix[-1]:i]
             if len(ie)<3:
@@ -1122,13 +1120,26 @@ def syl_ncl(s,opt={}):
             valley = np.min(ie)
             nclmin = np.min([ie[0],all_e[i]])
             if valley >= opt['e_val'] * nclmin:
+                # replace previous nucleus by current one
+                if all_e[i] > ie[0]: #!n
+                    all_e[tix[-1]] = all_e[i] #!n
+                    tx[-1] = all_i[i] #!n
+                    tix[-1] = i #!n
+                    e_ratiox[-1] = all_e[i]/all_r[i] #!n
+                    
+                #print("valley constraint -- tx:", all_i[i]/opt["fs"], "nclmin:", nclmin, "valley:", valley, "ie0:", ie[0], "all_e:", all_e[i], "--> skip!") #!v
                 continue
         
         if ((all_e[i] >= all_r[i]*opt['e_rel']) and (all_e[i] > e_min)):
             tx = np.append(tx,all_i[i])
             tix = np.append(tix,i)
             e_ratiox = np.append(e_ratiox, all_e[i]/all_r[i])
+        #else: #!v
+        #    print("min_en constraint -- tx:", all_i[i]/opt["fs"], "all_e:", all_e[i], "all_r:", all_r[i], "e_min:", e_min, "--> skip!") #!v
+            
 
+    #print(len(tx)) #!v
+            
     if len(tx)==0:
         dflt = {'ti':myl.ea(),
                 't':myl.ea(),

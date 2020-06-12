@@ -1,0 +1,210 @@
+File type = "ooTextFile"
+Object class = "TextGrid"
+
+xmin = 0 
+xmax = 4.516875 
+tiers? <exists> 
+size = 5 
+item []: 
+    item [1]:
+        class = "IntervalTier" 
+        name = "WRD" 
+        xmin = 0 
+        xmax = 4.516875 
+        intervals: size = 17 
+        intervals [1]:
+            xmin = 0 
+            xmax = 0.06528930981251779 
+            text = "" 
+        intervals [2]:
+            xmin = 0.06528930981251779 
+            xmax = 0.23494972712974965 
+            text = "this" 
+        intervals [3]:
+            xmin = 0.23494972712974965 
+            xmax = 0.37494046555652966 
+            text = "is" 
+        intervals [4]:
+            xmin = 0.37494046555652966 
+            xmax = 0.4332351163342485 
+            text = "a" 
+        intervals [5]:
+            xmin = 0.4332351163342485 
+            xmax = 0.7750394463800826 
+            text = "test" 
+        intervals [6]:
+            xmin = 0.7750394463800826 
+            xmax = 1.0587590306138575 
+            text = "file" 
+        intervals [7]:
+            xmin = 1.0587590306138575 
+            xmax = 1.2101616854749455 
+            text = "to" 
+        intervals [8]:
+            xmin = 1.2101616854749455 
+            xmax = 1.6502227720006746 
+            text = "check" 
+        intervals [9]:
+            xmin = 1.6502227720006746 
+            xmax = 1.8727758604633025 
+            text = "whether" 
+        intervals [10]:
+            xmin = 1.8727758604633025 
+            xmax = 2.4901049302059173 
+            text = "CoPaSul" 
+        intervals [11]:
+            xmin = 2.4901049302059173 
+            xmax = 2.6989955492117415 
+            text = "is" 
+        intervals [12]:
+            xmin = 2.6989955492117415 
+            xmax = 3.0281069079222394 
+            text = "working" 
+        intervals [13]:
+            xmin = 3.0281069079222394 
+            xmax = 3.5486563920007264 
+            text = "properly" 
+        intervals [14]:
+            xmin = 3.5486563920007264 
+            xmax = 3.7243867481360686 
+            text = "on" 
+        intervals [15]:
+            xmin = 3.7243867481360686 
+            xmax = 3.944106999867135 
+            text = "your" 
+        intervals [16]:
+            xmin = 3.944106999867135 
+            xmax = 4.4685016868191365 
+            text = "machine" 
+        intervals [17]:
+            xmin = 4.4685016868191365 
+            xmax = 4.516875 
+            text = "" 
+    item [2]:
+        class = "IntervalTier" 
+        name = "CHUNK" 
+        xmin = 0 
+        xmax = 4.516875 
+        intervals: size = 2 
+        intervals [1]:
+            xmin = 0 
+            xmax = 6.25e-05 
+            text = "<p:>" 
+        intervals [2]:
+            xmin = 6.25e-05 
+            xmax = 4.516875 
+            text = "x" 
+    item [3]:
+        class = "TextTier" 
+        name = "SYL" 
+        xmin = 0 
+        xmax = 4.516875 
+        points: size = 22 
+        points [1]:
+            number = 0.120125 
+            mark = "x" 
+        points [2]:
+            number = 0.270125 
+            mark = "x" 
+        points [3]:
+            number = 0.390125 
+            mark = "x" 
+        points [4]:
+            number = 0.630125 
+            mark = "x" 
+        points [5]:
+            number = 0.960125 
+            mark = "x" 
+        points [6]:
+            number = 1.170125 
+            mark = "x" 
+        points [7]:
+            number = 1.440125 
+            mark = "x" 
+        points [8]:
+            number = 1.710125 
+            mark = "x" 
+        points [9]:
+            number = 1.830125 
+            mark = "x" 
+        points [10]:
+            number = 1.980125 
+            mark = "x" 
+        points [11]:
+            number = 2.190125 
+            mark = "x" 
+        points [12]:
+            number = 2.4079725442549464 
+            mark = "x" 
+        points [13]:
+            number = 2.542200851696394 
+            mark = "x" 
+        points [14]:
+            number = 2.760125 
+            mark = "x" 
+        points [15]:
+            number = 2.940125 
+            mark = "x" 
+        points [16]:
+            number = 3.180125 
+            mark = "x" 
+        points [17]:
+            number = 3.360125 
+            mark = "x" 
+        points [18]:
+            number = 3.480125 
+            mark = "x" 
+        points [19]:
+            number = 3.6301566067481295 
+            mark = "x" 
+        points [20]:
+            number = 3.840125 
+            mark = "x" 
+        points [21]:
+            number = 4.080125 
+            mark = "x" 
+        points [22]:
+            number = 4.23536143152799 
+            mark = "x" 
+    item [4]:
+        class = "IntervalTier" 
+        name = "IP" 
+        xmin = 0 
+        xmax = 4.516875 
+        intervals: size = 3 
+        intervals [1]:
+            xmin = 0 
+            xmax = 0.06528930981251779 
+            text = "<p:>" 
+        intervals [2]:
+            xmin = 0.06528930981251779 
+            xmax = 4.466139925023813 
+            text = "x" 
+        intervals [3]:
+            xmin = 4.466139925023813 
+            xmax = 4.516875 
+            text = "x" 
+    item [5]:
+        class = "TextTier" 
+        name = "ACC" 
+        xmin = 0 
+        xmax = 4.516875 
+        points: size = 6 
+        points [1]:
+            number = 0.630036191302435 
+            mark = "x" 
+        points [2]:
+            number = 1.4401158011245065 
+            mark = "x" 
+        points [3]:
+            number = 2.4079725442549464 
+            mark = "x" 
+        points [4]:
+            number = 2.7612049322587566 
+            mark = "x" 
+        points [5]:
+            number = 3.1780191501032524 
+            mark = "x" 
+        points [6]:
+            number = 4.233006548941299 
+            mark = "x" 

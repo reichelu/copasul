@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 
 
 # author: Uwe Reichel, Budapest, 2016
@@ -7,7 +6,6 @@ import argparse
 import os
 import sys
 import mylib as myl
-import copasul_root as coro
 import numpy as np
 import os.path as op
 import re
@@ -37,8 +35,8 @@ def copa_opt_init(conf):
         opt = myl.input_wrapper(conf,'json')
 
     ## defaults
-    myCwd = coro.copa_root()
-    f_dfl = os.path.join(myCwd,'config','copasul_default_config.json')
+    myCwd = os.getcwd()
+    f_dfl = os.path.join(myCwd,'copasul_default_config.json')
     dfl =  myl.input_wrapper(f_dfl,'json')
     # merged
     opt = myl.opt_default(opt,dfl)

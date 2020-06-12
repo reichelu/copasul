@@ -267,3 +267,6 @@
 	  - data underlying the grouping and plotting plots is stored in pickle files in
 	    the opt.fsys.pic subdirectory (see copasul_plot.plot_grp() and copasul_plot.plot_clst()
 	    for details)
+20200612: 0.8.23
+	  - default config file moved to src/ directory
+          - documentation update: installation within virtual environment added

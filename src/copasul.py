@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 
 # author: Uwe Reichel, Budapest, 2016
 
@@ -7,7 +6,6 @@ import os
 import sys
 import mylib as myl
 import numpy as np
-import copasul_root as coro
 import copasul_init as coin
 import copasul_augment as coag
 import copasul_preproc as copp
@@ -35,7 +33,7 @@ def copasul(args={}):
     if 'config' not in args:
         # predefined config file
         #myCwd = os.getcwd()
-        myCwd = coro.copa_root()
+        myCwd = os.getcwd()
         args['config'] = os.path.join(myCwd,'config','config.json')
         if not os.path.isfile(args['config']):
             sys.exit("no predefined config file {}. Specify your own.".format(f_config))
@@ -239,9 +237,9 @@ def copa_load(opt,infx=''):
 # > copasul.py -c myConfigs.json
 if __name__ == "__main__":
     #myCwd = os.getcwd()
-    myCwd = coro.copa_root()
+    myCwd = os.getcwd()
     ##### command line input ####################################
-    parser = argparse.ArgumentParser(description="copasul.py -- Intonation analysis tool version 0.8.22")
+    parser = argparse.ArgumentParser(description="copasul.py -- Intonation analysis tool version 0.8.23")
     parser.add_argument('-c','--config', help='myConfigFile.json', required=True)
     args = vars(parser.parse_args())
     copa = copasul(args)

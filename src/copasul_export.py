@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 
 # author: Uwe Reichel, Budapest, 2016
 
@@ -1109,7 +1108,7 @@ def export_grp_upd(d,grp):
 def exp_to_file(d,fo,infx,checkFld='fi',facpat='',fullPath=False,sep=','):
     
     #for x in d: #!v
-    #print(x,":",len(d[x])) #!v
+    #    print(x,":",len(d[x])) #!v
     
     if ((checkFld in d) and (len(d[checkFld])>0)):
         pd.DataFrame(d).to_csv("{}.{}.csv".format(fo,infx),na_rep='NA',index_label=False, index=False, sep=sep)

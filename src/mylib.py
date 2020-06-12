@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 
 # author: Uwe Reichel, Budapest, 2016
 
@@ -806,7 +805,12 @@ def rmsd(x,y=[]):
 #   iv: 2-element interval array
 # OUT:
 #   1-dim index array of elements in x within (inclusive) range of iv 
-def find_interval(x,iv,fs=-1):
+def find_interval(x,iv):
+    xi = np.where((x>iv[0]) & (x<iv[1]))
+    return xi[0]
+
+
+def find_interval_deprec(x,iv,fs=-1):
     xi = sorted(intersect(find(x,'>=',iv[0]),
                           find(x,'<=',iv[1])))
     return np.asarray(xi).astype(int)
@@ -1594,9 +1598,24 @@ def copa_categ_var(x):
     if ((x in lists('factors','set')) or
         re.search('^(grp|lab|class|spk|tier)',x) or
         re.search('_(grp|lab|class|tier)$',x) or
-        re.search('_(grp|lab|class|tier)_',x)):
+        re.search('_(grp|lab|class|tier)_',x) or
+        re.search('is_(init|fin)',x)):
         return True
     return False
+
+# decides whether name belongs to reference variable (time, bv etc)
+def copa_reference_var(x):
+    if re.search("(t_on|t_off|bv|dur)",x):
+        return True
+    return False
+
+def copa_drop_var(x):
+    if copa_categ_var(x) or copa_reference_var(x):
+        return True
+    if re.search("_qb",x):
+        return True
+    return False
+
 
 # replaces multiple channel rhy columns to single one that
 # contains values of respective channel idx+1

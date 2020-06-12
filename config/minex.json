@@ -1,7 +1,7 @@
 {
     "fs": 100,
     "navigate": {
-	"from_scratch": 0,
+	"from_scratch": 1,
 	"overwrite_config": 1,
 	"do_diagnosis": 0,
 	"do_augment_chunk": 0,
@@ -16,12 +16,12 @@
 	"do_styl_gnl_en": 1,
 	"do_styl_bnd": 1,
 	"do_styl_bnd_win": 1,
-	"do_styl_bnd_trend": 0,
+	"do_styl_bnd_trend": 1,
 	"do_styl_rhy_f0": 1,
 	"do_styl_rhy_en": 1,
 	"do_styl_voice": 1,
-	"do_clst_loc": 1,
-	"do_clst_glob": 1,
+	"do_clst_loc": 0,
+	"do_clst_glob": 0,
 	"do_export": 1,
 	"do_plot": 0
     },
@@ -71,7 +71,8 @@
 		"tl": 90
 	    },
 	    "win": 2,
-	    "cross_chunk": 1
+	    "cross_chunk": 1,
+	    "residual": 0
 	},
 	"gnl_en": {
 	    "sb": {
@@ -108,8 +109,7 @@
 		"sts": 0.01,
 		"win": 0.05,
 		"wintyp": "hamming",
-		"winparam": "",
-		"scale": 1
+		"winparam": ""
 	    },
 	    "rhy": {
 		"wintyp": "kaiser",
@@ -214,10 +214,10 @@
 	    "wgt": {
 		"gst": {
                     "ml": {
-                        "rms": 1
+                        "d": 1
                     },
                     "rng": {
-                        "rms": 1
+                        "d": 1
                     }
                 },
 		"gnl_en": {
@@ -250,17 +250,18 @@
                     "decl": 0
                 },
                 "rhy_f0": {
-                    "rhy": 1
+                    "rhy": 0
                 },
                 "rhy_en": {
                     "rhy": 0
                 },
                 "complex": {
                     "superpos": 0,
-                    "gestalt": 0
+                    "gestalt": 0,
+		    "bnd": 1
                 },
                 "clst": {
-                    "contours": 0
+                    "contours": 1
                 }
             },
             "save": 0
@@ -291,28 +292,28 @@
     },
     "fsys": {
 	"f0": {
-	    "dir": "<my/Pth/To/F0Files>",
-	    "ext": "<myF0Extension>",
+	    "dir": "../minex/input",
+	    "ext": "f0",
 	    "typ": "tab"
 	},
 	"pulse": {
-	    "dir": "<my/Pth/To/PulseFiles>",
-	    "ext": "<myF0Extension>",
+	    "dir": "../minex/input",
+	    "ext": "pulse",
 	    "typ": "tab"
 	},
 	"aud": {
-	    "dir": "<my/Pth/To/AudioFiles>",
-	    "typ": "<myAudioExtension>",
+	    "dir": "../minex/input",
+	    "typ": "wav",
 	    "ext": "wav"
 	},
 	"annot": {
-	    "dir": "<my/Pth/To/AnnotationFiles>",
-	    "typ": "<myAnnotationExtension>",
+	    "dir": "../minex/input",
+	    "typ": "TextGrid",
 	    "ext": "TextGrid"
 	},
 	"export": {
-	    "dir": "<my/export/Pth>",
-	    "stm": "<myExportStem>",
+	    "dir": "../minex/res",
+	    "stm": "test",
 	    "csv": 1,
 	    "sep": ";",
 	    "summary": 1,
@@ -321,15 +322,16 @@
 	    "f0_resyn": 0
 	},
 	"pic": {
-            "dir": "<my/Pth/To/PlotFiles>",
-            "stm": "<myPlotExtension>"
+            "dir": "../minex/res",
+            "stm": ""
         },
 	"grp": {
-	    "src": "<myFileSource>",
-	    "sep": "<myFilePartsSeparator>",
+	    "src": "f0",
+	    "sep": "_",
 	    "lab": [
-		"<my>",
-		"<fileparts>"
+		"dialog",
+		"turn",
+		"spk"
 	    ]
 	},
 	"label": {
@@ -339,82 +341,78 @@
 	},
 	"augment": {
 	    "chunk": {
-		"tier_out_stm": "<myOutputTierStem>"
+		"tier_out_stm": "CHUNK"
 	    },
 	    "syl": {
-		"tier_out_stm": "<myOutputTierStem>",
-		"tier_parent": "<myParentTier>"
+		"tier_out_stm": "SYL",
+		"tier_parent": "CHUNK"
 	    },
 	    "glob": {
-		"tier": "<myAnalysisTier>",
-		"tier_out_stm": "<myOutputTierStem>",
-		"tier_parent": "<myParentTier>"
+		"tier": "WRD",
+		"tier_out_stm": "IP",
+		"tier_parent": "CHUNK"
 	    },
 	    "loc": {
-		"tier_acc": "<myAccentTier>",
-		"tier_ag": "<myAccentGroupTier>",
-		"tier_out_stm": "<myOutputTierStem>",
-		"tier_parent": "<myParentTier>"
+		"tier_acc": "SYL",
+		"tier_ag": "IP",
+		"tier_out_stm": "ACC",
+		"tier_parent": "IP"
 	    }
-	},
-	"chunk": {
-	    "tier": "<myChunkTier",
-	},
-	"pho": {
-	    "tier": "<myPhoneticTranscriptionTier>",
-	    "vow": "<myVowelPattern, e.g.:>[AEIOUYaeiouy29{]"
 	},
 	"glob": {
 	    "tier": [
-		"<myAnalysisTier>"
+		"IP"
 	    ]
 	},
 	"loc": {
 	    "tier_ag": [
-		"<myAccentGroupTier>"
+		"WRD"
 	    ],
 	    "tier_acc": [
-		"<myAccentTier>"		
+		"ACC"		
 	    ]
 	},
 	"bnd": {
 	    "tier": [
-		"<myAnalysisTier>"
+		"WRD"
 	    ]
 	},
 	"gnl_f0": {
 	    "tier": [
-		"<myAnalysisTier>"
+		"ACC"
 	    ]
 	},
 	"gnl_en": {
 	    "tier": [
-		"<myAnalysisTier>"
+		"ACC"
 	    ]
 	},
 	"rhy_f0": {
 	    "tier": [
-		"<myAnalysisTier>"
+		"IP"
 	    ],
 	    "tier_rate": [
-		"<myAnalysisTier>"
+		"ACC"
 	    ]
 	},
 	"rhy_en": {
 	    "tier": [
-		"<myAnalysisTier>"
+		"IP"
 	    ],
 	    "tier_rate": [
-		"<myAnalysisTier>"
+		"ACC"
 	    ]
 	},
 	"voice": {
 	    "tier": [
-		"<myAnalysisTier>"
+		"ACC"
 	    ]
 	},
 	"channel": {
-	    "<myTier>": "<myChannelNumber>"
+	    "CHUNK": 1,
+	    "WRD": 1,
+	    "ACC": 1,
+	    "IP": 1
 	}
     }
 }
