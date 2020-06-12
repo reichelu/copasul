@@ -1,7 +1,5 @@
 # CoPaSul - Contour-based, parametric, and superpositional intonation stylization
 
-* code for prosody analyses (python 3)
-
 ## author
 
 * Uwe Reichel, Budapest, 2017
@@ -38,7 +36,7 @@
     ```
 
 * processes input files in minex/input/
-* outputs feature tables in minex/output/
+* outputs feature tables to minex/output/
 
 
 ## further information
