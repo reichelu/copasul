@@ -18,7 +18,7 @@
 
 ## installation
 
-* set up a virtual environment "venv_copasul", activate it, and install requirements. For Linux this works as follows:
+* set up a virtual environment "venv_copasul", activate it, and install requirements. For Linux this works e.g. as follows:
 
     ```
     $ virtualenv --python="/usr/bin/python3" --no-site-packages venv_copasul
@@ -38,19 +38,16 @@
 * processes input files in minex/input/
 * outputs feature tables to minex/output/
 
-
-## further information
+## further information, history
 
 * manual: doc/copasul_manual_latest.pdf
-* example configuration: config/example.json
+* example configuration: config/minex.json
+* commented configurations: doc/copasul_commented_config.json.txt
+* history: doc/history.txt
 
-## License, Disclaimer
+## license, disclaimer
 
 * doc/LEGAL
-
-## history
-
-* doc/history.txt
 
 ## please cite
 
