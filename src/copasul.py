@@ -22,7 +22,6 @@ import re
 #   args dict
 #       ['config']: string myConfigFile.json
 #                   or dict of config file content
-#       ['opt']: config dict for embedded calls
 #       ['copa']: copa dict, facultatively. Will be read from file
 #                 if not provided
 # OUT:
@@ -31,12 +30,7 @@ def copasul(args={}):
 
     ##### config input, copa init ###########################
     if 'config' not in args:
-        # predefined config file
-        #myCwd = os.getcwd()
-        myCwd = os.getcwd()
-        args['config'] = os.path.join(myCwd,'config','config.json')
-        if not os.path.isfile(args['config']):
-            sys.exit("no predefined config file {}. Specify your own.".format(f_config))
+        sys.exit("args[config] needs to be specified")
     opt = coin.copa_opt_init(args['config'])
     
     # generate new copa dict?
@@ -236,10 +230,9 @@ def copa_load(opt,infx=''):
 # for command line calls
 # > copasul.py -c myConfigs.json
 if __name__ == "__main__":
-    #myCwd = os.getcwd()
-    myCwd = os.getcwd()
+    
     ##### command line input ####################################
-    parser = argparse.ArgumentParser(description="copasul.py -- Intonation analysis tool version 0.8.23")
+    parser = argparse.ArgumentParser(description="copasul.py -- Intonation analysis tool version 0.8.24")
     parser.add_argument('-c','--config', help='myConfigFile.json', required=True)
     args = vars(parser.parse_args())
     copa = copasul(args)

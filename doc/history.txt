@@ -270,3 +270,6 @@
 20200612: 0.8.23
 	  - default config file moved to src/ directory
           - documentation update: installation within virtual environment added
+20200620: 0.8.24
+	  - default config file removed; now hard-coded in copasul_init.py
+	  
