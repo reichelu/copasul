@@ -859,6 +859,11 @@ def export_voice(c,fo,opt):
     for fld in ['jit','shim']:
         cn.append(fld)
         cnf.append(fld)
+        cn.append("{}_nrm".format(fld))
+        for subfld in ['m', 'sd']:
+            cn.append("{}_{}".format(fld, subfld))
+            cn.append("{}_{}_nrm".format(fld, subfld))
+            cnf.append("{}_{}".format(fld, subfld))
         for i in [0,1,2,3]:
             cn.append("{}_c{}".format(fld,i))
             cnf.append("{}_c{}".format(fld,i))
@@ -881,6 +886,8 @@ def export_voice(c,fo,opt):
             # over jit, shim
             for x in c[ii][i][typf].keys():
                 df[x].append(c[ii][i][typf][x]['v'])
+                df["{}_m".format(x)].append(c[ii][i][typf][x]['m'])
+                df["{}_sd".format(x)].append(c[ii][i][typf][x]['sd'])
                 coef = c[ii][i][typf][x]['c']
                 coef = coef[::-1]
                 # over coefs
@@ -910,8 +917,12 @@ def export_voice(c,fo,opt):
                     d['is_init_chunk'].append(c[ii][i][typ][j][k]['is_init_chunk'])
                     d['is_fin_chunk'].append(c[ii][i][typ][j][k]['is_fin_chunk'])
                     # over jit, shim
-                    for x in ['jit','shim']:
+                    for x in ['jit', 'shim']:
                         d[x].append(c[ii][i][typ][j][k][x]['v'])
+                        d["{}_nrm".format(x)].append(c[ii][i][typ][j][k][x]['v_nrm'])
+                        for zz in ["m", "sd"]:
+                            d["{}_{}".format(x,zz)].append(c[ii][i][typ][j][k][x][zz])
+                            d["{}_{}_nrm".format(x,zz)].append(c[ii][i][typ][j][k][x]["{}_nrm".format(zz)])
                         coef = c[ii][i][typ][j][k][x]['c']
                         coef = coef[::-1]
                         # over coefs

@@ -262,6 +262,11 @@
 	  - new parameter subdict: opt.preproc.interp with element .kind
 	  If set then scipy.interpolate.interp1d() is used with "kind" argument
 	  instead of default linear interpolation by numpy.interp()
+20190510: 0.8.20
+          - new energy gnl feature: "r_en_f0", i.e. correlation between energy
+          and f0 contour
+20190824: 0.8.21
+          - improved syllable extraction
 20190909: 0.8.22
 	  - uniform ylim in contour grouping and clustering plots
 	  - data underlying the grouping and plotting plots is stored in pickle files in
@@ -272,4 +277,9 @@
           - documentation update: installation within virtual environment added
 20200620: 0.8.24
 	  - default config file removed; now hard-coded in copasul_init.py
-	  
+20200711: 0.8.25
+	  - new voice quality features
+	  jitter: m, sd, m_nrm, sd_nrm: T mean and std (+ normalized over file)
+	          jit_nrm: normalized over file
+	  shimmer: m, sd, m_nrm, sd_nrm: amplitude mean and std (+ normalized over file)
+	  	   shim_nrm: normalized over file
