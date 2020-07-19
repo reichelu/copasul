@@ -30,6 +30,8 @@ def styl_gnl(copa,typ,f_log_in=''):
     global f_log
     f_log = f_log_in
 
+    myLog("DOING: styl gnl ...")
+    
     fld = "gnl_{}".format(typ)
     myl.check_var({'var':copa,'env':'copasul',
                    'spec':{'step':'styl','dom':fld}})
@@ -73,6 +75,10 @@ def styl_gnl_file(copa,ii,fld,opt):
 
     # over channels
     for i in myl.numkeys(copa['data'][ii]):
+
+        fstm = copa['data'][ii][i]['fsys']['aud']['stm']
+        myLog("\tfile {}, channel {}".format(fstm, i+1))
+        
         if opt['type']=='f0':
             t = copa['data'][ii][i]['f0']['t']
             y = copa['data'][ii][i]['f0']['y']
@@ -449,6 +455,9 @@ def voi_upd(voi,v,t,ci):
 def styl_voice(copa,f_log_in=''):
     global f_log
     f_log = f_log_in
+
+    myLog("DOING: styl voice")
+    
     fld = 'voice'
     if fld in copa['config']['styl']:
         opt = cp.deepcopy(copa['config']['styl'][fld])
@@ -476,6 +485,10 @@ def styl_voice_file(copa,ii,fld,opt):
     opt['fs_sig'] = fs_sig
     # over channels
     for i in chan_i:
+
+        fstm = copa['data'][ii][i]['fsys']['aud']['stm']
+        myLog("\tfile {}, channel {}".format(fstm, i+1))
+        
         # jitter and shimmer file wide
         fld_f = "{}_file".format(fld)
 
@@ -722,6 +735,8 @@ def styl_glob(copa,f_log_in=''):
     global f_log
     f_log = f_log_in
 
+    myLog("DOING: styl glob")
+    
     myl.check_var({'var':copa,'env':'copasul',
                    'spec':{'step':'styl_glob','dom':'glob'}})
     
@@ -750,6 +765,9 @@ def styl_glob_file(copa,ii,opt,reg,err_sum,N):
     for i in myl.numkeys(copa['data'][ii]):
         t = copa['data'][ii][i]['f0']['t']
         y = copa['data'][ii][i]['f0']['y']
+
+        fstm = copa['data'][ii][i]['fsys']['aud']['stm']
+        myLog("\tfile {}, channel {}".format(fstm, i+1))
         
         # residual
         r = np.zeros(len(y))
@@ -1400,6 +1418,9 @@ def styl_ml_cross(l,ml,typ):
 def styl_loc(copa,f_log_in=''):
     global f_log
     f_log = f_log_in
+
+    myLog("DOING: styl loc")
+    
     myl.check_var({'var':copa,'env':'copasul',
                    'spec':{'step':'styl','dom':'loc'}})
     opt = copa['config']['styl']['loc']
@@ -1422,6 +1443,10 @@ def styl_loc_file(copa,ii,opt,rms_sum,N):
     myFs = copa['config']['fs']
     # over channels
     for i in myl.numkeys(copa['data'][ii]):
+
+        fstm = copa['data'][ii][i]['fsys']['aud']['stm']
+        myLog("\tfile {}, channel {}".format(fstm, i+1))
+        
         t = copa['data'][ii][i]['f0']['t']
         # add residual vector if not provided by styl_glob()
         # (for register = 'none')
@@ -1509,6 +1534,8 @@ def styl_loc_ext(copa,f_log_in=''):
     global f_log
     f_log = f_log_in
 
+    myLog("DOING: styl loc ext")
+    
     myl.check_var({'var':copa,'env':'copasul',
                    'spec':{'step':'styl','dom':'loc_ext','req':False,
                            'dep':['loc','glob']}})
@@ -1529,6 +1556,10 @@ def styl_loc_ext_file(copa,ii,gopt,lopt):
 
     # over channels
     for i in myl.numkeys(copa['data'][ii]):
+
+        fstm = copa['data'][ii][i]['fsys']['aud']['stm']
+        myLog("\tfile {}, channel {}".format(fstm, i+1))
+        
         t = copa['data'][ii][i]['f0']['t']
         y = copa['data'][ii][i]['f0']['y']
 
@@ -1567,7 +1598,7 @@ def styl_loc_ext_file(copa,ii,gopt,lopt):
 
                 # inform
                 if len(yi)<4:
-                    myLog("Warning from styl_loc_ext_file(): file num {}, channel num {}, local segment time interval {} {} too short for polynomial fitting.".format(ii,i,lt[0],lt[1]))
+                    myLog("WARNING! styl_loc_ext_file(): file num {}, channel num {}, local segment time interval {} {} too short for polynomial fitting.".format(ii,i,lt[0],lt[1]))
 
                 ys = y[yi]
                 dfl = styl_decl_fit(ys,gopt,med[yi,:],to) # !sic gopt
@@ -1678,6 +1709,8 @@ def styl_bnd(copa,f_log_in=''):
     global f_log
     f_log = f_log_in
 
+    myLog("DOING: styl bnd")
+    
     myl.check_var({'var':copa,'env':'copasul',
                    'spec':{'step':'styl','dom':'bnd'}})
 
@@ -1711,6 +1744,9 @@ def styl_bnd_file(copa,ii,navi,opt):
     for i in myl.numkeys(copa['data'][ii]):
         t = copa['data'][ii][i]['f0']['t']
 
+        fstm = copa['data'][ii][i]['fsys']['aud']['stm']
+        myLog("\tfile {}, channel {}".format(fstm, i+1))
+        
         # which f0 contour to take (+/- residual)
         if opt['residual']:
             y = copa['data'][ii][i]['f0']['r']
@@ -1847,6 +1883,8 @@ def styl_rhy(copa,typ,f_log_in=''):
     global f_log
     f_log = f_log_in
 
+    myLog("DOING: styl rhy {}".format(typ))
+    
     fld = "rhy_{}".format(typ)
     myl.check_var({'var':copa,'env':'copasul',
                    'spec':{'step':'styl','dom':fld}})
@@ -1872,6 +1910,10 @@ def styl_rhy_file(copa,ii,fld,opt):
 
     # over channels
     for i in myl.numkeys(copa['data'][ii]):
+
+        fstm = copa['data'][ii][i]['fsys']['aud']['stm']
+        myLog("\tfile {}, channel {}".format(fstm, i+1))
+        
         if opt['type']=='f0':
             t = copa['data'][ii][i]['f0']['t']
             y = copa['data'][ii][i]['f0']['y']
@@ -1986,12 +2028,12 @@ def styl_speech_rhythm(y,r={},opt={},copaConfig={}):
 
     for x in ['type','fs']:
         if x not in opt:
-            myLog('speech_rhythm(): opt must contain {}'.format(x))
+            myLog('ERROR! speech_rhythm(): opt must contain {}'.format(x))
             err=1
         else:
             opt['sig'][x]=opt[x]
             opt['rhy'][x]=opt[x]
-    if err==1: myLog('Fatal! Error in speech rhythm extraction',True)
+    if err==1: myLog('ERROR! in speech rhythm extraction',True)
 
     # adjust sample rate for type='en' (energy values per sec)
     if opt['type']=='en':

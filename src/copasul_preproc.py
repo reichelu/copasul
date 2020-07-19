@@ -44,6 +44,9 @@ import copy as cp
 def pp_main(copa,f_log_in=''):
     global f_log
     f_log = f_log_in
+
+    myLog("DOING: preprocessing ...")
+    
     # detach config
     opt = cp.deepcopy(copa['config'])
     # ff['f0'|'aud'|'annot'|'pulse'] list of full/path/files
@@ -60,6 +63,9 @@ def pp_main(copa,f_log_in=''):
         annot_dat = myl.input_wrapper(ff['annot'][ii],opt['fsys']['annot']['typ'])
         # over channels
         for i in range(opt['fsys']['nc']):
+
+            myLog("\tfile {}, channel {}".format(myl.stm(ff['f0'][ii]), i+1))
+            
             copa['data'][ii][i]={}
             copa = pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log)
 
@@ -673,7 +679,7 @@ def pp_loc_w_nrm(loc,glb,opt):
 def too_short(typ,seg,fstm):
     if ((seg[1] <= seg[0]) or
         (len(seg)>2 and (seg[2] < seg[0] or seg[2] > seg[1]))):
-        myLog("{}: {} segment too short: {} {}. Segment skipped.".format(fstm,typ,seg[0],seg[1]))
+        myLog("WARNING! {}: {} segment too short: {} {}. Segment skipped.".format(fstm,typ,seg[0],seg[1]))
         return True
     return False
 
@@ -682,7 +688,7 @@ def rm_too_short(typ,dat,fstm):
     bad_i = myl.find(d,'<=',0)
     if len(bad_i)>0:
         good_i = myl.find(d,'>',0)
-        myLog("{}: file contains too short {} segments, which were removed.".format(fstm,typ))
+        myLog("WARNING! {}: file contains too short {} segments, which were removed.".format(fstm,typ))
         dat = dat[good_i,]
     return dat
 
@@ -827,10 +833,10 @@ def pp_f_rate(tg,opt,ft,i):
         if rt not in tg['item_name']:
             # if called by augmentation
             if 'sloppy' in opt:
-                myLog("Warning! Annotation file does not (yet) contain tier {} which is required by the tier_rate element for feature set {}. Might be added by augmentation. If not this missing tier will result in an error later on.".format(rt,ft))
+                myLog("WARNING! Annotation file does not (yet) contain tier {} which is required by the tier_rate element for feature set {}. Might be added by augmentation. If not this missing tier will result in an error later on.".format(rt,ft))
                 continue
             else:
-                myLog("Fatal! Annotation file does not (yet) contain tier {} which is required by the tier_rate element for feature set {}.".format(rt,ft),True)
+                myLog("ERROR! Annotation file does not (yet) contain tier {} which is required by the tier_rate element for feature set {}.".format(rt,ft),True)
         t = tg['item'][tg['item_name'][rt]]
         # file duration
         l = tg['head']['xmax']-tg['head']['xmin']
@@ -901,7 +907,7 @@ def pp_tier_time_to_tab(tg,rts,ci,lab_pau):
             ##!!ci crt = "{}_{}".format(rt,ci)
             crt = "{}_{}".format(rt,int(ci+1))
             if crt not in tg['item_name']:
-                myLog("tier {} does not exist. Cannot determine event rates for this tier.".format(rt))
+                myLog("WARNING! Tier {} does not exist. Cannot determine event rates for this tier.".format(rt))
                 continue
             else:
                x = crt 
@@ -998,16 +1004,16 @@ def pp_file_collector(opt):
     #print(len(ff['f0']),len(ff['aud']),len(ff['annot']))
     
     if l==0:
-        myLog("Fatal! Neither signal nor annotation files found!",True)
+        myLog("ERROR! Neither signal nor annotation files found!",True)
     for x in myl.lists('afa'):
         if x not in ff:
             continue
         if ((len(ff[x])>0) and (len(ff[x]) != l)):
-            myLog("Fatal! Numbers of f0/annotation/audio/pulse files must be 0 or equal!",True)
+            myLog("ERROR! Numbers of f0/annotation/audio/pulse files must be 0 or equal!",True)
     if len(ff['annot'])==0:
         if ((not opt['fsys']['annot']) or (not opt['fsys']['annot']['dir']) or
             (not opt['fsys']['annot']['ext']) or (not opt['fsys']['annot']['typ'])):
-            myLog("Fatal! Directory, type, and extension must be specified for annotation files generated from scratch!",True)
+            myLog("ERROR! Directory, type, and extension must be specified for annotation files generated from scratch!",True)
         if len(ff['f0'])>0:
             gg = ff['f0']
         else:
@@ -1416,7 +1422,7 @@ def pp_read(an,opt,tn='',fn='',call=''):
     ## xml input
     elif opt['typ']=='xml':
         if not pp_tier_in_annot(tn,an,opt['typ']):
-            myLog("Fatal! {}: does not contain tier {}".format(fn,tn))
+            myLog("ERROR! {}: does not contain tier {}".format(fn,tn))
         d = myl.ea()
         # selected tier
         t = an[tn]
@@ -1432,7 +1438,7 @@ def pp_read(an,opt,tn='',fn='',call=''):
     ## TextGrid input
     elif opt['typ']=='TextGrid':
         if not pp_tier_in_annot(tn,an,opt['typ']):
-            myLog("Fatal! {}: does not contain tier {}".format(fn,tn))
+            myLog("ERROR! {}: does not contain tier {}".format(fn,tn))
         d = myl.ea()
         # selected tier
         #print(an['item_name']) #!v
@@ -1465,9 +1471,9 @@ def pp_read(an,opt,tn='',fn='',call=''):
     # Warnings
     if len(d)==0:
         if  opt['typ']=='tab':
-            myLog("Warning! {}: empty table\n".format(fn))
+            myLog("WARNING! {}: empty table\n".format(fn))
         else:
-            myLog("Warning! {}: no labelled segments contained in tier {}. Replacing by default domain\n".format(fn,tn))
+            myLog("WARNING! {}: no labelled segments contained in tier {}. Replacing by default domain\n".format(fn,tn))
 
     return myl.cellwise(myl.trunc2,d), d, lab
 
@@ -1684,12 +1690,12 @@ def diagnosis_config(opt,ec,h_log):
     for x in ['f0','glob','loc','bnd','gnl_f0','gnl_en','rhy_f0','rhy_en']:
         if x not in opt['fsys']:
             if x=='f0':
-                h_log.write("Fatal! config.fsys does not contain f0 file field.\n")
+                h_log.write("ERROR! config.fsys does not contain f0 file field.\n")
                 ec = 2
             continue
         for y in ['dir','ext','typ']:
             if y not in opt['fsys'][x]:
-                 h_log.write("Fatal! config.fsys.{} does not contain {} field.\n".format(x,y))
+                 h_log.write("ERROR! config.fsys.{} does not contain {} field.\n".format(x,y))
                  ec = 2
                  continue
             
@@ -1720,12 +1726,12 @@ def diagnosis_seg(c,ii,i,dom,ec,h_log):
             c[ii][i][dom][j]['ri']==''):
                 ec = 1
                 if dom=='glob':
-                    h_log.write("Warning! {}:interval {} {}:global segment does not dominate any local segment\n".format(f,c[ii][i][dom][j]['to'][0],c[ii][i][dom][j]['to'][1]))
+                    h_log.write("WARNING! {}:interval {} {}:global segment does not dominate any local segment\n".format(f,c[ii][i][dom][j]['to'][0],c[ii][i][dom][j]['to'][1]))
                 else:
-                    h_log.write("Warning! {}:interval {} {}:local segment is not dominated by any gobal segment\n",f,c[ii][i][dom][j]['to'][0],c[ii][i][dom][j]['to'][1])
+                    h_log.write("WARNING! {}:interval {} {}:local segment is not dominated by any gobal segment\n",f,c[ii][i][dom][j]['to'][0],c[ii][i][dom][j]['to'][1])
         # segment too short
         if c[ii][i][dom][j]['t'][1]-c[ii][i][dom][j]['t'][0] < min_l:
-            h_log.write("Fatal! {}:interval {} {}:{} segment too short!\n".format(f,c[ii][i][dom][j]['to'][0],c[ii][i][dom][j]['to'][1],dom))
+            h_log.write("ERROR! {}:interval {} {}:{} segment too short!\n".format(f,c[ii][i][dom][j]['to'][0],c[ii][i][dom][j]['to'][1],dom))
             ec = 2
 
     # locseg center (3rd col) not within [on off] (1st, 2nd col)
@@ -1733,7 +1739,7 @@ def diagnosis_seg(c,ii,i,dom,ec,h_log):
         for j in myl.numkeys(c[ii][i][dom]):
             if ((c[ii][i][dom][j]['t'][2] <= c[ii][i][dom][j]['t'][0]) or
                 (c[ii][i][dom][j]['t'][2] >= c[ii][i][dom][j]['t'][1])):
-                h_log.write("Warning! {}:interval {} {}:local segments center not within its intervals. Set to midpoint\n",f,c[ii][i][dom][j]['to'][0],c[ii][i][dom][j]['to'][1])
+                h_log.write("WARNING! {}:interval {} {}:local segments center not within its intervals. Set to midpoint\n",f,c[ii][i][dom][j]['to'][0],c[ii][i][dom][j]['to'][1])
                 c[ii][i][dom][j]['t'][2] = myl.trunc2((c[ii][i][dom][j]['t'][0]+c[ii][i][dom][j]['t'][1])/2)
         
     return ec

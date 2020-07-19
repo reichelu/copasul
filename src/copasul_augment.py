@@ -45,6 +45,8 @@ def aug_main(copa,f_log_in):
     f_log = f_log_in
     opt = copa['config']
 
+    myLog("DOING: augment annotations ...")
+
     # wav files
     ff_wav = myl.file_collector(opt['fsys']['aud']['dir'],
                                 opt['fsys']['aud']['ext'])
@@ -62,8 +64,6 @@ def aug_main(copa,f_log_in):
     timeStamp = myl.isotime()
     for i in myl.idx_a(len(ff_wav)):
         
-        print(myl.stm(ff_wav[i])) #!v
-
         # add to existing file or generation from scratch
         annot, fstm, fo = aug_annot_init(ff_annot,ff_wav,i,opt,timeStamp)
         add_mat['fi']=i
@@ -76,10 +76,12 @@ def aug_main(copa,f_log_in):
 
     # boundaries batch clustering
     if opt['navigate']['do_augment_glob'] and opt['augment']['glob']['unit']=='batch':
+        myLog("DOING: boundaries batch clustering ...")
         aug_batch('glob',ff_wav,ff_annot,ff_f0,opt,add_mat)
 
     # accents batch clustering
     if opt['navigate']['do_augment_loc'] and opt['augment']['loc']['unit']=='batch':
+        myLog("DOING: accents batch clustering")
         aug_batch('loc',ff_wav,ff_annot,ff_f0,opt,add_mat)
         
     return
@@ -487,6 +489,7 @@ def aug_sub(f,f_f0,annot,fstm,opt,add_mat):
     
     # over channels
     for i in range(ncol):
+        myLog("\tfile {}, channel {}".format(myl.stm(f), i+1))
         ## Signal preprocessing ######################
         if ncol>1: y = myl.sig_preproc(s[:,i])
         else: y = myl.sig_preproc(s)
@@ -645,7 +648,7 @@ def aug_annot_upd(dom,annot,aug,i,opt,lng,infx=''):
 
     # do not return but output empty tier
     if len(aug['t'])==0:
-        myLog("{} augmentation: no event extracted. Empty tier output.")
+        myLog("WARNING! Augmentation: no event extracted. Empty tier output.")
     #    return annot
     
     # tier name
@@ -810,7 +813,7 @@ def aug_tn(tq,spec,annot,opt,ci,fld):
         if x == 'FILE':
             # constraint (3)
             if ncol==1:
-                myLog("Warning! {} augmentation. {} - {} parent tier not usable, since parent needs to be event tier".format(fld,tq,x))
+                myLog("WARNING! {} augmentation. {} - {} parent tier not usable, since parent needs to be event tier".format(fld,tq,x))
                 continue
             else:
                 return x
@@ -820,7 +823,7 @@ def aug_tn(tq,spec,annot,opt,ci,fld):
         #myl.stopgo() #!
         if x not in tn:
             if xc not in tn:
-                myLog("Info! {} augmentation. {} candidate {} not usable. Trying fallbacks".format(fld,tq,x))
+                myLog("INFO! {} augmentation. {} candidate {} not usable. Trying fallbacks".format(fld,tq,x))
                 continue
             else:
                 # stem+channelIdx fullfils constraint, continue with this string
@@ -828,14 +831,14 @@ def aug_tn(tq,spec,annot,opt,ci,fld):
         # constraint (2)
         if not copp.pp_tier_in_annot_strict(xx,annot,atyp):
             if not copp.pp_tier_in_annot_strict(xc,annot,atyp):
-                myLog("Info! {} augmentation. {} candidate {} not in annotation. Trying fallbacks".format(fld,tq,x))
+                myLog("INFO! {} augmentation. {} candidate {} not in annotation. Trying fallbacks".format(fld,tq,x))
                 continue
             else:
                 xx = xc
         # constraint (3)
         tc = copp.pp_tier_class(xx,annot,atyp)
         if ((tc=='segment' and ncol==1) or (tc=='event' and ncol==2)):
-            myLog("Info! {} augmentation. {} candidate {} does not match required tier class. Trying fallbacks".format(fld,tq,x))
+            myLog("INFO! {} augmentation. {} candidate {} does not match required tier class. Trying fallbacks".format(fld,tq,x))
             continue
         return xx
     # no matching candidate
@@ -2269,13 +2272,13 @@ def aug_msg(typ,f):
     elif typ=='loc':
         prfx = 'accent extraction'
     fstm = myl.stm(f)
-    return {1:"Warning! {}: {} carried out without preceding chunking".format(fstm,prfx),
-            2:"Fatal! {}: {} requires chunk tier or preceding chunking!".format(fstm,prfx),
-            3:"Fatal! {}: {} requires parent tier with segments, not events!".format(fstm,prfx),
-            4:"Warning! {}: no analysis tier for {} specified or provided. Fallback: syllable boundaries.".format(fstm,prfx),
-            5:"Fatal! {}: neither analysis tier nor syllable nucleus/boundary fallback available for {}. (Re-)Activate syllable nucleus augmentation or define analysis tier.".format(fstm,prfx),
-            6:"Warning! {}: {}, no parent tier specified or found. Trying glob augment tier.".format(fstm,prfx),
-            7:"Fatal! {}: {}, no parent tier found.".format(fstm,prfx)}
+    return {1:"WARNING! {}: {} carried out without preceding chunking".format(fstm,prfx),
+            2:"ERROR! {}: {} requires chunk tier or preceding chunking!".format(fstm,prfx),
+            3:"ERROR! {}: {} requires parent tier with segments, not events!".format(fstm,prfx),
+            4:"WARNING! {}: no analysis tier for {} specified or provided. Fallback: syllable boundaries.".format(fstm,prfx),
+            5:"ERROR! {}: neither analysis tier nor syllable nucleus/boundary fallback available for {}. (Re-)Activate syllable nucleus augmentation or define analysis tier.".format(fstm,prfx),
+            6:"WARNING! {}: {}, no parent tier specified or found. Trying glob augment tier.".format(fstm,prfx),
+            7:"ERROR! {}: {}, no parent tier found.".format(fstm,prfx)}
 
 
 # log file output (if filehandle), else terminal output
