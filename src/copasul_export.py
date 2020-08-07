@@ -1151,8 +1151,9 @@ def exp_R(d,fo,facpat='',fullPath=False,sep=','):
     for x in sorted(d.keys()):
         #if ((x in fac) or re.search('^(grp|lab|class)',x)):typ = 'factor'
         if ((x in fac) or re.search('^(grp|lab|class|spk|tier)',x) or
-            re.search('_(grp|lab|class|tier)$',x) or
-            re.search('_(grp|lab|class|tier)_',x)):
+            re.search('_(grp|lab|class|tier)$', x) or
+            re.search('_(grp|lab|class|tier)_', x) or
+            re.search('(is_fin|is_init)', x)):
             typ = 'factor'
         elif (len(facpat)>0 and re.search(facpat,x)):
             typ = 'factor'

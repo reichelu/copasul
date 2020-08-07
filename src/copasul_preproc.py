@@ -794,8 +794,11 @@ def pp_grp(copa,ii,i):
     # grouping options
     opt = copa['config']['fsys']['grp']
     if len(opt['lab'])>0:
-        g = re.split(opt['sep'],copa['data'][ii][i]['fsys'][opt['src']]['stm'])
+        myStm = copa['data'][ii][i]['fsys'][opt['src']]['stm']
+        g = re.split(opt['sep'], myStm)
         for j in myl.idx_a(len(g)):
+            if j >= len(opt['lab']):
+                myLog("ERROR! {} cannot be split into grouping values".format(myStm),True)
             lab = opt['lab'][j]
             if len(lab)==0: continue
             copa['data'][ii][i]['grp'][lab]=g[j]
@@ -999,6 +1002,9 @@ def pp_file_collector(opt):
     # at least one list must have length > 0
     # annotation files can be generated from scratch
     #    in this case stems of f0 (or aud) files are taken over
+    for xy in ['f0', 'aud', 'annot']:
+        if xy not in ff:
+            myLog("ERROR! No {} files found!".format(xy),True)
     l = max(len(ff['f0']),len(ff['aud']),len(ff['annot']))
 
     #print(len(ff['f0']),len(ff['aud']),len(ff['annot']))

@@ -283,3 +283,5 @@
 	          jit_nrm: normalized over file
 	  shimmer: m, sd, m_nrm, sd_nrm: amplitude mean and std (+ normalized over file)
 	  	   shim_nrm: normalized over file
+20200807: 0.8.26
+	  - filter variables is_init(_chunk) and is_fin(_chunk) now treated as factors in R output
