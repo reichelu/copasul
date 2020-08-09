@@ -50,7 +50,7 @@
 	    "dir": "../minex/output",
 	    "stm": "test",
 	    "csv": 1,
-	    "sep": ";",
+	    "sep": ",",
 	    "summary": 1,
 	    "f0_preproc": 0,
 	    "f0_residual": 0,
