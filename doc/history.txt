@@ -285,3 +285,6 @@
 	  	   shim_nrm: normalized over file
 20200807: 0.8.26
 	  - filter variables is_init(_chunk) and is_fin(_chunk) now treated as factors in R output
+20200809: 0.8.27
+          - f0 contour is now horizontally extrapolated till 0.00 and not 0.01
+	  By this summary statistics of the "glob" and "gnl" feature not contain the same values.

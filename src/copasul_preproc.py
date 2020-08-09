@@ -253,7 +253,7 @@ def pp_channel(copa,opt,ii,i,f0_dat,annot_dat,ff,f_log_in=''):
         
     else:
         glb = myl.ea()
-        
+
     # point -> segment tier
     if len(glb)>0 and np.size(glb,1)==1:
         glb, glb_ut, lab_glb = pp_point2segment(glb,glb_ut,lab_glb,chunk,chunk_ut,opt['fsys']['chunk'])
@@ -1628,8 +1628,10 @@ def pp_zp(f0,t_max,opt,extrap=False):
     else:
         zpl, zpr = 0, 0 
 
-    if sts < f0[0,0]:
-        prf = np.arange(sts,f0[0,0],sts)
+    #if sts < f0[0,0]:
+    #    prf = np.arange(sts,f0[0,0],sts)
+    if 0 < f0[0,0]:
+        prf = np.arange(0,f0[0,0],sts)
     else:
         prf = myl.ea()
 

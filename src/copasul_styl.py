@@ -82,6 +82,11 @@ def styl_gnl_file(copa,ii,fld,opt):
         if opt['type']=='f0':
             t = copa['data'][ii][i]['f0']['t']
             y = copa['data'][ii][i]['f0']['y']
+
+            #print("gnl t:", t, len(t)) #!gg
+            #print("gnl y:", y, len(y)) #!gg
+            #myl.stopgo() #!gg
+            
             opt['fs']=myFs
             y_f0i, r_ef = None, None
         else:
@@ -766,6 +771,10 @@ def styl_glob_file(copa,ii,opt,reg,err_sum,N):
         t = copa['data'][ii][i]['f0']['t']
         y = copa['data'][ii][i]['f0']['y']
 
+        #print("glob t:", t, len(t))  #!gg
+        #print("glob y:", y, len(y))  #!gg
+        #myl.stopgo()  #!gg
+        
         fstm = copa['data'][ii][i]['fsys']['aud']['stm']
         myLog("\tfile {}, channel {}".format(fstm, i+1))
         
