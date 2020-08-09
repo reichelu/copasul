@@ -288,3 +288,4 @@
 20200809: 0.8.27
           - f0 contour is now horizontally extrapolated till 0.00 and not 0.01
 	  By this summary statistics of the "glob" and "gnl" feature not contain the same values.
+	  - copasul_styl.styl_polyfit(): polyfit made more robust

@@ -1692,7 +1692,18 @@ def styl_gestalt(obj):
 # try-catch wrapper around polyfit
 # returns zeros if something goes wrong
 # coeffcients returned highest power first
+def styl_polyfit_old(x,y,o):
+    try:
+        c = np.polyfit(x,y,o)
+    except:
+        c = np.zeros(o+1)
+    return c
+
 def styl_polyfit(x,y,o):
+    if len(x)==0:
+        return np.zeros(o+1)
+    if len(x)<=o:
+        return myl.push(np.zeros(o),np.mean(y))
     try:
         c = np.polyfit(x,y,o)
     except:
