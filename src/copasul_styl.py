@@ -30,7 +30,7 @@ def styl_gnl(copa,typ,f_log_in=''):
     global f_log
     f_log = f_log_in
 
-    myLog("DOING: styl gnl ...")
+    myLog("DOING: styl gnl {} ...".format(typ))
     
     fld = "gnl_{}".format(typ)
     myl.check_var({'var':copa,'env':'copasul',

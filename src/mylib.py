@@ -4506,8 +4506,8 @@ def make_formants(opt):
     par = opt['param']['formants']
 
     # clean up formants subdir
-    sh.rmtree(pth['f0'])
-    os.makedirs(pth['f0'])
+    sh.rmtree(pth['formants'])
+    os.makedirs(pth['formants'])
 
     if as_sudo(par):
         cmd = "sudo praat"

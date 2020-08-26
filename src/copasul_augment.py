@@ -827,6 +827,7 @@ def aug_tn(tq,spec,annot,opt,ci,fld):
                 continue
             else:
                 # stem+channelIdx fullfils constraint, continue with this string
+                myLog("INFO! {} augmentation. {} candidate {} found. Checking tier class ...".format(fld,tq,x))
                 xx = xc
         # constraint (2)
         if not copp.pp_tier_in_annot_strict(xx,annot,atyp):
@@ -834,12 +835,14 @@ def aug_tn(tq,spec,annot,opt,ci,fld):
                 myLog("INFO! {} augmentation. {} candidate {} not in annotation. Trying fallbacks".format(fld,tq,x))
                 continue
             else:
+                myLog("INFO! {} augmentation. {} candidate {} found. Checking tier class ...".format(fld,tq,x))
                 xx = xc
         # constraint (3)
         tc = copp.pp_tier_class(xx,annot,atyp)
         if ((tc=='segment' and ncol==1) or (tc=='event' and ncol==2)):
             myLog("INFO! {} augmentation. {} candidate {} does not match required tier class. Trying fallbacks".format(fld,tq,x))
             continue
+        myLog("INFO! {} augmentation. {} candidate {}: tier class match".format(fld,tq,x))
         return xx
     # no matching candidate
     return ''
@@ -1373,11 +1376,11 @@ def aug_loc_fv(ty,y,bv,annot,opt,i,fstm,f,lng,add_mat,spec):
     wloc = lopt['wgt']
 
     ## parent tier declination
-    copa = cost.styl_glob(copa)
+    copa = cost.styl_glob(copa, f_log)
     ## fallback: file-level
     if 0 not in copa['data'][ii][i]['glob']:
         copa, t_upd, to_upd = aug_prep_copy(t,to,fto,annot,i,opt,add_mat)
-        copa = cost.styl_glob(copa)
+        copa = cost.styl_glob(copa, f_log)
         if 0 not in copa['data'][ii][i]['glob']:
             return [], [], [], [], [], [], to, [], do_postsel
 
@@ -1395,13 +1398,13 @@ def aug_loc_fv(ty,y,bv,annot,opt,i,fstm,f,lng,add_mat,spec):
         if x=='pho':
             continue
         if x == 'acc':
-            copa = cost.styl_loc(copa)
+            copa = cost.styl_loc(copa, f_log)
         elif re.search('gst|decl',x):
-            copa = cost.styl_loc_ext(copa,f_log)
+            copa = cost.styl_loc_ext(copa, f_log)
         elif x == 'gnl_f0':
-            copa = cost.styl_gnl(copa,'f0')
+            copa = cost.styl_gnl(copa,'f0', f_log)
         elif x == 'gnl_en':
-            copa = cost.styl_gnl(copa,'en')
+            copa = cost.styl_gnl(copa,'en', f_log)
         v,w,tc,tco = aug_loc_feat(x,copa,ii,i)
         fx[x] = v
         wx[x] = w
