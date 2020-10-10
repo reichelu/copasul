@@ -1,6 +1,6 @@
 # CoPaSul - Contour-based, parametric, and superpositional intonation stylization
 
-## version 0.8.27
+## version 0.8.28
 
 ## author
 
@@ -35,7 +35,7 @@
     $ cd /my/Path/to/copasul/
     $ source venv_copasul/bin/activate
     (venv_copasul) $ cd src/
-    (venv_copasul) $ python copasul.py -c ../config/minex.json
+    (venv_copasul) $ python copasul.py -c ../minex/config/minex.json
     ```
 
 * processes input files in `minex/input/`
@@ -44,12 +44,12 @@
 ## further information, license, history
 
 * manual: `doc/copasul_manual_latest.pdf`
-* example configuration: `config/minex.json`
+* example configuration: `minex/config/minex.json`
 * commented configurations: `doc/copasul_commented_config.json.txt`
 * license, disclaimer: `doc/LEGAL`
 * history: `doc/history.txt`
 
-## please cite
+## reference
 
 Reichel, U.D. (2017). CoPaSul Manual: Contour-based, parametric, and superpositional intonation stylization, arXiv:1612.04765.
 
