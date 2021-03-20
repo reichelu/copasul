@@ -1,6 +1,6 @@
 # CoPaSul - Contour-based, parametric, and superpositional intonation stylization
 
-## version 0.8.28
+## version 1.0.0
 
 ## author
 
@@ -8,7 +8,7 @@
 
 ## language, dependencies
 
-* python 3.*
+* python >=3.5
 * matplotlib >= 1.3.1
 * numpy >= 1.8.2
 * pandas >= 0.13.1
@@ -27,19 +27,34 @@
     (venv_copasul) $ pip install -r requirements.txt
     ```
 
-## example call
+## example call from terminal
 
 * call of main script `src/copasul.py` with a configuration file
 
-    ```
-    $ cd /my/Path/to/copasul/
-    $ source venv_copasul/bin/activate
-    (venv_copasul) $ cd src/
-    (venv_copasul) $ python copasul.py -c ../minex/config/minex.json
-    ```
+```
+$ cd /my/Path/to/copasul/
+$ source venv_copasul/bin/activate
+(venv_copasul) $ cd src/
+(venv_copasul) $ python copasul.py -c ../minex/config/minex.json
+```
 
 * processes input files in `minex/input/`
 * outputs feature tables to `minex/output/`
+
+## example integration into python code
+
+* see also `src/example_call.py`
+
+```
+import json
+import copasul
+
+with open("my/Path/to/minex/config/minex.json", 'r') as h:
+    opt = json.load(h)
+
+fex = copasul.Copasul()
+copa = fex.process(config=opt)
+```
 
 ## further information, license, history
 

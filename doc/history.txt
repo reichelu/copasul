@@ -291,4 +291,10 @@
 	  - copasul_styl.styl_polyfit(): polyfit made more robust
 20200826: 0.8.28
 	  - augmentation log messages redirected to log file
-	  
+20210320: 1.0.0
+          - Copasul() class added (please see example_call.py how to integrate it into python code)
+	  - added: copa["export"][myFeatSet] = pd.DataFrame()
+	    so that feature output is stored in generated copa dict.
+	    myFeatSet: "glob", "loc", "bnd", "voice", "gnl_f0","gnl_en","gnl_f0_file", "gnl_en_file",
+	               "rhy_f0","rhy_en","rhy_f0_file","rhy_en_file"
+          - output table columns (and dataframe columns in copa["export"]) are now alphanumerically sorted

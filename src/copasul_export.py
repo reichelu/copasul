@@ -42,6 +42,8 @@ from pandas import DataFrame
 #      rows: local segments
 #    bnd
 #      rows: boundaries
+### adds subdict "export" to copa
+
 
 # face "arrays must all be same length" error
 # in respective export_loc|glob|...()
@@ -52,7 +54,7 @@ from pandas import DataFrame
 
 def export_main(copa):
     if copa['config']['fsys']['export']['csv']:
-        export_csv(copa)
+        copa = export_csv(copa)
     if copa['config']['fsys']['export']['summary']:
         export_summary(copa)
     if copa['config']['fsys']['export']['f0_preproc']:
@@ -65,6 +67,7 @@ def export_main(copa):
             copa = core.resyn(copa)
         export_f0(copa,'resyn')
 
+    return copa
 
 ### f0 ##############################################
 
@@ -116,7 +119,6 @@ def export_f0(copa,fld):
 #   u: 'segment'|'file', features from segment or file level
 # featKey := feat_analysisTier in case fset contains the column 'tier'
 
-
 def export_summary(copa):
     opt = copa['config']
     # output files stem
@@ -144,7 +146,7 @@ def export_summary(copa):
             d = myl.input_wrapper(f,'csv',{'sep':opt['fsys']['export']['sep']})
             fileIdx = myl.uniq(d['fi'])
             channelIdx = myl.uniq(d['ci'])
-            d = pd.DataFrame(d)
+            d = exp_dataframe(d)
             # over file indices
             for fi in fileIdx:
                 for ci in channelIdx:
@@ -289,7 +291,6 @@ def suma2exp(suma,fo,fp,sep):
     exp_to_file(exp,fo,'summary',checkFld='fi',facpat='',fullPath=fp,sep=sep)
 
 
-
 # remove redundant grouping and stem columns from export dict
 # IN:
 #   exp - export dict
@@ -426,26 +427,89 @@ def export_csv(copa):
     #print(c[0][0])
     #sys.exit()
 
+    copa["export"] = {"glob": None,
+                      "loc": None,
+                      "bnd": None,
+                      "voice": None,
+                      "gnl_f0": None,
+                      "gnl_en": None,
+                      "gnl_f0_file": None,
+                      "gnl_en_file": None,
+                      "rhy_f0": None,
+                      "rhy_en": None,
+                      "rhy_f0_file": None,
+                      "rhy_en_file": None}
+
+    # global f0 features
     if copa_contains(c,'glob',fld):
-        export_glob(c,fo,opt)
+        copa['export']['glob'] = export_glob(c,fo,opt)
+
+    # local f0 features
     if copa_contains(c,'loc',fld):
-        export_loc(c,fo,opt)
+        copa['export']['loc'] = export_loc(c,fo,opt)
+
+    # boundary features
     if copa_contains(c,'bnd',fld):
-        export_bnd(c,fo,opt)
+        copa['export']['bnd'] = export_bnd(c,fo,opt)
+
+    # voice quality
     if copa_contains(c,'voice',fld):
-        export_voice(c,fo,opt)
+        copa['export']['voice'] = export_voice(c,fo,opt)
+
+    # standard f0 features
     if copa_contains(c,'gnl_f0',fld):
-        df_gnl['f0']=export_gnl(c,fo,opt,'gnl_f0')
+        df_gnl['f0'] = export_gnl(c,fo,opt,'gnl_f0')
+        try:
+            copa['export']['gnl_f0'] = exp_dataframe(df_gnl['f0']['seg'])
+        except:
+            copa['export']['gnl_f0'] = None
+        try:
+            copa['export']['gnl_f0_file'] = exp_dataframe(df_gnl['f0']['file'])
+        except:
+            copa['export']['gnl_f0_file'] = None
+
+    # standard energy features
     if copa_contains(c,'gnl_en',fld):
-        df_gnl['en']=export_gnl(c,fo,opt,'gnl_en')
+        df_gnl['en'] = export_gnl(c,fo,opt,'gnl_en')
+        try:
+            copa['export']['gnl_en'] = exp_dataframe(df_gnl['en']['seg'])
+        except:
+            copa['export']['gnl_en'] = None
+        try:
+            copa['export']['gnl_en_file'] = exp_dataframe(df_gnl['en']['file'])
+        except:
+            copa['export']['gnl_en_file'] = None
+
+    # f0 rhythm features
     if copa_contains(c,'rhy_f0',fld):
         df_rhy['f0']=export_rhy(c,fo,opt,'rhy_f0')
+        try:
+            copa['export']['rhy_f0'] = exp_dataframe(df_rhy['f0']['seg'])
+        except:
+            copa['export']['rhy_f0'] = None
+        try:
+            copa['export']['rhy_f0_file'] = exp_dataframe(df_rhy['f0']['file'])
+        except:
+            copa['export']['rhy_f0_file'] = None
+
+    # energy rhythm features
     if copa_contains(c,'rhy_en',fld):
         df_rhy['en']=export_rhy(c,fo,opt,'rhy_en')
-    
+        try:
+            copa['export']['rhy_en'] = exp_dataframe(df_rhy['en']['seg'])
+        except:
+            copa['export']['rhy_en'] = None
+        try:
+            copa['export']['rhy_en_file'] = exp_dataframe(df_rhy['en']['file'])
+        except:
+            copa['export']['rhy_en_file'] = None
+        
     export_merge(fo,'gnl',df_gnl,opt)
     export_merge(fo,'rhy',df_rhy,opt)
 
+    return copa
+
+    
     #     .tl_ml_cross_f0|t
 #     .tl_bl_cross_f0|t
 #     .ml_bl_cross_f0|t
@@ -519,7 +583,10 @@ def export_glob(c,fo,opt):
     exp_to_file(d,fo,'glob',fullPath=opt['fsys']['export']['fullpath'],
                 sep=opt['fsys']['export']['sep'])
 
-    return
+    try:
+        return exp_dataframe(d)
+    except:
+        return None
 
 
 
@@ -638,7 +705,10 @@ def export_loc(c,fo,opt):
     exp_to_file(d,fo,'loc',fullPath=opt['fsys']['export']['fullpath'],
                 sep=opt['fsys']['export']['sep'])
 
-    return
+    try:
+        return exp_dataframe(d)
+    except:
+        return None
 
 
 ### bnd ###########################################
@@ -698,7 +768,11 @@ def export_bnd(c,fo,opt):
     exp_to_file(d,fo,'bnd',fullPath=opt['fsys']['export']['fullpath'],
                 sep=opt['fsys']['export']['sep'])
 
-    return
+    try:
+        return exp_dataframe(d)
+    except:
+        return None
+
 
 ### rhy ##############################################
 
@@ -1116,19 +1190,31 @@ def export_grp_upd(d,grp):
 #   fullPath: <False> whether or not to write full path of csv file in
 #             R template
 #   sep: <','> column separator
+# OUT:
+#   df: dataframe (same content as csv output)
 def exp_to_file(d,fo,infx,checkFld='fi',facpat='',fullPath=False,sep=','):
     
     #for x in d: #!v
     #    print(x,":",len(d[x])) #!v
     
     if ((checkFld in d) and (len(d[checkFld])>0)):
-        pd.DataFrame(d).to_csv("{}.{}.csv".format(fo,infx),na_rep='NA',index_label=False, index=False, sep=sep)
+        df = exp_dataframe(d)
+        df.to_csv("{}.{}.csv".format(fo,infx),na_rep='NA',index_label=False, index=False, sep=sep)
         exp_R(d,"{}.{}".format(fo,infx),facpat,fullPath,sep)
 
 
+def exp_dataframe(d):
+
+    ''' converts dict to dataframe with alphanumerically sorted columns '''
+
+    df = pd.DataFrame(d)
+    return df.reindex(columns=sorted(df.columns))
+    
+
 def exp_to_file_quoteNonnum(d,fo,infx,checkFld='fi',facpat='',fullPath=False,sep=','):
     if ((checkFld in d) and (len(d[checkFld])>0)):
-        pd.DataFrame(d).to_csv("{}.{}.csv".format(fo,infx),na_rep='NA',index_label=False, index=False, quoting=csv.QUOTE_NONNUMERIC, sep=sep)
+        df = exp_dataframe(d)
+        df.to_csv("{}.{}.csv".format(fo,infx),na_rep='NA',index_label=False, index=False, quoting=csv.QUOTE_NONNUMERIC, sep=sep)
         exp_R(d,"{}.{}".format(fo,infx),facpat,fullPath,sep)
 
 

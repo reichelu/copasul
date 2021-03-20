@@ -16,8 +16,32 @@ import copasul_export as coex
 import os.path as op
 import re
 
+
+##### class #################################################
+
+class Copasul(object):
+
+    r"""prosodic analyses"""
+
+    def __init__(self):
+
+        super().__init__()
+        
+
+    def process(self, config: dict = None, copa: dict = None):
+
+        if dict is None:
+            sys.exit("process() requires config dictionary argument")
+
+        if type(copa) is dict:
+            config["navigate"]["from_scratch"] = False
+            
+        return copasul({"config": config, "copa": copa})
+        
+
 ##### wrapper ###############################################
 # wrapper aroung all copasul analysis steps
+# calls from terminal or from Copasul.process()
 # IN:
 #   args dict
 #       ['config']: string myConfigFile.json
@@ -142,7 +166,7 @@ def copasul(args={}):
         print("export ...")
         #copp.pp_grp_wrapper(copa) #!
         #copa_save(copa)
-        coex.export_main(copa)
+        copa = coex.export_main(copa)
 
     ##### plot ##############################################
     if opt['navigate']['do_plot']:
@@ -232,7 +256,7 @@ def copa_load(opt,infx=''):
 if __name__ == "__main__":
     
     ##### command line input ####################################
-    parser = argparse.ArgumentParser(description="copasul.py -- Intonation analysis tool version 0.8.28")
+    parser = argparse.ArgumentParser(description="copasul.py -- Intonation analysis tool version 1.0.0")
     parser.add_argument('-c','--config', help='myConfigFile.json', required=True)
     args = vars(parser.parse_args())
     copa = copasul(args)
