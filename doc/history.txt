@@ -298,3 +298,9 @@
 	    myFeatSet: "glob", "loc", "bnd", "voice", "gnl_f0","gnl_en","gnl_f0_file", "gnl_en_file",
 	               "rhy_f0","rhy_en","rhy_f0_file","rhy_en_file"
           - output table columns (and dataframe columns in copa["export"]) are now alphanumerically sorted
+          - dict "config.plot.browse.grp", which is processed
+	    in copasul_plot.plot_browse().
+	    This dict contains zero or more "myGroupingKey-myGroupingValue"
+	    pairs. Each "myGroupingKey" should match one of the strings in
+	    "config.fsys.grp.lab". By this the user can select to plot
+	    images with (a combination of) certain grouping values only.

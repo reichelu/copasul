@@ -38,7 +38,18 @@ def plot_browse(copa):
             for ii in myl.numkeys(c):
                 ## channels
                 for i in myl.numkeys(c[ii]):
-                    #if i==0: continue ##!!capss
+                    
+                    # check grouping constraints ("and"-connected)
+                    if "grp" in o:
+                        do_plot = True
+                        for g in o["grp"]:
+                            if ((g not in c[ii][i]["grp"]) or
+                                (c[ii][i]["grp"][g] != o["grp"][g])):
+                                do_plot = False
+                                break
+                        if not do_plot:
+                            continue
+                        
                     plot_browse_channel(copa,x,y,ii,i)
 
 # channelwise processing of plot_browse()
