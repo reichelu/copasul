@@ -1003,7 +1003,7 @@ def styl_discont(t,y,a,b,opt,plotDict={},med=myl.ea(),caller='bnd'):
         corrD = bnd_corrD(ya,yb,yab,za,zb,zab)
         for fld in corrD:
             bnd[x][fld] = corrD[fld]
-
+            
         # fitting error ratios (in terms of RMSE) a.b / a+b
         rmsR = bnd_rmsR(xa,xb,xab,ya,yb,yab,za,zb,zab)
         for fld in rmsR:
@@ -1036,6 +1036,7 @@ def styl_discont(t,y,a,b,opt,plotDict={},med=myl.ea(),caller='bnd'):
 #   all segments
 # OUT:
 #   dict with dcorr, dcorr_pre, dcorr_post
+# TODO: check for true_divide errors
 def bnd_corrD(ya,yb,yab,za,zb,zab):
     return {'corrD': (1-np.corrcoef(yab,zab)[0,1])/2,
             'corrD_pre': (1-np.corrcoef(ya,za)[0,1])/2,
@@ -1700,6 +1701,7 @@ def styl_polyfit_old(x,y,o):
     return c
 
 def styl_polyfit(x,y,o):
+    o = np.int(o)
     if len(x)==0:
         return np.zeros(o+1)
     if len(x)<=o:
@@ -1765,6 +1767,7 @@ def styl_bnd_file(copa,ii,navi,opt):
         t = copa['data'][ii][i]['f0']['t']
 
         fstm = copa['data'][ii][i]['fsys']['aud']['stm']
+        
         myLog("\tfile {}, channel {}".format(fstm, i+1))
         
         # which f0 contour to take (+/- residual)
@@ -1773,7 +1776,6 @@ def styl_bnd_file(copa,ii,navi,opt):
         else:
             y = copa['data'][ii][i]['f0']['y']
 
-            
         # [[bl ml tl]...] medians over complete F0 contour (same length as y)
         med = styl_reg_med(y,opt)
         

@@ -63,8 +63,8 @@ def copasul(args={}):
         copa = coin.copa_init(opt)
     else:
         if ('copa' in args and 
-            (type(copa) is dict) and
-            len(copa.keys())>0):
+            (type(args['copa']) is dict) and
+            len(args['copa'].keys())>0):
             copa = args['copa']
         else:
             copa = copa_load(opt)
@@ -256,7 +256,7 @@ def copa_load(opt,infx=''):
 if __name__ == "__main__":
     
     ##### command line input ####################################
-    parser = argparse.ArgumentParser(description="copasul.py -- Intonation analysis tool version 1.0.0")
+    parser = argparse.ArgumentParser(description="copasul.py -- Intonation analysis tool version 1.0.1")
     parser.add_argument('-c','--config', help='myConfigFile.json', required=True)
     args = vars(parser.parse_args())
     copa = copasul(args)

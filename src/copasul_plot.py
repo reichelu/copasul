@@ -825,15 +825,15 @@ def plot_clst(obj,opt):
             spl[i_row,i_col].set_ylim(ylim_g)
             spl[i_row,i_col].set_xlabel('time (nrm)')
             spl[i_row,i_col].set_ylabel('f (ST)')
-            spl[i_row,i_col].legend(loc='best', fontsize=8)
+            #spl[i_row,i_col].legend(loc='best', fontsize=8)
         else:
             spl[i_row,i_col].plot(tl,yl[i-1,:],cc)
-            spl[i_row,i_col].set_title("l_{}".format(i))
-            spl[i_row,i_col].set_ylim(ylim_l)
+            spl[i_row,i_col].set_title("l_{}".format(i-1))
+            #spl[i_row,i_col].set_ylim(ylim_l)
             plot_data["loc"]["y"][i-1] = yl[i-1,:]
-            if i>1:
-                spl[i_row,i_col].set_xticks([])
-                spl[i_row,i_col].set_yticks([])
+            #if i>1:
+            #    spl[i_row,i_col].set_xticks([])
+            #    spl[i_row,i_col].set_yticks([])
         if i_col==ncol-1:
             i_row+=1
             i_col=0

@@ -776,6 +776,8 @@ def robust_log(y):
 def robust_div(x,y):
     if y == 0:
         return np.nan
+    if np.isnan(x) or np.isnan(y):
+        return np.nan
     return x/y
 
 # mean squared error of vectors
@@ -1966,6 +1968,10 @@ def cellwise(f,x):
 # BEWARE
 def lol(f,opt={}):
     opt = opt_default(opt,{'colvec':False})
+
+    if (type(f) is str and (not is_file(f))):
+        sys.exit(f, ": file does not exist.")
+        
     try:
         x = np.loadtxt(f)
     except:
@@ -3954,8 +3960,8 @@ def webmaus(opt):
 #     True if succesful, else false
 def webservice_output(cmd,opt):
 
-    opt = opt_default(opt,{'fatal':True})
-
+    opt = opt_default(opt,{'fatal': False})
+    
     print(cmd)
     ans = subprocess.check_output(cmd, shell=True, universal_newlines=True)
     print(ans)

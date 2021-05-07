@@ -85,7 +85,7 @@ def clst_main(copa,dom,f_log_in):
 
     cc = obj.cluster_centers_
     ci = obj.labels_
-    
+
     ## validation ############################################
     try:
         copa['clst'][dom]['val'] = sm.silhouette_score(xn,ci,metric='euclidean')

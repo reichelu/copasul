@@ -304,3 +304,6 @@
 	    pairs. Each "myGroupingKey" should match one of the strings in
 	    "config.fsys.grp.lab". By this the user can select to plot
 	    images with (a combination of) certain grouping values only.
+20210507: 1.0.1
+	  - copasul.copasul(): now allowing for warm start feature extraction
+	  
