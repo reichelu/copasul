@@ -815,7 +815,7 @@ def styl_glob_file(copa,ii,opt,reg,err_sum,N):
             # standard features
             copa['data'][ii][i]['glob'][j]['gnl'] = styl_std_feat(ys,opt,to)
             # coefs without intersection for clustering
-            copa['clst']['glob']['c'] = myl.push(copa['clst']['glob']['c'], df[reg]['c'][1:len(df[reg]['c'])])
+            copa['clst']['glob']['c'] = myl.push(copa['clst']['glob']['c'], df[reg]['c'][0:len(df[reg]['c'])-1])
             # reference indices: [file, channel, segment]
             copa['clst']['glob']['ij'] = myl.push(copa['clst']['glob']['ij'],[ii,i,j])
             
