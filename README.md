@@ -1,7 +1,5 @@
 # CoPaSul - Contour-based, parametric, and superpositional intonation stylization
 
-## version 1.0.0
-
 ## author
 
 * Uwe Reichel, Research Institute for Linguistics, Hungarian Academy of Sciences, Budapest
