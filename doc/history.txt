@@ -306,4 +306,8 @@
 	    images with (a combination of) certain grouping values only.
 20210507: 1.0.1
 	  - copasul.copasul(): now allowing for warm start feature extraction
-	  
+20221127: 1.0.2
+          - copasul_styl.styl_loc_fit(): added feature "rmsd" (area under polyval)
+20221223: 1.0.3
+          - copasul_styl.styl_styl_std_feat(): added feature "maxpos"
+	    (relative position of f0 or energy maximum)

@@ -853,6 +853,7 @@ def styl_glob_file(copa,ii,opt,reg,err_sum,N):
 #    ['med'] median
 #    ['iqr'] inter quartile range
 #    ['max'] max
+#    ['maxpos'] relative position of maximum (normalized to [0 1]
 #    ['min'] min
 #    ['dur'] duration in sec
 def styl_std_feat(y,opt,t=[]):
@@ -864,11 +865,12 @@ def styl_std_feat(y,opt,t=[]):
         d = t[1]-t[0]
     else:
         d = myl.smp2sec(len(y),opt['fs']) ##!!t
-
-    return {'m':np.mean(y), 'sd':np.std(y), 'med':np.median(y),
-            'iqr':np.percentile(y,75)-np.percentile(y,25),
-            'max':np.max(y),'min':np.min(y),
-            'dur':d}
+        
+    return {'m': np.mean(y), 'sd': np.std(y), 'med': np.median(y),
+            'iqr': np.percentile(y, 75) - np.percentile(y, 25),
+            'max': np.max(y), 'min': np.min(y),
+            'maxpos': (np.argmax(y) + 1) / len(y),
+            'dur': d}
 
 #### discontinuity stylization
 # for most variables: higher discontinuity is expressed by higher values
@@ -1512,7 +1514,10 @@ def styl_loc_file(copa,ii,opt,rms_sum,N):
 # OUT:
 #   f['c']  polycoefs (descending order)
 #    ['tn'] normalized time
-#    ['y']  stylized f0
+#    ['y'] stylized f0
+#    ['rmsd'] root mean squared deviation (area) under polynomial contour
+#            (in case midline register was subtracted this is the area
+#             between contour and midline)
 #    ['rms'] root mean squared error between original and resynthesized contour
 #           for each polynomial order till opt['ord']; descending as for ['c']
 def styl_loc_fit(t,y,opt):
@@ -1522,6 +1527,7 @@ def styl_loc_fit(t,y,opt):
     f = {'tn':tn}
     f['c'] = styl_polyfit(tn,y,opt['ord'])
     f['y'] = np.polyval(f['c'],tn)
+    f['rmsd'] = myl.rmsd(f['y'])
 
     # errors from 0..opt['ord'] stylization
     # (same order as in f['c'], i.e. descending)

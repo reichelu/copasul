@@ -523,7 +523,7 @@ def export_glob(c,fo,opt):
           'ml_c1','ml_c0','ml_r','ml_rate','ml_m',
           'tl_c1','tl_c0','tl_r','tl_rate','tl_m',
           'rng_c1','rng_c0','rng_r','rng_rate','rng_m',
-          'lab','m','sd','med','iqr','max','min','dur',
+          'lab','m','sd','med','iqr','max','maxpos','min','dur',
           'is_init_chunk','is_fin_chunk','tier',
           'tl_ml_cross_f0', 'tl_ml_cross_t',
           'tl_bl_cross_f0', 'tl_bl_cross_t',
@@ -595,7 +595,7 @@ def export_glob(c,fo,opt):
 def export_loc(c,fo,opt):
     # base set
     cn = ['fi','ci','si','gi','stm','t_on','t_off','lab_ag',
-          'lab_acc','m','sd','med','iqr','max','min','dur',
+          'lab_acc','m','sd','med','iqr','max','maxpos','min','dur',
           'is_init','is_fin','is_init_chunk','is_fin_chunk',
           'tier_ag','tier_acc']
     # normalized values
@@ -616,6 +616,8 @@ def export_loc(c,fo,opt):
            'ml_c0','ml_c1','ml_rate','ml_m',
            'tl_c0','tl_c1','tl_rate','tl_m',
            'rng_c0','rng_c1','rng_rate','rng_m']
+    # area under polyval
+    cn.append("rmsd")
     # poly coef columns for cno and cne dep on polyord
     po = opt['styl']['loc']['ord']
     for i in range(po+1):
@@ -624,7 +626,7 @@ def export_loc(c,fo,opt):
         # over register types
         for x in myl.lists():
             cne.append("res_{}_c{}".format(x,i))
-
+    
     # + extended feature set (gst + decl)
     if 'gst' in c[0][0]['loc'][0].keys():
         for x in cne: cn.append(x)
@@ -663,6 +665,7 @@ def export_loc(c,fo,opt):
                 for o in range(po+1):
                     d["c{}".format(o)].append(c[ii][i]['loc'][j]['acc']['c'][po-o])
                     d["rms_c{}".format(o)].append(c[ii][i]['loc'][j]['acc']['rms'][po-o])
+                d["rmsd"].append(c[ii][i]['loc'][j]['acc']['rmsd'])
                 # gestalt featset
                 if 'bl_rms' in cn:
                     if 'gst' in c[ii][i]['loc'][j]:
@@ -1016,7 +1019,7 @@ def export_voice(c,fo,opt):
 def export_gnl(c,fo,opt,typ):
     typf = "{}_file".format(typ)
     # segment-/file-level
-    cn = ['m','sd','med','iqr','max','min','dur']
+    cn = ['m','sd','med','iqr','max','maxpos','min','dur']
     cnf = cp.deepcopy(cn)
     # en: rms, *_nrm, r_en_f0, and sb (*_nrm and sb for segment level only) 
     # f0: *_nrm, bv for file level only
