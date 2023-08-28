@@ -4,7 +4,7 @@
 
 * Uwe Reichel, Research Institute for Linguistics, Hungarian Academy of Sciences, Budapest
 
-## language, dependencies
+## Dependencies
 
 * python >=3.5
 * matplotlib >= 1.3.1
@@ -14,7 +14,7 @@
 * scikit learn >= 0.17.1
 * tested only for Linux
 
-## installation
+## Installation
 
 * set up a virtual environment `venv_copasul`, activate it, and install requirements. For Linux this works e.g. as follows:
 
@@ -25,7 +25,7 @@
     (venv_copasul) $ pip install -r requirements.txt
     ```
 
-## example call from terminal
+## Example call from terminal
 
 * call of main script `src/copasul.py` with a configuration file
 
@@ -39,7 +39,7 @@ $ source venv_copasul/bin/activate
 * processes input files in `minex/input/`
 * outputs feature tables to `minex/output/`
 
-## example integration into python code
+## Example integration into python code
 
 * see also `src/example_call.py`
 
@@ -54,15 +54,15 @@ fex = copasul.Copasul()
 copa = fex.process(config=opt)
 ```
 
-## further information, license, history
+## Further information, license, history
 
 * manual: `doc/copasul_manual_latest.pdf`
 * example configuration: `minex/config/minex.json`
 * commented configurations: `doc/copasul_commented_config.json.txt`
-* license, disclaimer: `doc/LEGAL`
-* history: `doc/history.txt`
+* [LICENSE](./LICENSE)
+* [CHANGELOG](./CHANGELOG.md)
 
-## reference
+## Reference
 
 Reichel, U.D. (2017). CoPaSul Manual: Contour-based, parametric, and superpositional intonation stylization, arXiv:1612.04765.
 
