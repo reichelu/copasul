@@ -774,8 +774,13 @@ def pp_loc_merge(ag,lab_ag,acc,lab_acc,opt):
                 jj = j[-1]
         if jj < 0:
             continue
-        
-        d = myl.push(d,[ag[i,0],ag[i,1],acc[jj]])
+
+        #!x update acc[jj] -> acc[jj][0]
+        if len(acc[jj]) == 0:
+            a = np.mean([ag[i,]])
+        else:
+            a = acc[jj][0]
+        d = myl.push(d,[ag[i,0],ag[i,1],a])
         lag.append(lab_ag[i])
         lacc.append(lab_acc[jj])
 

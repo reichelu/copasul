@@ -20,7 +20,7 @@
 
     ```
     $ cd /my/Path/to/copasul/
-    $ virtualenv --python="/usr/bin/python3" --no-site-packages venv_copasul
+    $ virtualenv --python="/usr/bin/python3" venv_copasul
     $ source venv_copasul/bin/activate
     (venv_copasul) $ pip install -r requirements.txt
     ```

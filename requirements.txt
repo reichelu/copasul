@@ -1,5 +1,5 @@
-numpy
-scipy
 matplotlib
-sklearn
+numpy
 pandas
+scikit-learn
+scipy
