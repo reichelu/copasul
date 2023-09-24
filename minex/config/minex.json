@@ -27,27 +27,27 @@
     },
     "fsys": {
 	"f0": {
-	    "dir": "./minex/input",
+	    "dir": "../minex/input",
 	    "ext": "f0",
 	    "typ": "tab"
 	},
 	"pulse": {
-	    "dir": "./minex/input",
+	    "dir": "../minex/input",
 	    "ext": "pulse",
 	    "typ": "tab"
 	},
 	"aud": {
-	    "dir": "./minex/input",
+	    "dir": "../minex/input",
 	    "typ": "wav",
 	    "ext": "wav"
 	},
 	"annot": {
-	    "dir": "./minex/input",
+	    "dir": "../minex/input",
 	    "typ": "TextGrid",
 	    "ext": "TextGrid"
 	},
 	"export": {
-	    "dir": "./minex/output",
+	    "dir": "../minex/output",
 	    "stm": "test",
 	    "csv": true,
 	    "sep": ",",
@@ -57,7 +57,7 @@
 	    "f0_resyn": false
 	},
 	"pic": {
-            "dir": "./minex/output",
+            "dir": "../minex/output",
             "stm": ""
         },
 	"grp": {
