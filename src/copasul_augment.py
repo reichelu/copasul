@@ -905,7 +905,7 @@ def aug_glob(ty,y,annot,opt,i,fstm,f,lng,spec):
 def aug_glob_seg(c,tc,t,to,pt,pto,fto,opt):
 
     opt = cp.deepcopy(opt)
-    opt['styl']['bnd']['cross_chunk']=1
+    opt['styl']['bnd']['cross_chunk']=True
     gopt = opt['augment']['glob']
 
     # no IP -> add file end
@@ -979,11 +979,11 @@ def aug_glob_seg(c,tc,t,to,pt,pto,fto,opt):
 def aug_glob_fv(ty,y,annot,opt,i,fstm,f,lng,spec):
     msg = aug_msg('glob',f)
 
-    # need to force cross_chunk==1
+    # need to force cross_chunk==True
     # (otherwise for trend features pauses at chunk boundaries
     #  are neglected)
     opt = cp.deepcopy(opt)
-    opt['styl']['bnd']['cross_chunk']=1
+    opt['styl']['bnd']['cross_chunk']=True
     gopt = opt['augment']['glob']
 
     ## final fallback: file bnd

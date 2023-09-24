@@ -2866,7 +2866,7 @@ def check_var(c):
             if ((dom not in copa['clst']) or
                 ('c' not in copa['clst'][dom]) or
                 len(copa['clst'][dom]['c'])==0):
-                sys.exit("ERROR! Clustering of {} contours requires stylization step.\nSet navigate.do_styl_{} to 1.".format(dom,dom))
+                sys.exit("ERROR! Clustering of {} contours requires stylization step.\nSet navigate.do_styl_{} to true.".format(dom,dom))
 
         # styl - dom = gnl|glob|loc|bnd|rhy...
         elif s['step']=='styl':
@@ -2877,31 +2877,31 @@ def check_var(c):
             #       copa is initialized for single varying ii and i)
             ii,i,err = check_var_numkeys(copa)
             if err:
-                sys.exit("ERROR! {} feature extraction requires preprocessing step.\nSet navigate.do_preproc to 1".format(dom))
+                sys.exit("ERROR! {} feature extraction requires preprocessing step.\nSet navigate.do_preproc to true".format(dom))
 
             # preproc fields available?
             if check_var_copa_preproc(copa,ii,i):
-                sys.exit("ERROR! {} feature extraction requires preprocessing step.\nSet navigate.do_preproc to 1".format(dom))
+                sys.exit("ERROR! {} feature extraction requires preprocessing step.\nSet navigate.do_preproc to true".format(dom))
 
             # domain field initialization required? (default True)
             if (('req' not in s) or (s['req']==True)):
                 if check_var_copa_dom(copa,dom,ii,i):
-                    sys.exit("ERROR! {} feature extraction requires preprocessing step.\nSet navigate.do_preproc to 1".format(dom))
+                    sys.exit("ERROR! {} feature extraction requires preprocessing step.\nSet navigate.do_preproc to true".format(dom))
 
             # dependencies on other subdicts
             if 'dep' in s:
                 for x in s['dep']:
                     if check_var_copa_dom(copa,x,ii,i):
-                        sys.exit("ERROR! {} feature extraction requires {} features.\nSet navigate.do_{} to 1".format(dom,x,x))
+                        sys.exit("ERROR! {} feature extraction requires {} features.\nSet navigate.do_{} to true".format(dom,x,x))
                     
             # ideosyncrasies
             if re.search('^rhy',dom):
                 if ('rate' not in copa['data'][ii][i]):
-                    sys.exit("ERROR! {} feature extraction requires an update of the preprocessing step. Set navigate.do_preproc to 1".format(dom))
+                    sys.exit("ERROR! {} feature extraction requires an update of the preprocessing step. Set navigate.do_preproc to true".format(dom))
             if dom=='bnd':
                 if ((copa['config']['styl']['bnd']['residual']) and
                     ('r' not in copa['data'][0][0]['f0'])):
-                    sys.exit("ERROR! {} feature extraction based on f0 residuals requires a previous global contour stylization so that the register can be subtracted from the f0 contour. Set navigate.do_styl_glob to 1, or set styl.bnd.residual to 0".format(dom))
+                    sys.exit("ERROR! {} feature extraction based on f0 residuals requires a previous global contour stylization so that the register can be subtracted from the f0 contour. Set navigate.do_styl_glob to true, or set styl.bnd.residual to false".format(dom))
 
 ## check blocks called by check_var()
 # preproc fields given?

@@ -1,63 +1,63 @@
 {
     "fs": 100,
     "navigate": {
-	"from_scratch": 1,
-	"overwrite_config": 1,
-	"do_diagnosis": 0,
-	"do_augment_chunk": 0,
-	"do_augment_syl": 0,
-	"do_augment_glob": 0,
-	"do_augment_loc": 0,
-	"do_preproc": 1,
-	"do_styl_glob": 1,
-	"do_styl_loc": 1,
-	"do_styl_loc_ext": 1,
-	"do_styl_gnl_f0": 1,
-	"do_styl_gnl_en": 1,
-	"do_styl_bnd": 1,
-	"do_styl_bnd_win": 1,
-	"do_styl_bnd_trend": 1,
-	"do_styl_rhy_f0": 1,
-	"do_styl_rhy_en": 1,
-	"do_styl_voice": 1,
-	"do_clst_loc": 0,
-	"do_clst_glob": 0,
-	"do_export": 1,
-	"do_plot": 0
+	"from_scratch": true,
+	"overwrite_config": true,
+	"do_diagnosis": false,
+	"do_augment_chunk": false,
+	"do_augment_syl": false,
+	"do_augment_glob": false,
+	"do_augment_loc": false,
+	"do_preproc": true,
+	"do_styl_glob": true,
+	"do_styl_loc": true,
+	"do_styl_loc_ext": true,
+	"do_styl_gnl_f0": true,
+	"do_styl_gnl_en": true,
+	"do_styl_bnd": true,
+	"do_styl_bnd_win": true,
+	"do_styl_bnd_trend": true,
+	"do_styl_rhy_f0": true,
+	"do_styl_rhy_en": true,
+	"do_styl_voice": true,
+	"do_clst_loc": true,
+	"do_clst_glob": true,
+	"do_export": true,
+	"do_plot": false
     },
     "fsys": {
 	"f0": {
-	    "dir": "../minex/input",
+	    "dir": "./minex/input",
 	    "ext": "f0",
 	    "typ": "tab"
 	},
 	"pulse": {
-	    "dir": "../minex/input",
+	    "dir": "./minex/input",
 	    "ext": "pulse",
 	    "typ": "tab"
 	},
 	"aud": {
-	    "dir": "../minex/input",
+	    "dir": "./minex/input",
 	    "typ": "wav",
 	    "ext": "wav"
 	},
 	"annot": {
-	    "dir": "../minex/input",
+	    "dir": "./minex/input",
 	    "typ": "TextGrid",
 	    "ext": "TextGrid"
 	},
 	"export": {
-	    "dir": "../minex/output",
+	    "dir": "./minex/output",
 	    "stm": "test",
-	    "csv": 1,
+	    "csv": true,
 	    "sep": ",",
-	    "summary": 1,
-	    "f0_preproc": 0,
-	    "f0_residual": 0,
-	    "f0_resyn": 0
+	    "summary": true,
+	    "f0_preproc": false,
+	    "f0_residual": false,
+	    "f0_resyn": false
 	},
 	"pic": {
-            "dir": "../minex/output",
+            "dir": "./minex/output",
             "stm": ""
         },
 	"grp": {
@@ -151,7 +151,7 @@
 	}
     },
     "preproc": {
-	"st": 1,
+	"st": true,
 	"base_prct": 5,
 	"smooth": {
 	    "mtd": "sgolay",
@@ -171,7 +171,7 @@
 	    "l": 0.15,
 	    "l_ref": 5,
 	    "n": -1,
-	    "fbnd": 0,
+	    "fbnd": false,
 	    "min_pau_l": 0.5,
 	    "min_chunk_l": 0.2,
 	    "flt": {
@@ -188,7 +188,7 @@
 	    "d_min": 0.1,
 	    "e_min": 0.16,
 	    "flt": {
-		"f": [200,3500],
+		"f": [200, 3500],
 		"btype": "band",
 		"ord": 5
 	    }
@@ -211,9 +211,9 @@
 		}
 	    },
 	    "wgt_mtd": "silhouette",
-	    "min_l": 1,
+	    "min_l": 1.0,
 	    "cntr_mtd": "seed_prct",
-	    "use_gaps": 1,
+	    "use_gaps": true,
 	    "heuristics": "ORT"
 	},
 	"loc": {
@@ -281,14 +281,14 @@
 		"tl": 95
 	    },
 	    "win": 0.6,
-	    "cross_chunk": 1
+	    "cross_chunk": true
 	},
 	"gnl_en": {
 	    "alpha": 0.95,
 	    "sts": 0.01,
 	    "win": 0.05,
 	    "wintyp": "hamming",
-	    "winparam": "",
+	    "winparam": null,
 	    "sb": {
 		"domain": "freq",
 		"win": 0.03,
@@ -307,7 +307,7 @@
 		"lb": 0,
 		"ub": 10,
 		"nsm": 3,
-		"rmo": 1,
+		"rmo": true,
 		"wgt": {
 		    "rb": 1
 		}
@@ -319,7 +319,7 @@
 		"sts": 0.01,
 		"win": 0.05,
 		"wintyp": "hamming",
-		"winparam": ""
+		"winparam": null
 	    },
 	    "rhy": {
 		"wintyp": "kaiser",
@@ -327,7 +327,7 @@
 		"lb": 0,
 		"ub": 10,
 		"nsm": 3,
-		"rmo": 1,
+		"rmo": true,
 		"wgt": {
 		    "rb": 1
 		}
@@ -344,9 +344,9 @@
 		"n_init": 10
 	    },
 	    "meanShift": {
-		"bin_seeding": "False",
+		"bin_seeding": false,
 		"min_bin_freq": 1,
-		"bandwidth": 0
+		"bandwidth": null
 	    },
 	    "estimate_bandwidth": {
 		"quantile": 0.3,
@@ -362,9 +362,9 @@
 		"n_init": 10
 	    },
 	    "meanShift": {
-		"bin_seeding": "False",
+		"bin_seeding": false,
 		"min_bin_freq": 1,
-		"bandwidth": 0
+		"bandwidth": null
 	    },
 	    "estimate_bandwidth": {
 		"quantile": 0.3,
@@ -377,51 +377,55 @@
             "time": "final",
             "type": {
                 "loc": {
-                    "decl": 0,
-                    "acc": 0
+                    "decl": false,
+                    "acc": false
                 },
                 "glob": {
-                    "decl": 0
+                    "decl": false
                 },
                 "rhy_f0": {
-                    "rhy": 0
+                    "rhy": false
                 },
                 "rhy_en": {
-                    "rhy": 0
+                    "rhy": false
                 },
                 "complex": {
-                    "superpos": 0,
-                    "gestalt": 0,
-		    "bnd": 1
+                    "superpos": true,
+                    "gestalt": true,
+		    "bnd": false
                 },
                 "clst": {
-                    "contours": 1
+                    "contours": false
                 }
             },
-            "save": 0
+	    "grp": {
+		"dialog": "dialogId",
+		"turn": "turnId"
+	    },
+            "save": false
 	},
         "grp": {
             "type": {
                 "loc": {
-                    "decl": 0,
-                    "acc": 0
+                    "decl": false,
+                    "acc": false
                 },
                 "glob": {
-                    "decl": 0
+                    "decl": false
                 }
             },
             "grouping": [
 		"spk"
             ],
-	    "save": 0
+	    "save": false
         },
         "res": {
             "type": {
                 "clst": {
-                    "contours": 0
+                    "contours": false
                 }
             },
-            "save": 0
+            "save": false
         }
     }
 }

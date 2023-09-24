@@ -8,53 +8,53 @@
     "navigate": {
 	# +/- start from scratch (erase all analyses
 	# stored in fsys:export:dir+stm.pickle file)
-	"from_scratch": 0,
+	"from_scratch": false,
 	# overwrite config settings stored in .pickle file
 	# by current config file
-	"overwrite_config": 1,
+	"overwrite_config": true,
 	## annotation #####################
 	# chunking
-	"do_augment_chunk": 0,
+	"do_augment_chunk": false,
 	# syllable nucleus + boundary extraction
-	"do_augment_syl": 0,
+	"do_augment_syl": false,
 	# IP extraction
-	"do_augment_glob": 0,
+	"do_augment_glob": false,
 	# accent extraction
-	"do_augment_loc": 0,
+	"do_augment_loc": false,
 	## feature extraction ############
 	# f0, energy preprocessing
-	"do_preproc": 1,
+	"do_preproc": true,
 	# IP level stylization
-	"do_styl_glob": 1,
+	"do_styl_glob": true,
 	# accent(-group) level stylization
-	"do_styl_loc": 1,
+	"do_styl_loc": true,
 	# extended accent feature set
-	"do_styl_loc_ext": 1,
+	"do_styl_loc_ext": true,
 	# general f0 features
-	"do_styl_gnl_f0": 1,
+	"do_styl_gnl_f0": true,
 	# general energy features
-	"do_styl_gnl_en": 1,
+	"do_styl_gnl_en": true,
 	# boundary features
-	"do_styl_bnd": 1,
+	"do_styl_bnd": true,
 	# boundary features; constant window lengths
-	"do_styl_bnd_win": 0,
+	"do_styl_bnd_win": false,
 	# boundary trend features derived from entire signal 
-	"do_styl_bnd_trend": 0,
+	"do_styl_bnd_trend": false,
 	# rhythm features from f0 contour
-	"do_styl_rhy_f0": 1,
+	"do_styl_rhy_f0": true,
 	# rhythm features from energy contour
-	"do_styl_rhy_en": 1,
+	"do_styl_rhy_en": true,
 	# cluster accent poly coefs
-	"do_clst_loc": 1,
+	"do_clst_loc": true,
 	# cluster IP poly coefs
-	"do_clst_glob": 1,
+	"do_clst_glob": true,
         # voice quality features
-	"do_voice": 1,
+	"do_voice": true,
 	## export ########################
 	# generate .csv feature tables and .R template files
-	"do_export": 1,
+	"do_export": true,
 	# plot
-	"do_plot": 0
+	"do_plot": false
     },
     ## file system specifications: directory, type, extension
     # aud/annot/f0 directories must contain the same number of files
@@ -90,15 +90,15 @@
 	    # stem of output files
 	    "stm": "myOutputFileStem",
 	    # output csv feature tables
-	    "csv": 1,
+	    "csv": true,
 	    # column separator in csv table
-	    "sep": ";",
+	    "sep": ",",
 	    # output summary statistics per file
-	    "summary": 1,
+	    "summary": true,
 	    # output preprocessed f0 contours
-	    "f0_preproc": 0,
+	    "f0_preproc": false,
 	    # output f0 contour after declination substraction
-	    "f0_residual": 0
+	    "f0_residual": false
 	},
 	# pictures
 	"pic": {
@@ -157,7 +157,7 @@
 		"tier_out_stm": "SYL",
 		# if 1: output only syllable nucleus tier(s)
 		# if 0: output both syllable nucleus and boundary tier(s)
-		"ncl_only": 0
+		"ncl_only": false
 	    },
 	    "glob": {
 		"tier_parent": ["CHUNK_1", "CHUNK_2"],
@@ -258,7 +258,7 @@
 	    "m": "mean"
 	},
 	# semitone conversion
-	"st": 1,
+	"st": true,
 	# ... according to base value (as percentile)
 	# 0 means: base value is 1 Hz
 	# here: separately for each channel.
@@ -306,7 +306,7 @@
         },
 	# only output accent-related features that are available across
 	# all feature sets
-	"loc_sync": 1,
+	"loc_sync": true,
 	# if both tier_acc and tier_ag are specified below, i.e. for accent group AG
 	# stylization both, the AG and its accent position ACC are considered,
 	# then "skip" skips all AGs with more than one ACC, "left" keeps the first ACC,
@@ -327,7 +327,7 @@
 	    # -1 for unknown
 	    "n": -1,
 	    # force to be utterance-initial and -final pauses 
-	    "fbnd": 1,
+	    "fbnd": true,
 	    # minimum pause length (sec)
 	    # shorter pause will be bridged by adjacent chunks
 	    "min_pau_l": 0.5,
@@ -412,7 +412,7 @@
 	    # assignment assymmetry: the higher, the fewer boundaries
             "prct": 87,
 	    # assign a prosodic boundary to each found gap
-            "use_gaps": 1,
+            "use_gaps": true,
 	    # exploit features of ORT tier (if available e.g. from MAUS
 	    # output): hand-crafted heuristics, e.g. no boundary is set
 	    # after a word with duration < 0.1 sec (as articles etc.)
@@ -488,7 +488,7 @@
             "heuristics": "ORT",
 	    # per default absolute polycoef values are used. This can be
 	    # switched off by setting c_no_abs to 1
-	    "c_no_abs": 0
+	    "c_no_abs": false
 	}
     },
     ## feature extraction options
@@ -542,10 +542,10 @@
 	    # window length for bnd_win features (sec)
 	    "win": 1,
 	    # +/- calculate f0 discontinuities across chunks
-	    # if chunk = turn, set to 0
+	    # if chunk = turn, set to false
 	    # crucial decision, since in the same file chunks
 	    # may be turns and turn parts
-	    "cross_chunk": 0
+	    "cross_chunk": false
 	},
 	## standard energy features
         "gnl_en": {
@@ -578,7 +578,7 @@
 	    # signal window type
 	    "wintyp": "hamming",
 	    # window paramaters dependent on wintyp
-	    "winparam": ""
+	    "winparam": null
         },
 	## f0 rhythm features
 	"rhy_f0": {
@@ -597,7 +597,7 @@
 		# number of spectral moments to be outputted
 		"nsm": 3,
 		# +/- remove constant DCT offset (representing mean spectral energy)
-		"rmo": 1,
+		"rmo": true,
 		# rate weight options
 		"wgt": {
 		    # catch bandwidth around extraced rate (in Hz)
@@ -618,7 +618,7 @@
 		# window type
 		"wintyp": "hamming",
 		# its parameters
-		"winparam": ""
+		"winparam": null
 	    },
 	    # DCT options (as for rhy_f0)
 	    "rhy": {
@@ -627,7 +627,7 @@
 		"lb": 0,
 		"ub": 8,
 		"nsm": 3,
-		"rmo": 1,
+		"rmo": true,
 		"wgt": {
 		    "rb": 1
 		}
@@ -654,12 +654,12 @@
 	    # mean shift for automatically derived cluster number
 	    "meanShift": {
 		# grid to reduce num of seed candidates
-		"bin_seeding": "False",
+		"bin_seeding": false,
 		# num of items in bin, works with bin_seeding
 		"min_bin_freq": 1,
 		# bandwidth used in the RBF kernel
-		# 0: estimaed by estimate_bandwidth
-		"bandwidth": 0
+		# null: estimaed by estimate_bandwidth
+		"bandwidth": null
 	    },
 	    # bandwidth estimation for meanShift
 	    "estimate_bandwidth": {
@@ -681,7 +681,7 @@
 	    "meanShift": {
 		"bin_seeding": "False",
 		"min_bin_freq": 1,
-		"bandwidth": 0
+		"bandwidth": null
 	    },
 	    "estimate_bandwidth": {
 		"quantile": 0.3,
@@ -699,47 +699,47 @@
             "type": {
 		# accent: shape, declination
                 "loc": {
-                    "decl": 0,
-                    "acc": 0
+                    "decl": false,
+                    "acc": false
                 },
 		# IP declination
                 "glob": {
-                    "decl": 0
+                    "decl": false
                 },
 		# DCT coefs
                 "rhy_f0": {
-                    "rhy": 0
+                    "rhy": false
                 },
                 "rhy_en": {
-                    "rhy": 0
+                    "rhy": false
                 },
 		# complex plots
                 "complex": {
 		    # superposition of IP and accent-related shapes
-                    "superpos": 0,
+                    "superpos": false,
 		    # IP and accent deviations
-                    "gestalt": 0,
+                    "gestalt": false,
 		    # boundaries
-		    "bnd": 0
+		    "bnd": false
                 },
 		# plot global and local contour classes
                 "clst": {
-                    "contours": 0
+                    "contours": false
                 }
             },
 	    # save plot
-            "save": 0
+            "save": false
 	},
 	# plot by grouping
         "grp": {
 	    # what to plot
             "type": {
                 "loc": {
-                    "decl": 0,
-                    "acc": 0
+                    "decl": false,
+                    "acc": false
                 },
                 "glob": {
-                    "decl": 0
+                    "decl": false
                 }
             },
 	    # one plot for each grouping level (mean value) of 'lng'
@@ -747,7 +747,7 @@
 		"lng"
             ],
 	    # save plot
-	    "save": 0
+	    "save": false
         }
     }
 }

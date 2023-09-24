@@ -1,4 +1,7 @@
-# Changelog
+# CHANGELOG
+
+## Version 1.0.5 (2023-09-24)
+* `copasul_init.py`, `config.json`: for boolean parameters replaced `0, 1` by `false, true`. Backward compatible to previous config-s.
 
 ## Version 1.0.4 (2023-08-28)
 * `copasul_preproc.pp_loc_merge()`: fixed numpy `VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences`

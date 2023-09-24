@@ -396,7 +396,7 @@ def dct_trunc(f,ci,opt):
 #     (1st column: time, other columns: energy)
 def wrapper_energy(f,opt = {}, fs = -1):
     opt = myl.opt_default(opt,{'wintyp':'hamming',
-                               'winparam':'',
+                               'winparam':None,
                                'sts':0.01,
                                'win':0.05,
                                'do_preproc': True,
@@ -519,7 +519,7 @@ def pp_smooth(y,opt):
 # OUT:
 #   y ndarray energy contour
 def sig_energy(x,opt):
-    dflt={'wintyp':'hamming','winparam':'','sts':0.01,'win':0.05}
+    dflt={'wintyp':'hamming','winparam':None,'sts':0.01,'win':0.05}
     opt = myl.opt_default(opt,dflt)
     # stepsize and winlength in samples
     sts = round(opt['sts']*opt['fs'])
@@ -537,12 +537,14 @@ def sig_energy(x,opt):
 # IN:
 #   typ: any type supported by scipy.signal.get_window()
 #   lng: <1> length
-#   par: <''> additional parameters as string, scalar, list etc
+#   par: None additional parameters as string, scalar, list etc
 # OUT:
 #   window array
-def sig_window(typ,l=1,par=''):
+def sig_window(typ,l=1,par=None):
     if typ=='none' or typ=='const':
         return np.ones(l)
+    if par is None:
+        par = ""
     if ((type(par) is str) and (len(par) == 0)):
         return sis.get_window(typ,l)
     return sis.get_window((typ,par),l)

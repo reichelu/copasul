@@ -1,3 +1,4 @@
+audeer
 matplotlib
 numpy
 pandas

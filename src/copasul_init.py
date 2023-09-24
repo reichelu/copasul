@@ -95,8 +95,8 @@ def copa_opt_init(conf):
     # dependencies
     if re.search('^seed',opt['augment']['glob']['cntr_mtd']):
         if not opt['augment']['glob']['use_gaps']:
-            print('Init: IP augmentation by means of {} centroid method requires value 1 for use_gaps. Changed to 1.'.format(opt['augment']['glob']['cntr_mtd']))
-            opt['augment']['glob']['use_gaps']=1
+            print('Init: IP augmentation by means of {} centroid method requires value true for use_gaps. Changed to true.'.format(opt['augment']['glob']['cntr_mtd']))
+            opt['augment']['glob']['use_gaps'] = True
 
     # force at least 1 ncl and accent to be in file. Otherwise creation summary statistics table fails
     # due to unequal number of rows
@@ -154,7 +154,7 @@ def copa_opt_init(conf):
         if opt['navigate']["do_augment_{}".format(x)]:
             opt['navigate']['do_augment'] = True
             break
-
+        
     # full path export (default False; transform [0,1] to boolean)
     if 'fullpath' not in opt['fsys']['export']:
         opt['fsys']['export']['fullpath']=False
@@ -173,7 +173,7 @@ def copa_opt_init(conf):
 
     # plot options
     if 'color' not in opt['plot']:
-        opt['plot']['color'] = 1
+        opt['plot']['color'] = True
     for x in ['browse', 'grp']:
         if 'color' not in opt['plot'][x]:
             opt['plot'][x]['color'] = opt['plot']['color']
@@ -209,36 +209,36 @@ def copa_opt_init(conf):
 def copasul_default():
     return {"fs": 100,
             "navigate": {
-	        "do_preproc": 1,
-	        "do_styl_glob": 1,
-	        "from_scratch": 1,
-	        "overwrite_config": 0,
-	        "do_diagnosis": 0,
-	        "do_augment_chunk": 0,
-	        "do_augment_syl": 0,
-	        "do_augment_glob": 0,
-	        "do_augment_loc": 0,
-	        "do_styl_loc": 1,
-	        "do_styl_gnl_f0": 0,
-	        "do_styl_gnl_en": 0,
-	        "do_styl_loc_ext": 0,
-	        "do_styl_bnd": 0,
-	        "do_styl_bnd_win": 0,
-	        "do_styl_bnd_trend": 0,
-	        "do_styl_voice": 0,
-	        "do_clst_loc": 1,
-	        "do_clst_glob": 1,
-	        "do_styl_rhy_f0": 1,
-	        "do_styl_rhy_en": 1,
-	        "do_export": 1,
-	        "do_plot": 0,
-	        "do_precheck": 0,
-	        "do_styl_glob_ext": 0,
-	        "do_rhy_f0": 0,
+	        "do_preproc": True,
+	        "do_styl_glob": True,
+	        "from_scratch": True,
+	        "overwrite_config": False,
+	        "do_diagnosis": False,
+	        "do_augment_chunk": False,
+	        "do_augment_syl": False,
+	        "do_augment_glob": False,
+	        "do_augment_loc": False,
+	        "do_styl_loc": True,
+	        "do_styl_gnl_f0": False,
+	        "do_styl_gnl_en": False,
+	        "do_styl_loc_ext": False,
+	        "do_styl_bnd": False,
+	        "do_styl_bnd_win": False,
+	        "do_styl_bnd_trend": False,
+	        "do_styl_voice": False,
+	        "do_clst_loc": True,
+	        "do_clst_glob": True,
+	        "do_styl_rhy_f0": True,
+	        "do_styl_rhy_en": True,
+	        "do_export": True,
+	        "do_plot": False,
+	        "do_precheck": False,
+	        "do_styl_glob_ext": False,
+	        "do_rhy_f0": False,
 	        "do_rhy_en": 0
             },
             "preproc": {
-	        "st": 1,
+	        "st": True,
 	        "base_prct": 5,
 	        "smooth": {
 	            "mtd": "sgolay",
@@ -251,7 +251,7 @@ def copasul_default():
 	        },
 	        "nrm_win": 0.6,
 	        "point_win": 0.3,
-	        "loc_sync": 0,
+	        "loc_sync": False,
 	        "loc_align": "skip"
             },
             "styl": {
@@ -286,7 +286,7 @@ def copasul_default():
 		        "tl": 90
 	            },
 	            "win": 1,
-	            "cross_chunk": 1,
+	            "cross_chunk": True,
 	            "residual": 0
 	        },
 	        "gnl": {
@@ -303,7 +303,7 @@ def copasul_default():
 	            "sts": 0.01,
 	            "win": 0.05,
 	            "wintyp": "hamming",
-	            "winparam": "",
+	            "winparam": None,
 	            "centering": 1
 	        },
 	        "rhy_f0": {
@@ -316,7 +316,7 @@ def copasul_default():
 		        "lb": 0,
 		        "ub": 10,
 		        "nsm": 3,
-		        "rmo": 0,
+		        "rmo": False,
 		        "peak_prct": 80,
 		        "wgt": {
 		            "rb": 1
@@ -329,8 +329,8 @@ def copasul_default():
 		        "sts": 0.01,
 		        "win": 0.05,
 		        "wintyp": "hamming",
-		        "winparam": "",
-		        "scale": 1
+		        "winparam": None,
+		        "scale": True
 	            },
 	            "rhy": {
 		        "wintyp": "kaiser",
@@ -338,7 +338,7 @@ def copasul_default():
 		        "lb": 0,
 		        "ub": 10,
 		        "nsm": 3,
-		        "rmo": 0,
+		        "rmo": False,
 		        "peak_prct": 80,
 		        "wgt": {
 		            "rb": 1
@@ -364,9 +364,9 @@ def copasul_default():
 		        "n_init": 10
 	            },
 	            "meanShift": {
-		        "bin_seeding": "False",
+		        "bin_seeding": False,
 		        "min_bin_freq": 1,
-		        "bandwidth": 0
+		        "bandwidth": None
 	            },
 	            "estimate_bandwidth": {
 		        "quantile": 0.3,
@@ -382,9 +382,9 @@ def copasul_default():
 		        "n_init": 10
 	            },
 	            "meanShift": {
-		        "bin_seeding": "False",
+		        "bin_seeding": False,
 		        "min_bin_freq": 1,
-		        "bandwidth": 0
+		        "bandwidth": None
 	            },
 	            "estimate_bandwidth": {
 		        "quantile": 0.3,
@@ -398,10 +398,10 @@ def copasul_default():
 	            "l": 0.1524,
 	            "l_ref": 5,
 	            "n": -1,
-	            "fbnd": 0,
+	            "fbnd": False,
 	            "min_pau_l": 0.5,
 	            "min_chunk_l": 0.2,
-	            "margin": 0,
+	            "margin": 0.0,
 	            "flt": {
 		        "btype": "low",
 		        "f": 8000,
@@ -431,7 +431,7 @@ def copasul_default():
 	            "wgt_mtd": "silhouette",
 	            "cntr_mtd": "seed_prct",
 	            "min_l": 0.5,
-	            "use_gaps": 1,
+	            "use_gaps": True,
 	            "unit": "file"
 	        },
 	        "loc": {
@@ -447,7 +447,7 @@ def copasul_default():
 	            "acc_select": "max",
 	            "ag_select": "max",
 	            "unit": "file",
-	            "c_no_abs": 0,
+	            "c_no_abs": False,
 	            "force": 0
 	        }
             },
@@ -456,52 +456,52 @@ def copasul_default():
 	            "time": "final",
 	            "type": {
 		        "loc": {
-		            "decl": 0,
-		            "acc": 0
+		            "decl": False,
+		            "acc": False
 		        },
 		        "glob": {
-		            "decl": 0
+		            "decl": False
 		        },
 		        "rhy_f0": {
-		            "rhy": 0
+		            "rhy": False
 		        },
 		        "rhy_en": {
-		            "rhy": 0
+		            "rhy": False
 		        },
 		        "complex": {
-		            "superpos": 0,
-		            "gestalt": 0,
-		            "bnd": 0,
-		            "bnd_win": 0,
-		            "bnd_trend": 0
+		            "superpos": False,
+		            "gestalt": False,
+		            "bnd": False,
+		            "bnd_win": False,
+		            "bnd_trend": False
 		        },
 		        "clst": {
-		            "contours": 0
+		            "contours": False
 		        }
 	            },
 	            "single_plot": {
-		        "active": 0,
+		        "active": False,
 		        "file_i": 0,
 		        "channel_i": 0,
 		        "segment_i": 0
 	            },
-	            "verbose": 0,
-	            "save": 0
+	            "verbose": False,
+	            "save": False
 	        },
 	        "grp": {
 	            "type": {
 		        "loc": {
-		            "decl": 0,
-		            "acc": 0
+		            "decl": False,
+		            "acc": False
 		        },
 		        "glob": {
-		            "decl": 0
+		            "decl": False
 		        }
 	            },
 	            "grouping": [
 		        "lab"
 	            ],
-	            "save": 0
+	            "save": False
 	        }
             },
             "fsys": {
@@ -595,12 +595,12 @@ def copasul_default():
 	        "export": {
 	            "dir": "",
 	            "stm": "copasul",
-	            "csv": 1,
+	            "csv": True,
 	            "sep": ",",
-	            "summary": 0,
-	            "f0_preproc": 0,
-	            "f0_residual": 0,
-	            "f0_resyn": 0
+	            "summary": False,
+	            "f0_preproc": False,
+	            "f0_residual": False,
+	            "f0_resyn": False
 	        },
 	        "pic": {
 	            "dir": "",

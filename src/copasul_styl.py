@@ -2044,7 +2044,7 @@ def styl_rhy_file(copa,ii,fld,opt):
 def styl_speech_rhythm(y,r={},opt={},copaConfig={}):
     err=0
     dflt={}
-    dflt['sig']= {'sts':0.01,'win':0.05,'wintyp':'hamming','winparam':''}
+    dflt['sig']= {'sts':0.01,'win':0.05,'wintyp':'hamming','winparam':None}
     dflt['rhy'] = {'wintyp':'kaiser','winparam':1,'nsm':3,
                    'rmo':True,'lb':0,'ub':0,'wgt':{'rb':1}}
     for x in list(dflt.keys()):

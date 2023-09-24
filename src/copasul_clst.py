@@ -54,7 +54,7 @@ def clst_main(copa,dom,f_log_in):
 
     ## clustering ####################################################
     if ((mtd=='meanShift') or (copt['init']=='meanShift')):
-        if opt['meanShift']['bandwidth']==0:
+        if opt['meanShift']['bandwidth'] is None or opt['meanShift']['bandwidth']==0:
             try:
                 bw = sc.estimate_bandwidth(xn, quantile = bopt['quantile'],
                                            n_samples = min([bopt['n_samples'],len(xn)]))
