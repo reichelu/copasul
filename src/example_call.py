@@ -16,3 +16,4 @@ copa = fex.process(config=opt)
 # access output, e.g. local contour feature set
 print("local contour features:")
 print(copa["export"]["loc"])
+

@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## Version 1.0.6 (2023-09-30)
+* all code pep8-ified
+* docstrings unified
+
 ## Version 1.0.5 (2023-09-24)
 * `copasul_init.py`, `config.json`: for boolean parameters replaced `0, 1` by `false, true`. Backward compatible to previous config-s.
 

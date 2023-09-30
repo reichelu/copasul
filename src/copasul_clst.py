@@ -1,7 +1,7 @@
 
-# author: Uwe Reichel, Budapest, 2016
 
-import mylib as myl
+# author: Uwe Reichel, Budapest, 2016
+import copasul_utils as utils
 import numpy as np
 import scipy as si
 import sklearn.cluster as sc
@@ -15,23 +15,29 @@ import math
 max_ns = 1000
 
 
-# IN:
-#  dict copa
-#  dom := 'glob'|'loc'
-# OUT:
-#  copa
-#    .data
-#       .<dom>
-#           .ci  # clusterIdx
-#    .clst
-#       .<dom>
-#           .cntr # matrix of centroids (one per row)
-def clst_main(copa,dom,f_log_in):
+def clst_main(copa, dom, f_log_in):
+
+    '''
+    
+    Args:
+     dict copa
+     dom := 'glob'|'loc'
+    
+    Returns:
+     copa
+       .data
+          .<dom>
+              .ci      clusterIdx
+       .clst
+          .<dom>
+              .cntr     matrix of centroids (one per row)
+    '''
+
     global f_log
     f_log = f_log_in
 
-    myl.check_var({'var':copa,'env':'copasul',
-                   'spec':{'step':'clst','dom':dom}})
+    utils.check_var({'var': copa, 'env': 'copasul',
+                     'spec': {'step': 'clst', 'dom': dom}})
 
     opt = copa['config']['clst'][dom]
     x = copa['clst'][dom]['c']
@@ -53,33 +59,35 @@ def clst_main(copa,dom,f_log_in):
     bopt = opt['estimate_bandwidth']
 
     ## clustering ####################################################
-    if ((mtd=='meanShift') or (copt['init']=='meanShift')):
-        if opt['meanShift']['bandwidth'] is None or opt['meanShift']['bandwidth']==0:
+    if ((mtd == 'meanShift') or (copt['init'] == 'meanShift')):
+        if opt['meanShift']['bandwidth'] is None or opt['meanShift']['bandwidth'] == 0:
             try:
-                bw = sc.estimate_bandwidth(xn, quantile = bopt['quantile'],
-                                           n_samples = min([bopt['n_samples'],len(xn)]))
+                bw = sc.estimate_bandwidth(xn, quantile=bopt['quantile'],
+                                           n_samples=min([bopt['n_samples'], len(xn)]))
             except:
                 bw = 0.5
         else:
             bw = opt['meanShift']['bandwidth']
-        if bw==0:
-            bw=0.5
+        if bw == 0:
+            bw = 0.5
         ms = sc.MeanShift(bandwidth=bw,
                           bin_seeding=opt['meanShift']['bin_seeding'],
                           min_bin_freq=opt['meanShift']['min_bin_freq'])
         ms.fit(xn)
         obj = ms
-        
-    if mtd=='kMeans':
+
+    if mtd == 'kMeans':
         if copt['init'] == 'meanShift':
             kmi = ms.cluster_centers_
             k = len(kmi)
-            km = sc.KMeans(init=kmi,max_iter=copt['max_iter'],n_clusters=k,n_init=1)
+            km = sc.KMeans(
+                init=kmi, max_iter=copt['max_iter'], n_clusters=k, n_init=1)
         else:
             kmi = copt['init']
             k = copt['n_cluster']
-            km = sc.KMeans(n_clusters=k,max_iter=copt['max_iter'],n_init=copt['n_init'])
- 
+            km = sc.KMeans(
+                n_clusters=k, max_iter=copt['max_iter'], n_init=copt['n_init'])
+
         km.fit(xn)
         obj = km
 
@@ -88,40 +96,49 @@ def clst_main(copa,dom,f_log_in):
 
     ## validation ############################################
     try:
-        copa['clst'][dom]['val'] = sm.silhouette_score(xn,ci,metric='euclidean')
+        copa['clst'][dom]['val'] = sm.silhouette_score(
+            xn, ci, metric='euclidean')
     except:
         copa['clst'][dom]['val'] = np.nan
     copa['val']['clst'][dom]['sil_mean'] = np.mean(copa['clst'][dom]['val'])
-    
+
     ## updating copa ##########################################
     # cluster object
     copa['clst'][dom]['obj'] = obj
     # denormalized centroids
     copa['clst'][dom]['cntr'] = cs.inverse_transform(cc)
 
-    for n in myl.idx_a(len(ci)):
-        ii, i, j = copa['clst'][dom]['ij'][n,:]
+    for n in utils.idx_a(len(ci)):
+        ii, i, j = copa['clst'][dom]['ij'][n, :]
         copa['data'][ii][i][dom][j]['class'] = ci[n]
-    
+
     return copa
 
-# derived feature weights normalized to 1
-# based on related mean silhouette value
-# IN:
-#   x: n x m feature matrix
-#   c: n x 1 cluster index vector (must be numeric!)
-#   do_nrm: <True> normalize features
-# OUT:
-#   w: 1 x m weight vector
-def featweights(x,c,do_nrm=True):
-    w = np.ones(myl.ncol(x))
+
+
+def featweights(x, c, do_nrm=True):
+
+    '''
+    derived feature weights normalized to 1
+    based on related mean silhouette value
+    
+    Args:
+      x: n x m feature matrix
+      c: n x 1 cluster index vector (must be numeric!)
+      do_nrm: <True> normalize features
+    
+    Returns:
+      w: 1 x m weight vector
+    '''
+
+    w = np.ones(utils.ncol(x))
     c = np.asarray(c).astype(int)
     # only one class -> equal wgt
-    if len(np.unique(c))==1:
+    if len(np.unique(c)) == 1:
         return w
     # over columns
-    for i in myl.idx_a(len(w)):
-        s = sm.silhouette_score(x[:,i].reshape(-1,1),c,metric='euclidean')
+    for i in utils.idx_a(len(w)):
+        s = sm.silhouette_score(x[:, i].reshape(-1, 1), c, metric='euclidean')
         w[i] = np.mean(s)+1
     # normalize
     if do_nrm:
@@ -130,14 +147,23 @@ def featweights(x,c,do_nrm=True):
         w -= 1
     return w
 
-# log file output (if filehandle), else terminal output
-# IN:
-#   msg message string
-#   e <False>|True  do exit
-def myLog(msg,e=False):
+
+
+def myLog(msg, e=False):
+
+    '''
+    log file output (if filehandle), else terminal output
+    
+    Args:
+      msg message string
+      e <False>|True  do exit
+    '''
+
     global f_log
-    try: f_log
-    except: f_log = ''
+    try:
+        f_log
+    except:
+        f_log = ''
     if type(f_log) is not str:
         f_log.write("{}\n".format(msg))
         if e:
@@ -148,3 +174,4 @@ def myLog(msg,e=False):
             sys.exit(msg)
         else:
             print(msg)
+

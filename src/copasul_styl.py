@@ -1,7 +1,7 @@
 
-# author: Uwe Reichel, Budapest, 2016
 
-import mylib as myl
+# author: Uwe Reichel, Budapest, 2016
+import copasul_utils as utils
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -14,217 +14,247 @@ import re
 import math
 from scipy import interpolate
 
-###############################################################
-#### general f0 and en features (mean and sd) #################
-###############################################################
-# IN:
-#   copa
-#   typ 'f0'|'en'
-#   f_log handle
-# OUT: (ii=fileIdx, i=channelIdx, j=tierIdx, k=segmentIdx)
-#   + ['data'][ii][i]['gnl_f0|en_file']; see styl_std_feat()
-#   + ['data'][ii][i]['gnl_f0|en'][j][k]['std'][*]; see styl_std_feat()
-#   ['gnl_en']...['std'] additionally contains ...['sb'] for spectral balance,
-#           and ['r_en_f0'] for correlation with f0
-def styl_gnl(copa,typ,f_log_in=''):
+
+def styl_gnl(copa, typ, f_log_in=''):
+
+    '''
+    general f0 and en features (mean and sd)
+
+    Args:
+      copa
+      typ 'f0'|'en'
+      f_log handle
+    
+    Returns: (ii=fileIdx, i=channelIdx, j=tierIdx, k=segmentIdx)
+      + ['data'][ii][i]['gnl_f0|en_file']; see styl_std_feat()
+      + ['data'][ii][i]['gnl_f0|en'][j][k]['std'][*]; see styl_std_feat()
+      ['gnl_en']...['std'] additionally contains ...['sb'] for spectral balance,
+              and ['r_en_f0'] for correlation with f0
+    '''
+
     global f_log
     f_log = f_log_in
 
     myLog("DOING: styl gnl {} ...".format(typ))
-    
+
     fld = "gnl_{}".format(typ)
-    myl.check_var({'var':copa,'env':'copasul',
-                   'spec':{'step':'styl','dom':fld}})
+    utils.check_var({'var': copa, 'env': 'copasul',
+                     'spec': {'step': 'styl', 'dom': fld}})
 
     if fld in copa['config']['styl']:
         opt = cp.deepcopy(copa['config']['styl'][fld])
     else:
-        opt={}
-    opt['type']=typ
-    myl.check_var({'var':copa,'env':'copasul',
-                   'spec':{'step':'styl','dom':fld}})
+        opt = {}
+    opt['type'] = typ
+    utils.check_var({'var': copa, 'env': 'copasul',
+                     'spec': {'step': 'styl', 'dom': fld}})
 
     # over files
-    for ii in myl.numkeys(copa['data']):
-        copa = styl_gnl_file(copa,ii,fld,opt)
+    for ii in utils.numkeys(copa['data']):
+        copa = styl_gnl_file(copa, ii, fld, opt)
 
     return copa
 
-# case typ='en':
-#   y_raw_in, t_raw refer to raw signal
-#   y_raw - resp channel of signal
-#   y, t refer to energy contour
-# myFs: sample freq for F0 or energy contour (derived by opt...['sts']); not for raw signal
-def styl_gnl_file(copa,ii,fld,opt):
+
+
+def styl_gnl_file(copa, ii, fld, opt):
+
+    '''
+    case typ='en':
+      y_raw_in, t_raw refer to raw signal
+      y_raw - resp channel of signal
+      y, t refer to energy contour
+    myFs: sample freq for F0 or energy contour (derived by opt...['sts']); not for raw signal
+    '''
+
 
     # wav of f0 input (wav to be loaded once right here)
-    if opt['type']=='en':
+    if opt['type'] == 'en':
         # mean subtraction? (default; translates to do_preproc)
         if (('centering' not in opt) or opt['centering']):
-            meanSub=True
+            meanSub = True
         else:
-            meanSub=False
-        iii = myl.numkeys(copa['data'][ii])
+            meanSub = False
+        iii = utils.numkeys(copa['data'][ii])
         fp = copa['data'][ii][iii[0]]['fsys']['aud']
-        f = "{}/{}.{}".format(fp['dir'],fp['stm'],fp['ext'])
-        y_raw_in, fs_sig = sif.wavread(f,{'do_preproc': meanSub})
+        f = "{}/{}.{}".format(fp['dir'], fp['stm'], fp['ext'])
+        y_raw_in, fs_sig = sif.wavread(f, {'do_preproc': meanSub})
     else:
         myFs = copa['config']['fs']
 
-    #print(copa['data'][ii][iii[0]]['fsys']['annot'])
 
+    # print(copa['data'][ii][iii[0]]['fsys']['annot'])
     # over channels
-    for i in myl.numkeys(copa['data'][ii]):
+    for i in utils.numkeys(copa['data'][ii]):
 
         fstm = copa['data'][ii][i]['fsys']['aud']['stm']
         myLog("\tfile {}, channel {}".format(fstm, i+1))
-        
-        if opt['type']=='f0':
+
+        if opt['type'] == 'f0':
             t = copa['data'][ii][i]['f0']['t']
             y = copa['data'][ii][i]['f0']['y']
 
-            #print("gnl t:", t, len(t)) #!gg
-            #print("gnl y:", y, len(y)) #!gg
-            #myl.stopgo() #!gg
-            
-            opt['fs']=myFs
+
+            # print("gnl t:", t, len(t)) #!gg
+            # print("gnl y:", y, len(y)) #!gg
+            # utils.stopgo() #!gg
+            opt['fs'] = myFs
             y_f0i, r_ef = None, None
         else:
             # for f0-energy correlation
             t_f0 = copa['data'][ii][i]['f0']['t']
             y_f0 = copa['data'][ii][i]['f0']['y']
-            if np.ndim(y_raw_in)>1:
-                y_raw = y_raw_in[:,i]
+            if np.ndim(y_raw_in) > 1:
+                y_raw = y_raw_in[:, i]
             else:
                 y_raw = y_raw_in
             # preemphasis for spectral balance calculation
             # deprec
-            #y_raw_pe = sif.pre_emphasis(y_raw,opt['alpha'],fs_sig)
-            #t_raw = myl.smp2sec(myl.idx_seg(1,len(y_raw)),fs_sig,0)
+            # y_raw_pe = sif.pre_emphasis(y_raw,opt['alpha'],fs_sig)
+            # t_raw = utils.smp2sec(utils.idx_seg(1,len(y_raw)),fs_sig,0)
             # signal fs for energy extraction
-            opt['fs']=fs_sig
+            opt['fs'] = fs_sig
             # energy
-            y = sif.sig_energy(y_raw,opt)
-            myFs = fs_sig2en(opt['sts'],opt['fs'])
-            t = myl.smp2sec(myl.idx_seg(1,len(y)),myFs,0)
+            y = sif.sig_energy(y_raw, opt)
+            myFs = fs_sig2en(opt['sts'], opt['fs'])
+            t = utils.smp2sec(utils.idx_seg(1, len(y)), myFs, 0)
             # energy fs for standard feature extraction
-            opt['fs']=myFs
-            
+            opt['fs'] = myFs
+
             # sync f0 contour to energy contour
-            interp = interpolate.interp1d(t_f0,y_f0,kind="linear",
-                                          fill_value=(y_f0[0],y_f0[-1]))
+            interp = interpolate.interp1d(t_f0, y_f0, kind="linear",
+                                          fill_value=(y_f0[0], y_f0[-1]))
             y_f0i = interp(t)
 
             # correlation of energy and f0 contour
             # plot orig f0 (green), resampled f0 (red) and energy (blue)
-            #myl.myPlot({"en": t, "f0": t_f0, "f0i": t},
-            #           {"en": y*500, "f0": y_f0, "f0i": y_f0i},
-            #           {"ls": {"en": "-b", "f0": "-g", "f0i": "-r"}})
-            r_ef = np.corrcoef(y,y_f0i)
-            
+            # utils.myPlot({"en": t, "f0": t_f0, "f0i": t},
+            #              {"en": y*500, "f0": y_f0, "f0i": y_f0i},
+            #              {"ls": {"en": "-b", "f0": "-g", "f0i": "-r"}})
+            r_ef = np.corrcoef(y, y_f0i)
+
         # file wide
         yz = "{}_file".format(fld)
-        copa['data'][ii][i][yz] = styl_std_feat(y,opt)
-        copa['data'][ii][i][yz] = styl_std_quot(y,opt,copa['data'][ii][i][yz])
+        copa['data'][ii][i][yz] = styl_std_feat(y, opt)
+        copa['data'][ii][i][yz] = styl_std_quot(
+            y, opt, copa['data'][ii][i][yz])
         if r_ef is not None:
-            copa['data'][ii][i][yz]["r_en_f0"] = r_ef[0,1]
+            copa['data'][ii][i][yz]["r_en_f0"] = r_ef[0, 1]
 
         # over tiers
-        for j in myl.numkeys(copa['data'][ii][i][fld]):
+        for j in utils.numkeys(copa['data'][ii][i][fld]):
             # over segments (+ normalization ['*_nrm'])
-            nk = myl.numkeys(copa['data'][ii][i][fld][j])
+            nk = utils.numkeys(copa['data'][ii][i][fld][j])
             for k in nk:
                 # analysis window
-                yi = styl_yi(copa['data'][ii][i][fld][j][k]['t'],myFs,y)
+                yi = styl_yi(copa['data'][ii][i][fld][j][k]['t'], myFs, y)
 
                 # for interval tier input; for styl_std_feat duration calculation
-                if len(copa['data'][ii][i][fld][j][k]['to'])>1:
+                if len(copa['data'][ii][i][fld][j][k]['to']) > 1:
                     to = copa['data'][ii][i][fld][j][k]['to'][0:2]
                 else:
-                    to = myl.ea()
+                    to = utils.ea()
                 tn = copa['data'][ii][i][fld][j][k]['tn']
-                sf = styl_std_feat(y[yi],opt,to)
+                sf = styl_std_feat(y[yi], opt, to)
                 # nrm window
-                yin = styl_yi(tn,myFs,y)
+                yin = styl_yi(tn, myFs, y)
                 # add normalization _nrm
-                sf = styl_std_nrm(sf,y[yin],opt,tn)
+                sf = styl_std_nrm(sf, y[yin], opt, tn)
                 # quotients/shape
-                sf = styl_std_quot(y[yi],opt,sf)
+                sf = styl_std_quot(y[yi], opt, sf)
                 # add spectral balance, rmsd, and r_en_f0 for en
-                if (opt['type']=='en'):
-                    yi_raw = styl_yi(copa['data'][ii][i][fld][j][k]['t'],fs_sig,y_raw)
-                    yin_raw = styl_yi(tn,fs_sig,y_raw)
-                    rms_y = myl.rmsd(y_raw[yi_raw])
-                    rms_yn = myl.rmsd(y_raw[yin_raw])
-                    #sb = myl.rmsd(y_raw_pe[yi_raw])-rms_y
-                    #sb = splh_spl_deprec(y_raw[yi_raw],y_raw_pe[yi_raw])
-                    sb = sif.splh_spl(y_raw[yi_raw],fs_sig,opt['sb'])
-                    if rms_yn==0: rms_yn==1
+                if (opt['type'] == 'en'):
+                    yi_raw = styl_yi(copa['data'][ii][i]
+                                     [fld][j][k]['t'], fs_sig, y_raw)
+                    yin_raw = styl_yi(tn, fs_sig, y_raw)
+                    rms_y = utils.rmsd(y_raw[yi_raw])
+                    rms_yn = utils.rmsd(y_raw[yin_raw])
+                    # sb = utils.rmsd(y_raw_pe[yi_raw])-rms_y
+                    # sb = splh_spl_deprec(y_raw[yi_raw],y_raw_pe[yi_raw])
+                    sb = sif.splh_spl(y_raw[yi_raw], fs_sig, opt['sb'])
+                    if rms_yn == 0:
+                        rms_yn == 1
                     sf['sb'] = sb
                     sf['rms'] = rms_y
                     sf['rms_nrm'] = rms_y/rms_yn
-                    r_ef = np.corrcoef(y[yi],y_f0i[yi])
-                    sf['r_en_f0'] = r_ef[0,1]
-                    
+                    r_ef = np.corrcoef(y[yi], y_f0i[yi])
+                    sf['r_en_f0'] = r_ef[0, 1]
+
                 copa['data'][ii][i][fld][j][k]['std'] = sf
     return copa
 
-# spectral balance SPLH-SPL
-# IN:
-#   y: raw signal
-#   ype: pre-emphasized signal
-# OUT:
-#   sb: SPLH-SPL
-# see https://de.wikipedia.org/wiki/Schalldruckpegel
-def splh_spl_deprec(y,ype):
+
+
+def splh_spl_deprec(y, ype):
+
+    '''
+    spectral balance SPLH-SPL
+    
+    Args:
+      y: raw signal
+      ype: pre-emphasized signal
+    
+    Returns:
+      sb: SPLH-SPL
+    see https://de.wikipedia.org/wiki/Schalldruckpegel
+    '''
+
 
     p_ref = 2*10**(-5)
     # SPL (p_eff is rmsd)
-    p = 20*math.log(myl.rmsd(y)/p_ref,10)
-    pe = 20*math.log(myl.rmsd(ype)/p_ref,10)
+    p = 20*math.log(utils.rmsd(y)/p_ref, 10)
+    pe = 20*math.log(utils.rmsd(ype)/p_ref, 10)
     if p <= 0 or pe <= 0:
         return np.nan
     sb = pe-p
-    #print('pe',pe,'p',p,10,'sb',sb) #!pe
-    #myl.stopgo() #!pe
+    # print('pe',pe,'p',p,10,'sb',sb) #!pe
+    # utils.stopgo() #!pe
     return sb
 
-# calculates quotients and 2nd order shape coefs for f0/energy contours
-# IN:
-#   y: f0 or energy contout
-#   opt: config['styl']
-#   r: <{}> dict to be updated
-# OUT:
-#   r: output dict + keys
-#     qi mean_init/mean_nonInit
-#     qf mean_fin/mean_nonFin
-#     qb mean_init/mean_fin
-#     qm mean_max(initFin)/mean_nonMax
-#     c0 offset
-#     c1 slope
-#     c2 shape
-def styl_std_quot(y,opt,r={}):
+
+
+def styl_std_quot(y, opt, r={}):
+
+    '''
+    calculates quotients and 2nd order shape coefs for f0/energy contours
+    
+    Args:
+      y: f0 or energy contout
+      opt: config['styl']
+      r: <{}> dict to be updated
+    
+    Returns:
+      r: output dict + keys
+        qi mean_init/mean_nonInit
+        qf mean_fin/mean_nonFin
+        qb mean_init/mean_fin
+        qm mean_max(initFin)/mean_nonMax
+        c0 offset
+        c1 slope
+        c2 shape
+    '''
+
     # backward compatibility
     if 'gnl' not in opt:
-        opt['gnl'] = {'win':0.3}
+        opt['gnl'] = {'win': 0.3}
 
     # init
-    for x in ['qi','qf','qm','qb','c0','c1','c2']:
+    for x in ['qi', 'qf', 'qm', 'qb', 'c0', 'c1', 'c2']:
         r[x] = np.nan
-    
-    if len(y)==0:
+
+    if len(y) == 0:
         return r
 
-    # normalize to [0 1]
-    #y = cp.deepcopy(y)
-    #y = myl.nrm_vec(y,{'mtd':'minmax','rng':[0,1]})
 
+    # normalize to [0 1]
+    # y = cp.deepcopy(y)
+    # y = utils.nrm_vec(y,{'mtd':'minmax','rng':[0,1]})
     # final idx in y
     yl = len(y)
-    
+
     # window length (smpl)
-    wl = min(yl,int(opt['fs']*opt['gnl']['win']))
-    
+    wl = min(yl, int(opt['fs']*opt['gnl']['win']))
+
     # initial and final segment
     y_ini = y[0:wl],
     y_nin = y[wl:yl]
@@ -232,13 +262,13 @@ def styl_std_quot(y,opt,r={}):
     y_nfi = y[0:yl-wl]
 
     # robustness: non-empty slices
-    if len(y_ini)==0:
+    if len(y_ini) == 0:
         y_ini = [y[0]]
-    if len(y_nin)==0:
+    if len(y_nin) == 0:
         y_nin = [y[-1]]
-    if len(y_fin)==0:
+    if len(y_fin) == 0:
         y_fin = [y[-1]]
-    if len(y_nfi)==0:
+    if len(y_nfi) == 0:
         y_nfi = [y[0]]
 
     # means
@@ -248,11 +278,11 @@ def styl_std_quot(y,opt,r={}):
     mnf = np.mean(y_nfi)
 
     # quotients
-    if mni>0:
+    if mni > 0:
         r['qi'] = mi/mni
-    if mnf>0:
+    if mnf > 0:
         r['qf'] = mf/mnf
-    if mf>0:
+    if mf > 0:
         r['qb'] = mi/mf
 
     # max quot
@@ -261,11 +291,11 @@ def styl_std_quot(y,opt,r={}):
     elif np.isnan(r['qf']):
         r['qm'] = r['qi']
     else:
-        r['qm'] = max(r['qi'],r['qf'])
+        r['qm'] = max(r['qi'], r['qf'])
 
     # polyfit
-    t = myl.nrm_vec(myl.idx_a(len(y)),{'mtd':'minmax','rng':[0,1]})
-    c = styl_polyfit(t,y,2)
+    t = utils.nrm_vec(utils.idx_a(len(y)), {'mtd': 'minmax', 'rng': [0, 1]})
+    c = styl_polyfit(t, y, 2)
     r['c0'] = c[2]
     r['c1'] = c[1]
     r['c2'] = c[0]
@@ -273,218 +303,278 @@ def styl_std_quot(y,opt,r={}):
     return r
 
 
-# adds normalized feature values to std feat dict
-# IN:
-#    sf  - std feat dict
-#    ys  - vector f0/energy in normalization window
-#    opt - copa['config']['styl']
-#    tn  - <[]> t_on, t_off of normalization interval
-# OUT:
-#    sf + '*_nrm' entries
-def styl_std_nrm(sf,ys,opt,tn=[]):
-    sfn = styl_std_feat(ys,opt,tn)
+def styl_std_nrm(sf, ys, opt, tn=[]):
+
+    '''
+    adds normalized feature values to std feat dict
+    
+    Args:
+       sf  - std feat dict
+       ys  - vector f0/energy in normalization window
+       opt - copa['config']['styl']
+       tn  - <[]> t_on, t_off of normalization interval
+    
+    Returns:
+       sf + '*_nrm' entries
+    '''
+
+    sfn = styl_std_feat(ys, opt, tn)
     nrm_add = {}
     for x in sf:
-        if sfn[x]==0: sfn[x]=1
-        nrm_add[x]=sf[x]/sfn[x]
+        if sfn[x] == 0:
+            sfn[x] = 1
+        nrm_add[x] = sf[x]/sfn[x]
     for x in nrm_add:
         sf["{}_nrm".format(x)] = nrm_add[x]
     return sf
 
-# transforms time interval to index array
-# IN:
-#   iv: 2-element array, time interval
-#   fs: sample rate
-#   y: vector (needed, since upper bound sometimes >=len(y))
-# OUT:
-#   i: indices between on and offset defined by iv
-def styl_yi(iv,fs,y=[]):
-    j = myl.sec2idx(np.asarray(iv),fs)
-    if len(y)>0:
-        return myl.idx_seg(j[0],min(j[1],len(y)-1))
+
+
+def styl_yi(iv, fs, y=[]):
+
+    '''
+    transforms time interval to index array
+    
+    Args:
+      iv: 2-element array, time interval
+      fs: sample rate
+      y: vector (needed, since upper bound sometimes >=len(y))
+    
+    Returns:
+      i: indices between on and offset defined by iv
+    '''
+
+    j = utils.sec2idx(np.asarray(iv), fs)
+    if len(y) > 0:
+        return utils.idx_seg(j[0], min(j[1], len(y)-1))
     else:
-        return myl.idx_seg(j[0],j[1])
-# returns y segment
-# IN:
-#   iv: 2-element array, time interval
-#   fs: sample rate
-#   y
-# OUT:
-#   ys: y segment  
-def styl_ys(iv,fs,y):
-    j = myl.sec2idx(np.asarray(iv),fs)
-    return y[myl.idx_seg(j[0],min(j[1],len(y)-1))]
+        return utils.idx_seg(j[0], j[1])
 
-##########################################################
-#### voice characteristics ###############################
-##########################################################
 
-# standalone version of styl_voice to be called outside
-# of copasul env
-# IN:
-#   f_pul: name of pulse file (pulse and wav file must have same number of
-#   f_wav: name of wav file    columns/channels)
-#   ts: dict
-#      .myChannelIdx: 2-dim array [[on off] ...] of intervals
-#           in which features to be extracted  <{}>
-#           ! channel idx starting with 0
-#   opt
-#     .sts: stepsize in sec <0.01>
-#     .win: window length in sec (sts and win only needed if no
-#           len(ts)=0 <0.05>
-#     .jit
-#     .shim
-# OUT:
-#   voi.myChanIdx.t analysis windows (evtl copied from ts)
-#                .shim.v list of shimmer values
-#                     .c lol of polycoefs
-#                .jit.v
-#                    .v_abs
-#                    .m
-#                    .c
-#      all lists have same length
+def styl_ys(iv, fs, y):
 
-def styl_voice_standalone(f_pul,f_wav,ts={},opt={}):
-    opt = myl.opt_default(opt,{"sts": 0.01, "win": 0.05})
+    '''
+    returns y segment
+    
+    Args:
+      iv: 2-element array, time interval
+      fs: sample rate
+      y
+    
+    Returns:
+      ys: y segment
+    '''
+
+    j = utils.sec2idx(np.asarray(iv), fs)
+    return y[utils.idx_seg(j[0], min(j[1], len(y)-1))]
+
+
+def styl_voice_standalone(f_pul, f_wav, ts={}, opt={}):
+
+    '''
+    standalone version of styl_voice to be called outside
+    of copasul env
+    
+    Args:
+      f_pul: name of pulse file (pulse and wav file must have same number of
+      f_wav: name of wav file    columns/channels)
+      ts: dict
+         .myChannelIdx: 2-dim array [[on off] ...] of intervals
+              in which features to be extracted  <{}>
+              ! channel idx starting with 0
+      opt
+        .sts: stepsize in sec <0.01>
+        .win: window length in sec (sts and win only needed if no
+              len(ts)=0 <0.05>
+        .jit
+        .shim
+    
+    Returns:
+      voi.myChanIdx.t analysis windows (evtl copied from ts)
+                   .shim.v list of shimmer values
+                        .c lol of polycoefs
+                   .jit.v
+                       .v_abs
+                       .m
+                       .c
+         all lists have same length
+    '''
+
+    opt = utils.opt_default(opt, {"sts": 0.01, "win": 0.05})
     # pulses and signal
     #    ... as 2-dim list, one column per channel
-    pul = myl.input_wrapper(f_pul,'lol',{'colvec':True})
-    
+    pul = utils.input_wrapper(f_pul, 'lol', {'colvec': True})
+
     sig_all, fs_sig = sif.wavread(f_wav)
-    opt['fs_sig']=fs_sig
+    opt['fs_sig'] = fs_sig
     nc = pul.shape[1]
-    ## voi init
+    # voi init
     voi = voi_init(nc)
-    ## over channels
+    # over channels
     for ci in range(nc):
         # analyis windows
-        if ci not in ts or len[ts][ci]==0:
-            opt["max"]=np.max(pul[:,ci])
+        if ci not in ts or len[ts][ci] == 0:
+            opt["max"] = np.max(pul[:, ci])
             t = voi_win(opt)
         else:
             t = ts[ci]
-            
+
         # channel-related signal column
-        if np.ndim(sig_all)>1:
-            sig = sig_all[:,ci]
+        if np.ndim(sig_all) > 1:
+            sig = sig_all[:, ci]
         else:
             sig = sig_all
-        ## over time segments
+        # over time segments
         for b in t:
             # cut out pulse window (sig cutting is done in subfun)
-            pul_i = myl.intersect(myl.find(pul[:,ci],'>=',b[0]),
-                                  myl.find(pul[:,ci],'<=',b[1]))
+            pul_i = utils.intersect(utils.find(pul[:, ci], '>=', b[0]),
+                                    utils.find(pul[:, ci], '<=', b[1]))
             # extraction
-            v = styl_voice_feat(pul[pul_i,ci],sig,opt)
+            v = styl_voice_feat(pul[pul_i, ci], sig, opt)
             # update
-            voi = voi_upd(voi,v,b,ci)
+            voi = voi_upd(voi, v, b, ci)
     return voi
 
-# returns analyses windows of length opt["win"] with stepsize opt["sts"]
-# up to opt["max"]
-# IN: opt
-# OUT: w [[on off] ...]
+
+
 def voi_win(opt):
+
+    '''
+    returns analyses windows of length opt["win"] with stepsize opt["sts"]
+    up to opt["max"]
+    
+    Args: opt
+    
+    Returns: w [[on off] ...]
+    '''
+
     on = 0
-    s,l,m = opt["sts"],opt["win"],opt["max"]
+    s, l, m = opt["sts"], opt["win"], opt["max"]
     w = []
     while on < m:
-        w = myl.push(w,[max(0,on-l/2),min(on+l/2,m)])
+        w = utils.push(w, [max(0, on-l/2), min(on+l/2, m)])
         on += s
     return w
-    
-# init voi (called by styl_voice_standalone)
-# IN:
-#   nc: number of channels
-# OUT:
-#   voi: initialized voi
+
+
+
 def voi_init(nc):
+
+    '''
+    init voi (called by styl_voice_standalone)
+    
+    Args:
+      nc: number of channels
+    
+    Returns:
+      voi: initialized voi
+    '''
+
     voi = {}
-    fx = {'jit': ["v","v_abs","m","c"],
-          'shim': ["v","c"]}
+    fx = {'jit': ["v", "v_abs", "m", "c"],
+          'shim': ["v", "c"]}
     for i in range(nc):
-        voi[i]={'t':[]}
+        voi[i] = {'t': []}
         for x in fx:
             voi[i][x] = {}
             for y in fx[x]:
                 voi[i][x][y] = []
     return voi
 
-# update voi
-# IN:
-#   voi dict
-#   v current featdict
-#   t [on off] of analysis window
-#   ci channel idx
-# OUT:
-#   voi
-def voi_upd(voi,v,t,ci):
-    voi[ci]["t"] = myl.push(voi[ci]["t"],t)
+
+
+def voi_upd(voi, v, t, ci):
+
+    '''
+    update voi
+    
+    Args:
+      voi dict
+      v current featdict
+      t [on off] of analysis window
+      ci channel idx
+    
+    Returns:
+      voi
+    '''
+
+    voi[ci]["t"] = utils.push(voi[ci]["t"], t)
     # over jit, shim
     for x in v:
         # over features
         for y in v[x]:
             if y not in voi[ci][x]:
                 continue
-            if myl.of_list_type(v[x][y]): 
-                voi[ci][x][y] = myl.push(voi[ci][x][y],v[x][y])
+            if utils.of_list_type(v[x][y]):
+                voi[ci][x][y] = utils.push(voi[ci][x][y], v[x][y])
             else:
                 voi[ci][x][y].append(v[x][y])
     return voi
-        
-            
-            
-# IN:
-#   copa
-#   logFile
-# OUT:
-#   + .data...[voice|voice_file]
-#          .shim
-#             .v: shimmer
-#             .c: 3rd order polycoefs
-#             .v_nrm: normalized shimmer
-#             .m: mean amplitude
-#             .m_nrm: file-normalized mean amplitude
-#             .sd amplitude sd
-#             .sd_nrm: file-normalized amplitude sd
-#          .jit
-#             .v: jitter (relative)
-#             .v_abs: jitter (absolute)
-#             .v_nrm: normalized jitter (relative)
-#             .m: mean period length (in sec)
-#             .m_nrm: normalized mean period length
-#             .sd: period length sd
-#             .sd_nrm: normalized period length sd
-#             .c: 3rd order polycoefs
-# (*_nrm keys only for "voice" subdict, not for "voice_file")
-def styl_voice(copa,f_log_in=''):
+
+
+def styl_voice(copa, f_log_in=''):
+
+    '''
+    
+    Args:
+      copa
+      logFile
+    
+    Returns:
+      + .data...[voice|voice_file]
+             .shim
+                .v: shimmer
+                .c: 3rd order polycoefs
+                .v_nrm: normalized shimmer
+                .m: mean amplitude
+                .m_nrm: file-normalized mean amplitude
+                .sd amplitude sd
+                .sd_nrm: file-normalized amplitude sd
+             .jit
+                .v: jitter (relative)
+                .v_abs: jitter (absolute)
+                .v_nrm: normalized jitter (relative)
+                .m: mean period length (in sec)
+                .m_nrm: normalized mean period length
+                .sd: period length sd
+                .sd_nrm: normalized period length sd
+                .c: 3rd order polycoefs
+    (*_nrm keys only for "voice" subdict, not for "voice_file")
+    '''
+
     global f_log
     f_log = f_log_in
 
     myLog("DOING: styl voice")
-    
+
     fld = 'voice'
     if fld in copa['config']['styl']:
         opt = cp.deepcopy(copa['config']['styl'][fld])
     else:
-        opt={}
-    opt = myl.opt_default(opt,{'shim':{},'jit':{}})
+        opt = {}
+    opt = utils.opt_default(opt, {'shim': {}, 'jit': {}})
 
     # over files
-    for ii in myl.numkeys(copa['data']):
-        copa = styl_voice_file(copa,ii,fld,opt)
+    for ii in utils.numkeys(copa['data']):
+        copa = styl_voice_file(copa, ii, fld, opt)
 
     return copa
 
-# styl_voice() for single file
-def styl_voice_file(copa,ii,fld,opt):
-    chan_i = myl.numkeys(copa['data'][ii])
+
+
+def styl_voice_file(copa, ii, fld, opt):
+
+    '''
+    styl_voice() for single file
+    '''
+
+    chan_i = utils.numkeys(copa['data'][ii])
     fp = copa['data'][ii][chan_i[0]]['fsys']['pulse']
     fa = copa['data'][ii][chan_i[0]]['fsys']['aud']
-    f = "{}/{}.{}".format(fp['dir'],fp['stm'],fp['ext'])
-    fw = "{}/{}.{}".format(fa['dir'],fa['stm'],fa['ext'])
+    f = "{}/{}.{}".format(fp['dir'], fp['stm'], fp['ext'])
+    fw = "{}/{}.{}".format(fa['dir'], fa['stm'], fa['ext'])
     # pulses as 2-dim list, one column per channel
-    p = myl.input_wrapper(f,'lol',{'colvec':True})
+    p = utils.input_wrapper(f, 'lol', {'colvec': True})
     # signal
     sig_all, fs_sig = sif.wavread(fw)
     opt['fs_sig'] = fs_sig
@@ -493,178 +583,204 @@ def styl_voice_file(copa,ii,fld,opt):
 
         fstm = copa['data'][ii][i]['fsys']['aud']['stm']
         myLog("\tfile {}, channel {}".format(fstm, i+1))
-        
+
         # jitter and shimmer file wide
         fld_f = "{}_file".format(fld)
 
         # channel-related column
-        if np.ndim(sig_all)>1:
-            sig = sig_all[:,i]
+        if np.ndim(sig_all) > 1:
+            sig = sig_all[:, i]
         else:
             sig = sig_all
-        
-        copa['data'][ii][i][fld_f] = styl_voice_feat(p[:,i],sig,opt)
+
+        copa['data'][ii][i][fld_f] = styl_voice_feat(p[:, i], sig, opt)
 
         # normalization facors for segment-level voice quality
         voi_nrm = copa['data'][ii][i][fld_f]
 
         # over tiers
-        for j in myl.numkeys(copa['data'][ii][i][fld]):
-            nk = myl.numkeys(copa['data'][ii][i][fld][j])
+        for j in utils.numkeys(copa['data'][ii][i][fld]):
+            nk = utils.numkeys(copa['data'][ii][i][fld][j])
             # over segments
             for k in nk:
                 # resp. segments in pulse sequence and signal
                 lb = copa['data'][ii][i][fld][j][k]['t'][0]
                 ub = copa['data'][ii][i][fld][j][k]['t'][1]
-                pul_i = myl.intersect(myl.find(p[:,i],'>=',lb),
-                                      myl.find(p[:,i],'<=',ub))
-                voi = styl_voice_feat(p[pul_i,i],sig,opt,voi_nrm)
+                pul_i = utils.intersect(utils.find(p[:, i], '>=', lb),
+                                        utils.find(p[:, i], '<=', ub))
+                voi = styl_voice_feat(p[pul_i, i], sig, opt, voi_nrm)
                 for x in voi:
                     copa['data'][ii][i][fld][j][k][x] = voi[x]
-                    
+
     return copa
 
 
-# IN:
-#   pul: pulse time stamps
-#   sig: amplitude values
-#   opt:
-#     'fs_sig' required
-#     'shim': <not yet used> {}
-#     'jit':
-#        't_max' max distance in sec of subsequent pulses to be part of
-#                same voiced segment <0.02> (=50 Hz; praat: Period ceiling)
-#        't_min' min distance in sec <0.0001> (Period floor)
-#        'fac_max' factor of max adjacent period difference <1.3>
-#                (Maximum period factor)
-#  nrm: (None or dict)
-#     'jit' and 'shim' subdicts generated by styl_voice_feat() over entire file
-# OUT:
-#   dict
-#       'jit': see styl_voice_jit()
-#       'shim': see styl_voice_shim()
-def styl_voice_feat(pul,sig,opt,nrm=None):
+def styl_voice_feat(pul, sig, opt, nrm=None):
+
+    '''
+    
+    Args:
+      pul: pulse time stamps
+      sig: amplitude values
+      opt:
+        'fs_sig' required
+        'shim': <not yet used> {}
+        'jit':
+           't_max' max distance in sec of subsequent pulses to be part of
+                   same voiced segment <0.02> (=50 Hz; praat: Period ceiling)
+           't_min' min distance in sec <0.0001> (Period floor)
+           'fac_max' factor of max adjacent period difference <1.3>
+                   (Maximum period factor)
+     nrm: (None or dict)
+        'jit' and 'shim' subdicts generated by styl_voice_feat() over entire file
+    
+    Returns:
+      dict
+          'jit': see styl_voice_jit()
+          'shim': see styl_voice_shim()
+    '''
+
     # remove -1 padding from input file
-    pul = pul[myl.find(pul,'>',0)]
+    pul = pul[utils.find(pul, '>', 0)]
     opt = opt_voice_default(opt)
     if nrm is not None:
         nrm_jit, nrm_shim = nrm['jit'], nrm['shim']
     else:
         nrm_jit, nrm_shim = None, None
-    jit = styl_voice_jit(pul,opt['jit'],nrm_jit)
-    shim = styl_voice_shim(pul,sig,opt['shim'],nrm_shim)
+    jit = styl_voice_jit(pul, opt['jit'], nrm_jit)
+    shim = styl_voice_shim(pul, sig, opt['shim'], nrm_shim)
     return {'jit': jit, 'shim': shim}
 
-# returns default options for voice analyses
+
+
 def opt_voice_default(opt={}):
-    opt = myl.opt_default(opt,{'shim':{},'jit':{}})
-    opt['shim'] = myl.opt_default(opt['shim'],{'fs_sig': opt['fs_sig']})
-    opt['jit'] = myl.opt_default(opt['jit'],{'fs_sig': opt['fs_sig'],
-                                             't_max': 0.02, 't_min': 0.0001,
-                                             'fac_max': 1.3})
+
+    '''
+    returns default options for voice analyses
+    '''
+
+    opt = utils.opt_default(opt, {'shim': {}, 'jit': {}})
+    opt['shim'] = utils.opt_default(opt['shim'], {'fs_sig': opt['fs_sig']})
+    opt['jit'] = utils.opt_default(opt['jit'], {'fs_sig': opt['fs_sig'],
+                                                't_max': 0.02, 't_min': 0.0001,
+                                                'fac_max': 1.3})
     return opt
 
-# shimmer: average of abs diff between amplitudes of subsequent pulses
-#          divided by mean amplitude
-# IN:
-#   pul: vector of pulse sequence
-#   sig: signal vector
-#   opt: option dict ('fs_sig': sample rate)
-#   nrm: None or dict: output of styl_voice_shim() applied on file level
-# OUT:
-#   shim dict
-#     v: shimmer
-#     c: 3rd order polycoefs describing changes of shimmer over normalized time
-#     m: mean amplitude
-#     sd: std amplitude
-#     {v|m|sd}_nrm: divided by file-level values
-def styl_voice_shim(pul,sig,opt,nrm):
+
+
+def styl_voice_shim(pul, sig, opt, nrm):
+
+    '''
+    shimmer: average of abs diff between amplitudes of subsequent pulses
+             divided by mean amplitude
+    
+    Args:
+      pul: vector of pulse sequence
+      sig: signal vector
+      opt: option dict ('fs_sig': sample rate)
+      nrm: None or dict: output of styl_voice_shim() applied on file level
+    
+    Returns:
+      shim dict
+        v: shimmer
+        c: 3rd order polycoefs describing changes of shimmer over normalized time
+        m: mean amplitude
+        sd: std amplitude
+        {v|m|sd}_nrm: divided by file-level values
+    '''
+
     # get amplitude values at pulse time stamps
-    a = myl.ea()
+    a = utils.ea()
     # time stamps
-    t = myl.ea()
+    t = utils.ea()
 
     # robust return
     na = np.nan
     robRet = {'v': na, 'c': np.asarray([na, na, na, na]),
               'm': na, 'sd': na, 'v_nrm': na, 'm_nrm': na, 'sd_nrm': na}
-    
-    for i in myl.idx(pul):
-        j = myl.sec2idx(pul[i],opt['fs_sig'])
+
+    for i in utils.idx(pul):
+        j = utils.sec2idx(pul[i], opt['fs_sig'])
         if j >= len(sig):
             break
-        a = np.append(a,np.abs(sig[j]))
-        t = np.append(t,pul[i])
-        
-    if len(a)==0:
+        a = np.append(a, np.abs(sig[j]))
+        t = np.append(t, pul[i])
+
+    if len(a) == 0:
         return robRet
-        
+
     d = np.abs(np.diff(a))
     ma = np.mean(a)
     sda = np.std(a)
     # shimmer
     s = np.mean(d)/ma
-    
-    #print(t)
 
-    ## 3rd order polynomial fit through normalized amplitude diffs
+
+    # print(t)
+    # 3rd order polynomial fit through normalized amplitude diffs
     # time points between compared periods
     # normalized to [-1 1] by range of [pul[0] pul[-1]]
-    if ma>0:
+    if ma > 0:
         d = d/ma
-        
-    if len(t)<2:
+
+    if len(t) < 2:
         c = robRet['c']
     else:
-        x = myl.nrm_vec(t[1:len(t)], {'mtd': 'minmax', 'rng': [-1,1]})
-        c = styl_polyfit(x,d,3)
+        x = utils.nrm_vec(t[1:len(t)], {'mtd': 'minmax', 'rng': [-1, 1]})
+        c = styl_polyfit(x, d, 3)
 
-    #print(s,c) #!v
-    #myl.stopgo() #!v
 
+    # print(s,c) #!v
+    # utils.stopgo() #!v
     ret = {'v': s, 'c': c, 'm': ma, 'sd': sda}
 
     # add normalized values
     return voice_nrm(ret, nrm)
 
 
-# IN:
-#   pul: vector of pulse sequence
-#   opt: options
-# OUT:
-#   jit dict
-#     v: jitter (relative)
-#     v_abs: jitter (absolute)
-#     m: mean period length (in sec)
-#     sd: standard deviation
-#     {v|v_abs|m|sd}_nrm: divided by file-level values
-#     c: 3rd order polycoefs describing changes of jitter over normalized time 
-def styl_voice_jit(pul,opt,nrm):
+def styl_voice_jit(pul, opt, nrm):
+
+    '''
+    
+    Args:
+      pul: vector of pulse sequence
+      opt: options
+    
+    Returns:
+      jit dict
+        v: jitter (relative)
+        v_abs: jitter (absolute)
+        m: mean period length (in sec)
+        sd: standard deviation
+        {v|v_abs|m|sd}_nrm: divided by file-level values
+        c: 3rd order polycoefs describing changes of jitter over normalized time
+    '''
+
     # all periods
     ta = np.diff(pul)
     # abs diffs of adjacent periods
-    d = myl.ea()
+    d = utils.ea()
     # indices of these periods
-    ui = myl.ea().astype(int)
+    ui = utils.ea().astype(int)
     i = 0
     while i < len(ta)-1:
-        ec = skip_period(ta,i,opt)
+        ec = skip_period(ta, i, opt)
         # skip first segment
         if ec > 0:
             i += ec
             continue
-        d = np.append(d,np.abs(ta[i]-ta[i+1]))
-        ui = np.append(ui,i)
-        #print(len(d),len(ui)) #!v
-        #myl.stopgo()
-        i+=1
-        
+        d = np.append(d, np.abs(ta[i]-ta[i+1]))
+        ui = np.append(ui, i)
+        # print(len(d),len(ui)) #!v
+        # utils.stopgo()
+        i += 1
+
     # not enough values
-    if len(ui)==0:
+    if len(ui) == 0:
         v = np.nan
         return {'v': v, 'v_abs': v, 'm': v, 'sd': v,
                 'v_nrm': v, 'v_abs_nrm': v, 'm_nrm': v,
-                'sd_nrm': v, 'c': np.array([v,v,v,v])}
+                'sd_nrm': v, 'c': np.array([v, v, v, v])}
 
     # all used periods
     periods = ta[ui]
@@ -676,13 +792,13 @@ def styl_voice_jit(pul,opt,nrm):
     # jitter relative
     jit = jit_abs/mp
 
-    ## 3rd order polynomial fit through all normalized period diffs
+    # 3rd order polynomial fit through all normalized period diffs
     # time points between compared periods
     # normalized to [-1 1] by range of [pul[0] pul[-1]]
-    if mp>0:
+    if mp > 0:
         d = d/mp
-    x = myl.nrm_vec(pul[ui+1], {'mtd': 'minmax', 'rng': [-1,1]})
-    c = styl_polyfit(x,d,3)
+    x = utils.nrm_vec(pul[ui+1], {'mtd': 'minmax', 'rng': [-1, 1]})
+    c = styl_polyfit(x, d, 3)
 
     ret = {'v': jit, 'v_abs': jit_abs, 'm': mp, 'sd': sdp, 'c': c}
 
@@ -690,13 +806,17 @@ def styl_voice_jit(pul,opt,nrm):
     return voice_nrm(ret, nrm)
 
 
-# add normalized voice quality values to ret
-# for keys *_nrm.
-# If nrm is None: ret[x_nrm]=ret[x]
 def voice_nrm(ret, nrm):
-    
+
+    '''
+    add normalized voice quality values to ret
+    for keys *_nrm.
+    If nrm is None: ret[x_nrm]=ret[x]
+    '''
+
+
     ret_nrm = cp.deepcopy(ret)
-    
+
     for x in ret:
         # skip coefs
         if x == "c":
@@ -710,9 +830,13 @@ def voice_nrm(ret, nrm):
     return ret_nrm
 
 
-# returns error code which is increment in jitter calculation
-# 0: minden rendben
-def skip_period(d,i,opt):
+def skip_period(d, i, opt):
+
+    '''
+    returns error code which is increment in jitter calculation
+    0: minden rendben
+    '''
+
     # 1st period problem
     if d[i] < opt['t_min'] or d[i] > opt['t_max']:
         return 1
@@ -720,280 +844,304 @@ def skip_period(d,i,opt):
     if d[i+1] < opt['t_min'] or d[i+1] > opt['t_max']:
         return 2
     # transition problem
-    if max(d[i],d[i+1]) > opt['fac_max']*min(d[i],d[i+1]):
+    if max(d[i], d[i+1]) > opt['fac_max']*min(d[i], d[i+1]):
         return 1
     return 0
 
-##########################################################
-#### global segments #####################################
-##########################################################
 
-# IN:
-#   copa
-# OUT:  (ii=fileIdx, i=channelIdx, j=segmentIdx)
-#   +['data'][ii][i]['glob']['c']  coefs
-#   +['clst']['glob']['c']     coefs
-#                    ['ij']    link to [fileIdx, channelIdx, segmentIdx]
-#   +['data'][ii][i]['glob'][j]['decl'][bl|ml|tl|rng]['r']   reset
-#   +['data'][ii][i]['f0']['r']    f0 residual
-def styl_glob(copa,f_log_in=''):
+def styl_glob(copa, f_log_in=''):
+
+    '''
+    global segments
+  
+    Args:
+      copa
+    
+    Returns:  (ii=fileIdx, i=channelIdx, j=segmentIdx)
+      +['data'][ii][i]['glob']['c']  coefs
+      +['clst']['glob']['c']     coefs
+                       ['ij']    link to [fileIdx, channelIdx, segmentIdx]
+      +['data'][ii][i]['glob'][j]['decl'][bl|ml|tl|rng]['r']   reset
+      +['data'][ii][i]['f0']['r']    f0 residual
+    '''
+
     global f_log
     f_log = f_log_in
 
     myLog("DOING: styl glob")
-    
-    myl.check_var({'var':copa,'env':'copasul',
-                   'spec':{'step':'styl_glob','dom':'glob'}})
-    
+
+    utils.check_var({'var': copa, 'env': 'copasul',
+                     'spec': {'step': 'styl_glob', 'dom': 'glob'}})
+
     # re-empty (needed if styl is repatedly applied)
-    copa['clst']['glob'] = {'c':[], 'ij':[]}
+    copa['clst']['glob'] = {'c': [], 'ij': []}
 
     opt = copa['config']['styl']['glob']
     reg = copa['config']['styl']['register']
     err_sum = 0
     N = 0
     # over files
-    for ii in myl.numkeys(copa['data']):
-        #print(ii) #!v
-        copa,err_sum,N = styl_glob_file(copa,ii,opt,reg,err_sum,N)
-    
-    if N>0:
+    for ii in utils.numkeys(copa['data']):
+        # print(ii) #!v
+        copa, err_sum, N = styl_glob_file(copa, ii, opt, reg, err_sum, N)
+
+    if N > 0:
         copa['val']['styl']['glob']['err_prop'] = err_sum/N
     else:
         copa['val']['styl']['glob']['err_prop'] = np.nan
     return copa
 
 
-def styl_glob_file(copa,ii,opt,reg,err_sum,N):
+def styl_glob_file(copa, ii, opt, reg, err_sum, N):
     myFs = copa['config']['fs']
     # over channels
-    for i in myl.numkeys(copa['data'][ii]):
+    for i in utils.numkeys(copa['data'][ii]):
         t = copa['data'][ii][i]['f0']['t']
         y = copa['data'][ii][i]['f0']['y']
 
-        #print("glob t:", t, len(t))  #!gg
-        #print("glob y:", y, len(y))  #!gg
-        #myl.stopgo()  #!gg
-        
+
+        # print("glob t:", t, len(t))  #!gg
+        # print("glob y:", y, len(y))  #!gg
+        # utils.stopgo()  #!gg
         fstm = copa['data'][ii][i]['fsys']['aud']['stm']
         myLog("\tfile {}, channel {}".format(fstm, i+1))
-        
+
         # residual
         r = np.zeros(len(y))
 
-        # [[bl ml tl]...] medians over complete F0 contour (same length as y) 
-        med = styl_reg_med(y,opt)
+        # [[bl ml tl]...] medians over complete F0 contour (same length as y)
+        med = styl_reg_med(y, opt)
 
         # over glob segments
-        for j in myl.numkeys(copa['data'][ii][i]['glob']):
+        for j in utils.numkeys(copa['data'][ii][i]['glob']):
             gt = copa['data'][ii][i]['glob'][j]['t']
-            
+
             # to for std_feat dur calculation; for interval tier input only
             # tor: time for declination rate calculation
-            if len(copa['data'][ii][i]['glob'][j]['to'])>1:
+            if len(copa['data'][ii][i]['glob'][j]['to']) > 1:
                 to = copa['data'][ii][i]['glob'][j]['to'][0:2]
                 tor = to
             else:
-                to = myl.ea()
-                tor = gt[[0,1]]
-            yi = styl_yi(gt,myFs,y)
+                to = utils.ea()
+                tor = gt[[0, 1]]
+            yi = styl_yi(gt, myFs, y)
             ys = y[yi]
-            df = styl_decl_fit(ys,opt,med[yi,:],tor)
+            df = styl_decl_fit(ys, opt, med[yi, :], tor)
 
             # utterance end prediction parameter set
             # consisting of line crossing and rate*duration parameters
             #       (the latter measuring actually observed declination)
-            eou = styl_df_eou(df,myFs)
-            
-            copl.plot_main({'call':'browse','state':'online',
-                            'fit':df,'type':'glob','set':'decl','y':ys,
-                            'infx':"{}-{}-{}".format(ii,i,j)},copa['config'])
+            eou = styl_df_eou(df, myFs)
+
+            copl.plot_main({'call': 'browse', 'state': 'online',
+                            'fit': df, 'type': 'glob', 'set': 'decl', 'y': ys,
+                            'infx': "{}-{}-{}".format(ii, i, j)}, copa['config'])
             # coefs + fitted line
             copa['data'][ii][i]['glob'][j]['decl'] = df
             # end-of-utterance prediction features derived from df
             copa['data'][ii][i]['glob'][j]['eou'] = eou
             # standard features
-            copa['data'][ii][i]['glob'][j]['gnl'] = styl_std_feat(ys,opt,to)
+            copa['data'][ii][i]['glob'][j]['gnl'] = styl_std_feat(ys, opt, to)
             # coefs without intersection for clustering
-            copa['clst']['glob']['c'] = myl.push(copa['clst']['glob']['c'], df[reg]['c'][0:len(df[reg]['c'])-1])
+            copa['clst']['glob']['c'] = utils.push(
+                copa['clst']['glob']['c'], df[reg]['c'][0:len(df[reg]['c'])-1])
             # reference indices: [file, channel, segment]
-            copa['clst']['glob']['ij'] = myl.push(copa['clst']['glob']['ij'],[ii,i,j])
-            
+            copa['clst']['glob']['ij'] = utils.push(
+                copa['clst']['glob']['ij'], [ii, i, j])
+
             # bl|ml|tl|rng reset
-            for x in myl.lists():
-                if j==0:
+            for x in utils.lists():
+                if j == 0:
                     # first regline value ok, since basevalue subtracted before
                     py = 0
                 else:
                     py = copa['data'][ii][i]['glob'][j-1]['decl'][x]['y'][-1]
-                    
+
                 copa['data'][ii][i]['glob'][j]['decl'][x]['r'] = copa['data'][ii][i]['glob'][j]['decl'][x]['y'][0] - py
 
             # residual
-            r[yi] = styl_residual(y[yi],df,reg)
+            r[yi] = styl_residual(y[yi], df, reg)
 
             # error
             err_sum += df['err']
             N += 1
-            
+
         # entire residual
         copa['data'][ii][i]['f0']['r'] = r
 
-
     return copa, err_sum, N
 
-# standard f0 features mean, std 
-# IN:
-#   y f0 segment
-#   opt
-#   t = [] time on/offset (for original time values instead of sample counting)
-# OUT:
-#   v['m']   arithmetic mean
-#    ['sd']  standard dev
-#    ['med'] median
-#    ['iqr'] inter quartile range
-#    ['max'] max
-#    ['maxpos'] relative position of maximum (normalized to [0 1]
-#    ['min'] min
-#    ['dur'] duration in sec
-def styl_std_feat(y,opt,t=[]):
 
-    if len(y)==0:
-        y=np.asarray([0])
 
-    if len(t)>0:
+def styl_std_feat(y, opt, t=[]):
+
+    '''
+    standard f0 features mean, std
+    
+    Args:
+      y f0 segment
+      opt
+      t = [] time on/offset (for original time values instead of sample counting)
+    
+    Returns:
+      v['m']   arithmetic mean
+       ['sd']  standard dev
+       ['med'] median
+       ['iqr'] inter quartile range
+       ['max'] max
+       ['maxpos'] relative position of maximum (normalized to [0 1]
+       ['min'] min
+       ['dur'] duration in sec
+    '''
+
+
+    if len(y) == 0:
+        y = np.asarray([0])
+
+    if len(t) > 0:
         d = t[1]-t[0]
     else:
-        d = myl.smp2sec(len(y),opt['fs']) ##!!t
-        
+        d = utils.smp2sec(len(y), opt['fs'])  # !!t
+
     return {'m': np.mean(y), 'sd': np.std(y), 'med': np.median(y),
             'iqr': np.percentile(y, 75) - np.percentile(y, 25),
             'max': np.max(y), 'min': np.min(y),
             'maxpos': (np.argmax(y) + 1) / len(y),
             'dur': d}
 
-#### discontinuity stylization
-# for most variables: higher discontinuity is expressed by higher values
-# exceptions: reset 'r', slope differences 'sd_*', for which later on abs values
-#        might be taken
-# IN:
-#   t   time seq of whole file 
-#   y   f0 seq of whole file
-#   a   decl dict of first segment returned by styl_decl_fit()
-#   b   decl dict of second segment
-#   opt: copa['config']['styl']['bnd']
-#   plotDict {'copa'-copa, 'infx' key} <{}>
-#   med: [[bl ml tl]...] medians
-#   caller: for evtl. later plotting
-# OUT:
-#   bnd['p'] - pause length in sec
-#      ['t_on'] - onset time of post-boundary segment (evtl. end of pause)
-#      ['t_off'] - offset time of pre-boundary segment (evtl. start of pause)
-#      [myRegister][myDiscontinuity]
-#     myRegister :=
-#       bl - baseline
-#       ml - midline
-#       tl - topline
-#       rng - range
-#     myDiscontinuity :=
-#       r - reset: b[0] - a[-1]
-#       rms - rmsd(a.b, a+b)
-#       rms_pre - rmsd(A.b,a)
-#       rms_post - rmsd(a.B.b)
-#       sd_prepost - slope(b)-slope(a)
-#       sd_pre - slope(a.b)-slope(a)
-#       sd_post - slope(a.b)-slope(b)
-#       corrD - (1-corr(a+b, a.b))/2; correlation based distance, the higher the more discont;
-#                                 ranging from 0 to 1
-#       corrD_pre - (1-corr(a, A.b))/2
-#       corrD_post - (1-corr(b, a.B))/2
-#       rmsR - rmse ratio rmse(a.b)/rmse(a+b); the higher the more discont
-#       rmsR_pre - rmse(A.b)/rmse(a)
-#       rmsR_post - rmse(a.B)/rmse(b)
-#       aicI - Akaike information criterion AIC increase of joint vs separate fit,
-#               AIC(a.b)-AIC(a+b); the higher the more discont
-#       aicI_pre - AIC(A.b)-AIC(a)
-#       aicI_post - AIC(a.B)-AIC(b)
-#       d_o - onset difference: a[0]-b[0]
-#       d_m - diff of mean values: mean(a)-mean(b)
-#    Notation:
-#    a, b: fits on pre-, post-boundary segments
-#    a.b: joint fit over segments a and b
-#    a+b: separate fits over segments a and b
-#    A.b: first part of a.b (a segment)
-#    a.B: second part of a.b (b segment)
-# AIC for least squares calculated as explained in:
-# https://en.wikipedia.org/wiki/Akaike_information_criterion#Comparison_with_least_squares
-# 3 model parameters per linear fit: intercept, slope, variance of (Gaussian) noise
 
-# variables:
-#    wab: original f0 contour for segments a and b
-#    wa: original f0 contour for segment a
-#    wb: original f0 contour for segment b
-#    xab: register fit input (median sequence) for a+b
-#    xa: register fit input for a
-#    xb: register fit input for b
-#    yab: values of adjacent lines fitted separately on segments a+b
-#    ya: line fitted on segment a
-#    yb: line fitted on segment b
-#    zab: joint a.b fitted line values
-#    za: part of zab corresponding to segment a; A.b
-#    zb: part of zab corresponding to segment b; a.B
+def styl_discont(t, y, a, b, opt, plotDict={}, med=utils.ea(), caller='bnd'):
 
-def styl_discont(t,y,a,b,opt,plotDict={},med=myl.ea(),caller='bnd'):
+    '''
+
+    discontinuity stylization
+    for most variables: higher discontinuity is expressed by higher values
+    exceptions: reset 'r', slope differences 'sd_*', for which later on abs values
+       might be taken
+    Args:
+    t   time seq of whole file
+    y   f0 seq of whole file
+    a   decl dict of first segment returned by styl_decl_fit()
+    b   decl dict of second segment
+    opt: copa['config']['styl']['bnd']
+    plotDict {'copa'-copa, 'infx' key} <{}>
+    med: [[bl ml tl]...] medians
+    caller: for evtl. later plotting
+    
+    Returns:
+    bnd['p'] - pause length in sec
+     ['t_on'] - onset time of post-boundary segment (evtl. end of pause)
+     ['t_off'] - offset time of pre-boundary segment (evtl. start of pause)
+     [myRegister][myDiscontinuity]
+    myRegister :=
+      bl - baseline
+      ml - midline
+      tl - topline
+      rng - range
+    myDiscontinuity :=
+      r - reset: b[0] - a[-1]
+      rms - rmsd(a.b, a+b)
+      rms_pre - rmsd(A.b,a)
+      rms_post - rmsd(a.B.b)
+      sd_prepost - slope(b)-slope(a)
+      sd_pre - slope(a.b)-slope(a)
+      sd_post - slope(a.b)-slope(b)
+      corrD - (1-corr(a+b, a.b))/2; correlation based distance, the higher the more discont;
+                                ranging from 0 to 1
+      corrD_pre - (1-corr(a, A.b))/2
+      corrD_post - (1-corr(b, a.B))/2
+      rmsR - rmse ratio rmse(a.b)/rmse(a+b); the higher the more discont
+      rmsR_pre - rmse(A.b)/rmse(a)
+      rmsR_post - rmse(a.B)/rmse(b)
+      aicI - Akaike information criterion AIC increase of joint vs separate fit,
+              AIC(a.b)-AIC(a+b); the higher the more discont
+      aicI_pre - AIC(A.b)-AIC(a)
+      aicI_post - AIC(a.B)-AIC(b)
+      d_o - onset difference: a[0]-b[0]
+      d_m - diff of mean values: mean(a)-mean(b)
+
+    Notation:
+    a, b: fits on pre-, post-boundary segments
+    a.b: joint fit over segments a and b
+    a+b: separate fits over segments a and b
+    A.b: first part of a.b (a segment)
+    a.B: second part of a.b (b segment)
+    AIC for least squares calculated as explained in:
+    https://en.wikipedia.org/wiki/Akaike_information_criterion#Comparison_with_least_squares
+    3 model parameters per linear fit: intercept, slope, variance of (Gaussian) noise
+    
+    variables:
+       wab: original f0 contour for segments a and b
+       wa: original f0 contour for segment a
+       wb: original f0 contour for segment b
+       xab: register fit input (median sequence) for a+b
+       xa: register fit input for a
+       xb: register fit input for b
+       yab: values of adjacent lines fitted separately on segments a+b
+       ya: line fitted on segment a
+       yb: line fitted on segment b
+       zab: joint a.b fitted line values
+       za: part of zab corresponding to segment a; A.b
+       zb: part of zab corresponding to segment b; a.B
+
+    '''
 
     # non-processable input marked by empty t
-    if len(t)==0:
+    if len(t) == 0:
         return discont_nan()
-    
+
     # pause length, time
-    bnd = {'p':b['to'][0]-a['to'][-1],'t_off':a['to'][-1],'t_on':b['to'][0]}
-    
-    ## joint segment
+    bnd = {'p': b['to'][0]-a['to'][-1],
+           't_off': a['to'][-1], 't_on': b['to'][0]}
+
+    # joint segment
     ta = a['t']
-    ia = styl_yi(ta,opt['fs'])
+    ia = styl_yi(ta, opt['fs'])
     tb = b['t']
-    ib = styl_yi(tb,opt['fs'])
-    
+    ib = styl_yi(tb, opt['fs'])
+
     # robust y-lim of indices
-    ia, ib = sdw_robust(ia,ib,len(y)-1)
+    ia, ib = sdw_robust(ia, ib, len(y)-1)
 
     # removing overlap
-    if ta[-1]==tb[0]: ia = ia[0:len(ia)-1]
+    if ta[-1] == tb[0]:
+        ia = ia[0:len(ia)-1]
 
     # f0 segment
-    ys = np.concatenate((y[ia],y[ib]))
+    ys = np.concatenate((y[ia], y[ib]))
 
     # corresponding median segment (only if available)
-    # use 2x myl.push to ensure 2-dim list
-    if len(med)==len(y):
-        meds = np.concatenate((myl.lol(med[ia,:]),myl.lol(med[ib,:])),0)
+    # use 2x utils.push to ensure 2-dim list
+    if len(med) == len(y):
+        meds = np.concatenate(
+            (utils.lol(med[ia, :]), utils.lol(med[ib, :])), 0)
     else:
-        meds = myl.ea()
+        meds = utils.ea()
 
-    #print('meds ->', meds)
-    #myl.stopgo()
+    # print('meds ->', meds)
+    # utils.stopgo()
     # decl fit of joint segment
-    df = styl_decl_fit(ys,opt,meds)
-    
+    df = styl_decl_fit(ys, opt, meds)
+
     # discontinuities for all register representations
-    for x in myl.lists():
+    for x in utils.lists():
 
         # f0 arrays as introduced above (cf 'variables:')
-        wa,wb,wab,xa,xb,xab,ya,yb,yab,za,zb,zab = bnd_segs(a,b,df,y,ys,ta,tb,ia,ib,x)
-        
+        wa, wb, wab, xa, xb, xab, ya, yb, yab, za, zb, zab = bnd_segs(
+            a, b, df, y, ys, ta, tb, ia, ib, x)
+
         # reset
-        bnd[x]={}
-        bnd[x]['r']=b['decl'][x]['y'][0]-a['decl'][x]['y'][-1]
+        bnd[x] = {}
+        bnd[x]['r'] = b['decl'][x]['y'][0]-a['decl'][x]['y'][-1]
 
         # onsets and means difference (downstep)
         bnd[x]['d_o'] = a['decl'][x]['y'][0] - b['decl'][x]['y'][0]
         bnd[x]['d_m'] = np.mean(a['decl'][x]['y']) - np.mean(b['decl'][x]['y'])
-        
+
         # RMS between fitted lines
-        bnd[x]['rms'] = myl.rmsd(yab,zab)
-        bnd[x]['rms_pre'] = myl.rmsd(ya,za)
-        bnd[x]['rms_post'] = myl.rmsd(yb,zb)
+        bnd[x]['rms'] = utils.rmsd(yab, zab)
+        bnd[x]['rms_pre'] = utils.rmsd(ya, za)
+        bnd[x]['rms_post'] = utils.rmsd(yb, zb)
 
         # slope diffs
         sab, sa, sb = df[x]['c'][0], a['decl'][x]['c'][0], b['decl'][x]['c'][0]
@@ -1002,100 +1150,128 @@ def styl_discont(t,y,a,b,opt,plotDict={},med=myl.ea(),caller='bnd'):
         bnd[x]['sd_post'] = sab-sb
 
         # distance derived from person r
-        corrD = bnd_corrD(ya,yb,yab,za,zb,zab)
+        corrD = bnd_corrD(ya, yb, yab, za, zb, zab)
         for fld in corrD:
             bnd[x][fld] = corrD[fld]
-            
+
         # fitting error ratios (in terms of RMSE) a.b / a+b
-        rmsR = bnd_rmsR(xa,xb,xab,ya,yb,yab,za,zb,zab)
+        rmsR = bnd_rmsR(xa, xb, xab, ya, yb, yab, za, zb, zab)
         for fld in rmsR:
             bnd[x][fld] = rmsR[fld]
-        
+
         # AIC increases
-        aicI = bnd_aicI(xa,xb,xab,ya,yb,yab,za,zb,zab)
+        aicI = bnd_aicI(xa, xb, xab, ya, yb, yab, za, zb, zab)
         for fld in aicI:
             bnd[x][fld] = aicI[fld]
-        
+
     # generate plot subdict for final plotting with copl.plot_main()
     #   .fit|y|t
-    bnd['plot']=bnd_plotObj(y,ia,ib,ta,tb,a,b,df,opt)
+    bnd['plot'] = bnd_plotObj(y, ia, ib, ta, tb, a, b, df, opt)
 
     # online plot
     if 'copa' in plotDict:
-        copl.plot_main({'call':'browse','state':'online',
-                        'type':'complex','set':caller,
+        copl.plot_main({'call': 'browse', 'state': 'online',
+                        'type': 'complex', 'set': caller,
                         'fit': bnd['plot']['fit'],
                         'y': bnd['plot']['y'],
                         't': bnd['plot']['t'],
-                        'infx':plotDict['infx']},
+                        'infx': plotDict['infx']},
                        plotDict['copa']['config'])
-        
+
     return bnd
 
-# distance d from pearson r ranging from 0 to 1
-# d=(1-r)/2
-# IN:
-#   all segments
-# OUT:
-#   dict with dcorr, dcorr_pre, dcorr_post
-# TODO: check for true_divide errors
-def bnd_corrD(ya,yb,yab,za,zb,zab):
-    return {'corrD': (1-np.corrcoef(yab,zab)[0,1])/2,
-            'corrD_pre': (1-np.corrcoef(ya,za)[0,1])/2,
-            'corrD_post': (1-np.corrcoef(yb,zb)[0,1])/2}
 
 
-# fitting error ratios joint vs sep segments (in terms of RMSE)
-# the higher the worse the fit on a.b compared to a+b
-# IN:
-#   all segments
-# OUT:
-#   dict with rmsR, rmsR_pre, rmsR_post
-def bnd_rmsR(xa,xb,xab,ya,yb,yab,za,zb,zab):
-    rms_zab = myl.rmsd(zab,xab)
-    rms_za = myl.rmsd(za,xa)
-    rms_zb = myl.rmsd(zb,xb)
-    rms_yab = myl.rmsd(yab,xab)
-    rms_ya = myl.rmsd(ya,xa)
-    rms_yb = myl.rmsd(yb,xb)
-    return {'rmsR': myl.robust_div(rms_zab,rms_yab),
-            'rmsR_pre': myl.robust_div(rms_za,rms_ya),
-            'rmsR_post': myl.robust_div(rms_zb,rms_yb)}
+def bnd_corrD(ya, yb, yab, za, zb, zab):
 
-# AIC increase joint a.b vs sep a+b segments
-# the higher, the more discontinuity
-# IN:
-#   all segments
-# OUT:
-#   dict with aicR, aicR_pre, aicR_post
-def bnd_aicI(xa,xb,xab,ya,yb,yab,za,zb,zab):
+    '''
+    distance d from pearson r ranging from 0 to 1
+    d=(1-r)/2
+    
+    Args:
+      all segments
+    
+    Returns:
+      dict with dcorr, dcorr_pre, dcorr_post
+    TODO: check for true_divide errors
+    '''
+
+    return {'corrD': (1-np.corrcoef(yab, zab)[0, 1])/2,
+            'corrD_pre': (1-np.corrcoef(ya, za)[0, 1])/2,
+            'corrD_post': (1-np.corrcoef(yb, zb)[0, 1])/2}
+
+
+def bnd_rmsR(xa, xb, xab, ya, yb, yab, za, zb, zab):
+
+    '''
+    fitting error ratios joint vs sep segments (in terms of RMSE)
+    the higher the worse the fit on a.b compared to a+b
+    
+    Args:
+      all segments
+    
+    Returns:
+      dict with rmsR, rmsR_pre, rmsR_post
+    '''
+
+    rms_zab = utils.rmsd(zab, xab)
+    rms_za = utils.rmsd(za, xa)
+    rms_zb = utils.rmsd(zb, xb)
+    rms_yab = utils.rmsd(yab, xab)
+    rms_ya = utils.rmsd(ya, xa)
+    rms_yb = utils.rmsd(yb, xb)
+    return {'rmsR': utils.robust_div(rms_zab, rms_yab),
+            'rmsR_pre': utils.robust_div(rms_za, rms_ya),
+            'rmsR_post': utils.robust_div(rms_zb, rms_yb)}
+
+
+
+def bnd_aicI(xa, xb, xab, ya, yb, yab, za, zb, zab):
+
+    '''
+    AIC increase joint a.b vs sep a+b segments
+    the higher, the more discontinuity
+    
+    Args:
+      all segments
+    
+    Returns:
+      dict with aicR, aicR_pre, aicR_post
+    '''
+
     # number of parameters per line fit:
     # intercept, slope, noise variance
     k = 3
-    aic_zab = myl.aic_ls(xab,zab,k)
-    aic_za = myl.aic_ls(xa,za,k)
-    aic_zb = myl.aic_ls(xb,zb,k)
-    aic_yab = myl.aic_ls(xab,yab,k*2)
-    aic_ya = myl.aic_ls(xa,ya,k)
-    aic_yb = myl.aic_ls(xb,yb,k)
-        
+    aic_zab = utils.aic_ls(xab, zab, k)
+    aic_za = utils.aic_ls(xa, za, k)
+    aic_zb = utils.aic_ls(xb, zb, k)
+    aic_yab = utils.aic_ls(xab, yab, k*2)
+    aic_ya = utils.aic_ls(xa, ya, k)
+    aic_yb = utils.aic_ls(xb, yb, k)
+
     return {'aicI': aic_zab-aic_yab,
             'aicI_pre': aic_za-aic_ya,
             'aicI_post': aic_zb-aic_yb}
 
 
-# returns orig f0 and lines around boundaries for pre/post/joint segment
-# see above for variable introduction
-# IN:
-#    a: decl dict of pre-bnd seg
-#    b: decl dict of post-bnd seg
-#    df: decl dict of joint seg
-#    x: register id
-# OUT:
-#    f0 segments xa, xb, xab ...
-def bnd_segs(a,b,df,y,ys,ta,tb,ia,ib,x):
+def bnd_segs(a, b, df, y, ys, ta, tb, ia, ib, x):
+
+    '''
+    returns orig f0 and lines around boundaries for pre/post/joint segment
+    see above for variable introduction
+    
+    Args:
+       a: decl dict of pre-bnd seg
+       b: decl dict of post-bnd seg
+       df: decl dict of joint seg
+       x: register id
+    
+    Returns:
+       f0 segments xa, xb, xab ...
+    '''
+
     # concat without overlap
-    if ta[-1]==tb[0]:
+    if ta[-1] == tb[0]:
         ya = a['decl'][x]['y'][0:len(a['decl'][x]['y'])-1]
         xa = a['decl'][x]['x'][0:len(a['decl'][x]['y'])-1]
     else:
@@ -1103,83 +1279,110 @@ def bnd_segs(a,b,df,y,ys,ta,tb,ia,ib,x):
         xa = a['decl'][x]['x']
     yb = b['decl'][x]['y']
     xb = b['decl'][x]['x']
-        
+
     # joint segments' portions for rmsd, corr (pre, post, total)
     zab = df[x]['y']
     za = df[x]['y'][0:len(ya)]
     zb = df[x]['y'][len(ya):len(df[x]['y'])]
-    
-    yab = np.concatenate((ya,yb))
-    xab = np.concatenate((xa,xb))
-    ## hack on: robust length adjustment
-    yab, zab = myl.hal(yab,zab)
-    ya, za = myl.hal(ya,za)
-    yb, zb = myl.hal(yb,zb)
-    ## same for stylization input (adjust to length of z*)
-    xab = myl.halx(xab,len(zab))
-    xa = myl.halx(xa,len(za))
-    xb = myl.halx(xb,len(zb))
-    ## same for original f0 contours (adjust to length of z*)
-    wab = myl.halx(ys,len(zab))
-    wa = myl.halx(y[ia],len(za))
-    wb = myl.halx(y[ib],len(zb))
-    ## hack off
 
-    return wa,wb,wab,xa,xb,xab,ya,yb,yab,za,zb,zab
+    yab = np.concatenate((ya, yb))
+    xab = np.concatenate((xa, xb))
+    # hack on: robust length adjustment
+    yab, zab = utils.hal(yab, zab)
+    ya, za = utils.hal(ya, za)
+    yb, zb = utils.hal(yb, zb)
+    # same for stylization input (adjust to length of z*)
+    xab = utils.halx(xab, len(zab))
+    xa = utils.halx(xa, len(za))
+    xb = utils.halx(xb, len(zb))
+    # same for original f0 contours (adjust to length of z*)
+    wab = utils.halx(ys, len(zab))
+    wa = utils.halx(y[ia], len(za))
+    wb = utils.halx(y[ib], len(zb))
 
-# generates 'plot' subdict for bnd dict which can be used later for plotting
-def bnd_plotObj(y,ia,ib,ta,tb,a,b,df,opt):
-        
+    # hack off
+    return wa, wb, wab, xa, xb, xab, ya, yb, yab, za, zb, zab
+
+
+
+def bnd_plotObj(y, ia, ib, ta, tb, a, b, df, opt):
+
+    '''
+    generates 'plot' subdict for bnd dict which can be used later for plotting
+    '''
+
+
     sts = 1/opt['fs']
     # pause zeros
     zz = np.asarray([])
     tz = ta[1]+sts
     while tz < tb[0]:
-        zz = myl.push(zz,0)
+        zz = utils.push(zz, 0)
         tz += sts
-    yab = np.concatenate((y[ia],zz,y[ib]))
-    tab = np.linspace(ta[0],tb[1],len(yab))
+    yab = np.concatenate((y[ia], zz, y[ib]))
+    tab = np.linspace(ta[0], tb[1], len(yab))
     ya = y[ia]
     yb = y[ib]
-    ta = np.linspace(ta[0],ta[1],len(ya))
-    tb = np.linspace(tb[0],tb[1],len(yb))
+    ta = np.linspace(ta[0], ta[1], len(ya))
+    tb = np.linspace(tb[0], tb[1], len(yb))
 
-    return {'fit':{'a': a['decl'], 'b': b['decl'], 'ab': df},
+    return {'fit': {'a': a['decl'], 'b': b['decl'], 'ab': df},
             'y': {'a': ya, 'b': yb, 'ab': yab},
             't': {'a': ta, 'b': tb, 'ab': tab}}
 
-# return all-NaN dict if discont input cannot be processed
+
+
 def discont_nan():
+
+    '''
+    return all-NaN dict if discont input cannot be processed
+    '''
+
     bnd = {}
     for x in ['p', 't_on', 't_off']:
-        bnd[x]=np.nan
-    for x in myl.lists('register'):
-        bnd[x]={}
-        for y in myl.lists('bndfeat'):
+        bnd[x] = np.nan
+    for x in utils.lists('register'):
+        bnd[x] = {}
+        for y in utils.lists('bndfeat'):
             bnd[x][y] = np.nan
     return bnd
+
+
+
+def styl_contains_nan(typ, z):
+
+    '''
+    returns list of paths through x to field with NaN
     
-# returns list of paths through x to field with NaN
-# IN:
-#   typ: subdict type
-#   z:   copa-subdict
-def styl_contains_nan(typ,z):
-    nanl=[]
-    if typ=='bnd':
-        for x in myl.lists('register'):
-            for y in myl.lists('bndfeat'):
+    Args:
+      typ: subdict type
+      z:   copa-subdict
+    '''
+
+    nanl = []
+    if typ == 'bnd':
+        for x in utils.lists('register'):
+            for y in utils.lists('bndfeat'):
                 if np.isnan(z[x][y]):
-                    nanl.append("{}.{}".format(x,y))
+                    nanl.append("{}.{}".format(x, y))
     return nanl
 
-#### removal of global component from f0 ###########
-# IN:
-#   y
-#   df  decl_fit dict
-#   r   'bl'|'ml'|'tl'|'rng'|'none'
-# OUT:
-#   y-residual
-def styl_residual(y,df,r):
+
+
+def styl_residual(y, df, r):
+
+    '''
+    removal of global component from f0
+    
+    Args:
+      y
+      df  decl_fit dict
+      r   'bl'|'ml'|'tl'|'rng'|'none'
+    
+    Returns:
+      y-residual
+    '''
+
     y = cp.deepcopy(y)
     # do nothing
     if r == 'none':
@@ -1189,30 +1392,38 @@ def styl_residual(y,df,r):
         y = y-df[r]['y']
     # range normalization
     else:
-        opt={'mtd':'minmax', 'rng':[0,1]}
-        for i in myl.idx(y):
+        opt = {'mtd': 'minmax', 'rng': [0, 1]}
+        for i in utils.idx(y):
             opt['min'] = df['bl']['y'][i]
             opt['max'] = df['tl']['y'][i]
-            yo=y[i]
-            y[i] = myl.nrm(y[i],opt)
+            yo = y[i]
+            y[i] = utils.nrm(y[i], opt)
     return y
 
-#### calcualte x,y coordinates of bl, ml, tl crossings
-# IN:
-#   df: dict returned by styl_decl_fit()
-# OUT:
-#   eou
-#     .tl_ml_cross_f0|t
-#     .tl_bl_cross_f0|t
-#     .ml_bl_cross_f0|t
-#     .{tl|ml|bl|rng}_drop
-def styl_df_eou(df,fs):
+
+
+def styl_df_eou(df, fs):
+
+    '''
+    calcualte x,y coordinates of bl, ml, tl crossings
+    
+    Args:
+      df: dict returned by styl_decl_fit()
+    
+    Returns:
+      eou
+        .tl_ml_cross_f0|t
+        .tl_bl_cross_f0|t
+        .ml_bl_cross_f0|t
+        .{tl|ml|bl|rng}_drop
+    '''
+
     dur = len(df['tn'])/fs
     eou = {}
     # drop parameters
-    for r in myl.lists("register"):
+    for r in utils.lists("register"):
         eou["{}_drop".format(r)] = df[r]['rate']*dur
-        
+
     # line crossing coordinates
     #   (time and value automatically normalized according
     #    to ST and timenorm specs)
@@ -1220,127 +1431,148 @@ def styl_df_eou(df,fs):
         for rb in ['ml', 'bl']:
             if ra == rb:
                 continue
-            x, y = line_intersect(df[ra]['c'],df[rb]['c'])
-            eou["{}_{}_cross_t".format(ra,rb)] = x
-            eou["{}_{}_cross_f0".format(ra,rb)] = y
+            x, y = line_intersect(df[ra]['c'], df[rb]['c'])
+            eou["{}_{}_cross_t".format(ra, rb)] = x
+            eou["{}_{}_cross_f0".format(ra, rb)] = y
 
     return eou
 
-# x and y coordinates of line intersection
-# IN:
-#    c1: [slope intercept] of line 1
-#    c2: [slope intercept] of line 2
-# OUT:
-#    x: x value (np.nan if lines are parallel)
-#    y: y value (np.nan if lines are parallel)
-def line_intersect(c1,c2):
+
+
+def line_intersect(c1, c2):
+
+    '''
+    x and y coordinates of line intersection
+    
+    Args:
+       c1: [slope intercept] of line 1
+       c2: [slope intercept] of line 2
+    
+    Returns:
+       x: x value (np.nan if lines are parallel)
+       y: y value (np.nan if lines are parallel)
+    '''
+
     a, c = c1[0], c1[1]
     b, d = c2[0], c2[1]
-    if a==b:
+    if a == b:
         return np.nan, np.nan
     x = (d-c)/(a-b)
     y = a*x+c
-    return x,y
-    
-    
-#### fit register level and range ###########
-# IN:
-#   y 1-dim array f0
-#   opt['decl_win'] window length for median calculation in sec
-#      ['prct']['bl']  <10>  value range for median calc
-#              ['tl']  <90>
-#      ['nrm']['mtd']   normalization method
-#             ['range']
-#   med <[]> median values (in some contexts pre-calculated)
-#   t   <[]> time [on off] not provided in discontinuity context
-# OUT:
-#   df['tn']   [normalizedTime]
-#     [myRegister]['c']   base/mid/topline/range coefs [slope intercept]
-#                 ['y']   line
-#                 ['rate'] rate (ST per sec, only if input t is not empty)
-#                 ['drop'] rate * len(tn); actual drop of f0 in segment
-#                 ['m']   mean value of line (resp. line dist)
-#        myRegister :=
-#          'bl' - baseline
-#          'ml' - midline
-#          'tl' - topline
-#          'rng' - range
-#     ['err'] - 1 if any line pair crossing, else 0
-def styl_decl_fit(y,opt,med=myl.ea(),t=myl.ea()):
+    return x, y
 
-    med = myl.lol(med)
+
+def styl_decl_fit(y, opt, med=utils.ea(), t=utils.ea()):
+
+    '''
+    fit register level and range
+    
+    Args:
+      y 1-dim array f0
+      opt['decl_win'] window length for median calculation in sec
+         ['prct']['bl']  <10>  value range for median calc
+                 ['tl']  <90>
+         ['nrm']['mtd']   normalization method
+                ['range']
+      med <[]> median values (in some contexts pre-calculated)
+      t   <[]> time [on off] not provided in discontinuity context
+    
+    Returns:
+      df['tn']   [normalizedTime]
+        [myRegister]['c']   base/mid/topline/range coefs [slope intercept]
+                    ['y']   line
+                    ['rate'] rate (ST per sec, only if input t is not empty)
+                    ['drop'] rate * len(tn); actual drop of f0 in segment
+                    ['m']   mean value of line (resp. line dist)
+           myRegister :=
+             'bl' - baseline
+             'ml' - midline
+             'tl' - topline
+             'rng' - range
+        ['err'] - 1 if any line pair crossing, else 0
+    '''
+
+
+    med = utils.lol(med)
     if len(med) != len(y):
-        med = styl_reg_med(y,opt)
+        med = styl_reg_med(y, opt)
 
     # normalized time
-    tn = myl.nrm_vec(myl.idx_a(len(y)),opt['nrm'])  #yw
+    tn = utils.nrm_vec(utils.idx_a(len(y)), opt['nrm'])  # yw
     # fit midline
-    mc = styl_polyfit(tn,med[:,1],1)
-    mv = np.polyval(mc,tn)
+    mc = styl_polyfit(tn, med[:, 1], 1)
+    mv = np.polyval(mc, tn)
     # interpolate over midline-crossing bl and tl medians
-    med[:,0] = styl_ml_cross(med[:,0],mv,'bl')
-    med[:,2] = styl_ml_cross(med[:,2],mv,'tl')
+    med[:, 0] = styl_ml_cross(med[:, 0], mv, 'bl')
+    med[:, 2] = styl_ml_cross(med[:, 2], mv, 'tl')
     # return dict
     df = {}
-    for x in myl.lists():
+    for x in utils.lists():
         df[x] = {}
     df['tn'] = tn
     df['ml']['c'] = mc
     df['ml']['y'] = mv
     df['ml']['m'] = np.mean(df['ml']['y'])
-    
+
     # get c for 'none' register (evtl needed for clustering if register='none')
-    df['none'] = {'c': styl_polyfit(tn,y,1)}
+    df['none'] = {'c': styl_polyfit(tn, y, 1)}
 
     # fit base and topline
-    df['bl']['c'] = styl_polyfit(tn,med[:,0],1)
-    df['bl']['y'] = np.polyval(df['bl']['c'],tn)
+    df['bl']['c'] = styl_polyfit(tn, med[:, 0], 1)
+    df['bl']['y'] = np.polyval(df['bl']['c'], tn)
     df['bl']['m'] = np.mean(df['bl']['y'])
-    df['tl']['c'] = styl_polyfit(tn,med[:,2],1)
-    df['tl']['y'] = np.polyval(df['tl']['c'],tn)
+    df['tl']['c'] = styl_polyfit(tn, med[:, 2], 1)
+    df['tl']['y'] = np.polyval(df['tl']['c'], tn)
     df['tl']['m'] = np.mean(df['tl']['y'])
- 
+
     # fit range
-    df['rng']['c'] = styl_polyfit(tn,med[:,2]-med[:,0],1)
-    df['rng']['y'] = np.polyval(df['rng']['c'],tn)
-    df['rng']['m'] = max(0,np.mean(df['rng']['y']))
+    df['rng']['c'] = styl_polyfit(tn, med[:, 2]-med[:, 0], 1)
+    df['rng']['y'] = np.polyval(df['rng']['c'], tn)
+    df['rng']['m'] = max(0, np.mean(df['rng']['y']))
 
     # declination rates
-    if len(t)==2:
-        for x in ['bl','ml','tl','rng']:
-            if len(df[x]['y'])==0: continue
-            if t[1]<=t[0]:
+    if len(t) == 2:
+        for x in ['bl', 'ml', 'tl', 'rng']:
+            if len(df[x]['y']) == 0:
+                continue
+            if t[1] <= t[0]:
                 df[x]['rate'] = 0
             else:
                 df[x]['rate'] = (df[x]['y'][-1]-df[x]['y'][0])/(t[1]-t[0])
-                #print(t, df[x]['y'][-1], df[x]['y'][0],df[x]['rate']) #!r
 
-    ## errors
-          
+                # print(t, df[x]['y'][-1], df[x]['y'][0],df[x]['rate']) #!r
+
+    # errors
     # erroneous line crossing
     if ((min(df['tl']['y']-df['ml']['y']) < 0) or
         (min(df['tl']['y']-df['bl']['y']) < 0) or
-        (min(df['ml']['y']-df['bl']['y']) < 0)):
+            (min(df['ml']['y']-df['bl']['y']) < 0)):
         df['err'] = 1
     else:
         df['err'] = 0
 
     # styl input for later error calculation
-    df['bl']['x'] = med[:,0]
-    df['ml']['x'] = med[:,1]
-    df['tl']['x'] = med[:,2]
-    df['rng']['x'] = med[:,2]-med[:,0]
-    
+    df['bl']['x'] = med[:, 0]
+    df['ml']['x'] = med[:, 1]
+    df['tl']['x'] = med[:, 2]
+    df['rng']['x'] = med[:, 2]-med[:, 0]
+
     return df
 
 
-# returns base/mid/topline medians
-# IN:
-#   y: n x 1 f0 vector
-#   opt: config['styl']['glob']
-# OUT:
-#   med: n x 3 median sequence array
-def styl_reg_med(y,opt):
+def styl_reg_med(y, opt):
+
+    '''
+    returns base/mid/topline medians
+    
+    Args:
+      y: n x 1 f0 vector
+      opt: config['styl']['glob']
+    
+    Returns:
+      med: n x 3 median sequence array
+    '''
+
     # window [on off] on F0 indices
     dw = round(opt['decl_win']*opt['fs'])
     # window alignment <center>|left|right
@@ -1348,340 +1580,385 @@ def styl_reg_med(y,opt):
         al = opt["align"]
     else:
         al = "center"
-        
-    yw = myl.seq_windowing({'win':dw,'rng':[0,len(y)],'align':al})
-    
+
+    yw = utils.seq_windowing({'win': dw, 'rng': [0, len(y)], 'align': al})
+
     # median sequence for base/mid/topline
     # med [[med_bl med_ml med_tl]...]
-    med = myl.ea()
+    med = utils.ea()
     for i in range(len(yw)):
-        ys = y[yw[i,0]:yw[i,1]]
+        ys = y[yw[i, 0]:yw[i, 1]]
         qb, qt = np.percentile(ys, [opt['prct']['bl'], opt['prct']['tl']])
-        if len(ys)<=2:
+        if len(ys) <= 2:
             ybl = ys
             ytl = ys
         else:
-            ybl = ys[myl.find(ys,'<=',qb)]
-            ytl = ys[myl.find(ys,'>=',qt)]
+            ybl = ys[utils.find(ys, '<=', qb)]
+            ytl = ys[utils.find(ys, '>=', qt)]
         # fallbacks
-        if len(ybl)==0:
-            ybl = ys[myl.find(ys,'<=',np.percentile(ys, 50))]
-        if len(ytl)==0:
-            ytl = ys[myl.find(ys,'>=',np.percentile(ys, 50))]
+        if len(ybl) == 0:
+            ybl = ys[utils.find(ys, '<=', np.percentile(ys, 50))]
+        if len(ytl) == 0:
+            ytl = ys[utils.find(ys, '>=', np.percentile(ys, 50))]
 
-        if len(ybl)>0: med_bl = np.median(ybl)
-        else: med_bl = np.nan
-        if len(ytl)>0: med_tl = np.median(ytl)
-        else: med_tl = np.nan
+        if len(ybl) > 0:
+            med_bl = np.median(ybl)
+        else:
+            med_bl = np.nan
+        if len(ytl) > 0:
+            med_tl = np.median(ytl)
+        else:
+            med_tl = np.nan
         med_ml = np.median(ys)
-        med = myl.push(med,[med_bl,med_ml,med_tl])
+        med = utils.push(med, [med_bl, med_ml, med_tl])
 
     # interpolate over nan
-    for ii in ([0,2]):
-        xi = myl.find(med[:,ii],'is','nan')
-        if len(xi)>0:
-            xp = myl.find(med[:,ii],'is','finite')
-            yp = med[xp,ii]
-            yi = np.interp(xi,xp,yp)
-            med[xi,ii]=yi
+    for ii in ([0, 2]):
+        xi = utils.find(med[:, ii], 'is', 'nan')
+        if len(xi) > 0:
+            xp = utils.find(med[:, ii], 'is', 'finite')
+            yp = med[xp, ii]
+            yi = np.interp(xi, xp, yp)
+            med[xi, ii] = yi
 
-    return myl.lol(med)
+    return utils.lol(med)
 
-        
 
-### prevent from declination line crossing
-# interpolate over medians for topline/baseline fit
-# that are below/above the already fitted midline
-# IN:
-#   l median sequence
-#   ml fitted midline
-#   typ: 'bl'|'tl' for base/topline
-# OUT:
-#   l median sequence with linear interpolations
-def styl_ml_cross(l,ml,typ):
-    if typ=='bl':
-        xi = myl.find(ml-l,'<=',0)
+def styl_ml_cross(l, ml, typ):
+
+    '''
+    prevent from declination line crossing
+    interpolate over medians for topline/baseline fit
+    that are below/above the already fitted midline
+    
+    Args:
+      l median sequence
+      ml fitted midline
+      typ: 'bl'|'tl' for base/topline
+    
+    Returns:
+      l median sequence with linear interpolations
+    '''
+
+    if typ == 'bl':
+        xi = utils.find(ml-l, '<=', 0)
     else:
-        xi = myl.find(l-ml,'<=',0)
-    if len(xi)>0:
-        if typ=='bl':
-            xp = myl.find(ml-l,'>',0)
+        xi = utils.find(l-ml, '<=', 0)
+    if len(xi) > 0:
+        if typ == 'bl':
+            xp = utils.find(ml-l, '>', 0)
         else:
-            xp = myl.find(l-ml,'>',0)
-        if len(xp)>0:
+            xp = utils.find(l-ml, '>', 0)
+        if len(xp) > 0:
             yp = l[xp]
-            yi = np.interp(xi,xp,yp)
-            l[xi]=yi
+            yi = np.interp(xi, xp, yp)
+            l[xi] = yi
 
     return l
 
 
-#################################################
-#### local segments #############################
-#################################################
+def styl_loc(copa, f_log_in=''):
 
-# IN:
-#   copa
-# OUT: (ii=fileIdx, i=channelIdx, j=segmentIdx)
-#   + ['data'][ii][i]['loc'][j]['acc'][*], see styl_loc_fit()
-#                              ['gnl'][*], see styl_std_feat()
-#   + ['clst']['loc']['c']  coefs
-#                    ['ij'] link to [fileIdx, channelIdx, segmentIdx]
-def styl_loc(copa,f_log_in=''):
+    '''
+    local segments
+    
+    Args:
+      copa
+    
+    Returns: (ii=fileIdx, i=channelIdx, j=segmentIdx)
+      + ['data'][ii][i]['loc'][j]['acc'][*], see styl_loc_fit()
+                                 ['gnl'][*], see styl_std_feat()
+      + ['clst']['loc']['c']  coefs
+                       ['ij'] link to [fileIdx, channelIdx, segmentIdx]
+    '''
+
     global f_log
     f_log = f_log_in
 
     myLog("DOING: styl loc")
-    
-    myl.check_var({'var':copa,'env':'copasul',
-                   'spec':{'step':'styl','dom':'loc'}})
+
+    utils.check_var({'var': copa, 'env': 'copasul',
+                     'spec': {'step': 'styl', 'dom': 'loc'}})
     opt = copa['config']['styl']['loc']
     # re-empty (needed if styl is repatedly applied)
-    copa['clst']['loc'] = {'c':[], 'ij':[]}
+    copa['clst']['loc'] = {'c': [], 'ij': []}
 
     # rmse
     rms_sum = 0
     N = 0
 
     # over files
-    for ii in myl.numkeys(copa['data']):
-        #print(ii) #!v
-        copa,rms_sum,N = styl_loc_file(copa,ii,opt,rms_sum,N)
+    for ii in utils.numkeys(copa['data']):
+        # print(ii) #!v
+        copa, rms_sum, N = styl_loc_file(copa, ii, opt, rms_sum, N)
 
     copa['val']['styl']['loc']['rms_mean'] = rms_sum/N
     return copa
 
-def styl_loc_file(copa,ii,opt,rms_sum,N):
+
+def styl_loc_file(copa, ii, opt, rms_sum, N):
     myFs = copa['config']['fs']
     # over channels
-    for i in myl.numkeys(copa['data'][ii]):
+    for i in utils.numkeys(copa['data'][ii]):
 
         fstm = copa['data'][ii][i]['fsys']['aud']['stm']
         myLog("\tfile {}, channel {}".format(fstm, i+1))
-        
+
         t = copa['data'][ii][i]['f0']['t']
         # add residual vector if not provided by styl_glob()
         # (for register = 'none')
         if 'r' not in copa['data'][ii][i]['f0']:
-            copa['data'][ii][i]['f0']['r'] = cp.deepcopy(copa['data'][ii][i]['f0']['y'])
+            copa['data'][ii][i]['f0']['r'] = cp.deepcopy(
+                copa['data'][ii][i]['f0']['y'])
         y = copa['data'][ii][i]['f0']['r']
         # over loc segments
-        jj = myl.numkeys(copa['data'][ii][i]['loc'])
+        jj = utils.numkeys(copa['data'][ii][i]['loc'])
         for j in jj:
             lt = copa['data'][ii][i]['loc'][j]['t']
-            if len(copa['data'][ii][i]['loc'][j]['to'])>1:
+            if len(copa['data'][ii][i]['loc'][j]['to']) > 1:
                 to = copa['data'][ii][i]['loc'][j]['to'][0:2]
             else:
-                to = myl.ea()
+                to = utils.ea()
             tn = copa['data'][ii][i]['loc'][j]['tn']
-            #print('t:',t)
-            #print('lt:',lt[[0,1]])
-            yi = styl_yi(lt[[0,1]],myFs,y)
+            # print('t:',t)
+            # print('lt:',lt[[0,1]])
+            yi = styl_yi(lt[[0, 1]], myFs, y)
             ys = y[yi]
-            lf = styl_loc_fit(lt,ys,opt)
+            lf = styl_loc_fit(lt, ys, opt)
             copa['data'][ii][i]['loc'][j]['acc'] = lf
-            sf = styl_std_feat(ys,opt,to)
+            sf = styl_std_feat(ys, opt, to)
             # + nrm window
-            yin = styl_yi(copa['data'][ii][i]['loc'][j]['tn'],myFs,y)
+            yin = styl_yi(copa['data'][ii][i]['loc'][j]['tn'], myFs, y)
             # add normalization _nrm
-            sf = styl_std_nrm(sf,y[yin],opt,tn)
+            sf = styl_std_nrm(sf, y[yin], opt, tn)
             copa['data'][ii][i]['loc'][j]['gnl'] = sf
-            copa['clst']['loc']['c'] = myl.push(copa['clst']['loc']['c'], lf['c'])
-            copa['clst']['loc']['ij'] = myl.push(copa['clst']['loc']['ij'],[ii,i,j])
+            copa['clst']['loc']['c'] = utils.push(
+                copa['clst']['loc']['c'], lf['c'])
+            copa['clst']['loc']['ij'] = utils.push(
+                copa['clst']['loc']['ij'], [ii, i, j])
 
             # online plot: polyfit
-            copl.plot_main({'call':'browse','state':'online','fit':lf,'type':'loc','set':'acc',
-                            'y':ys,'infx':"{}-{}-{}".format(ii,i,j)},copa['config'])
+            copl.plot_main({'call': 'browse', 'state': 'online', 'fit': lf, 'type': 'loc', 'set': 'acc',
+                            'y': ys, 'infx': "{}-{}-{}".format(ii, i, j)}, copa['config'])
             # online plot: superpos (after having processed all locsegs in globseg)
-            if ((j+1 not in jj) or (copa['data'][ii][i]['loc'][j+1]['ri']>copa['data'][ii][i]['loc'][j]['ri'])):
+            if ((j+1 not in jj) or (copa['data'][ii][i]['loc'][j+1]['ri'] > copa['data'][ii][i]['loc'][j]['ri'])):
                 ri = copa['data'][ii][i]['loc'][j]['ri']
-                copl.plot_main({'call':'browse','state':'online','fit':copa,'type':'complex',
-                                'set':'superpos','i':[ii,i,ri],'infx':"{}-{}-{}".format(ii,i,ri)},
+                copl.plot_main({'call': 'browse', 'state': 'online', 'fit': copa, 'type': 'complex',
+                                'set': 'superpos', 'i': [ii, i, ri], 'infx': "{}-{}-{}".format(ii, i, ri)},
                                copa['config'])
 
             # rmse
-            rms_sum += myl.rmsd(lf['y'],ys)
+            rms_sum += utils.rmsd(lf['y'], ys)
             N += 1
 
     return copa, rms_sum, N
-    
 
-# polyfit of local segment
-# IN:
-#   t time [onset offset nucleus]
-#   y f0Seq
-#   opt
-# OUT:
-#   f['c']  polycoefs (descending order)
-#    ['tn'] normalized time
-#    ['y'] stylized f0
-#    ['rmsd'] root mean squared deviation (area) under polynomial contour
-#            (in case midline register was subtracted this is the area
-#             between contour and midline)
-#    ['rms'] root mean squared error between original and resynthesized contour
-#           for each polynomial order till opt['ord']; descending as for ['c']
-def styl_loc_fit(t,y,opt):
-    tt = np.linspace(t[0],t[1],len(y))
+
+def styl_loc_fit(t, y, opt):
+
+    '''
+    polyfit of local segment
+    
+    Args:
+      t time [onset offset nucleus]
+      y f0Seq
+      opt
+    
+    Returns:
+      f['c']  polycoefs (descending order)
+       ['tn'] normalized time
+       ['y'] stylized f0
+       ['rmsd'] root mean squared deviation (area) under polynomial contour
+               (in case midline register was subtracted this is the area
+                between contour and midline)
+       ['rms'] root mean squared error between original and resynthesized contour
+              for each polynomial order till opt['ord']; descending as for ['c']
+    '''
+
+    tt = np.linspace(t[0], t[1], len(y))
     # time normalization with zero placement
-    tn = myl.nrm_zero_set(tt, {'t0':myl.trunc2(t[2]), 'rng':opt['nrm']['rng']})
-    f = {'tn':tn}
-    f['c'] = styl_polyfit(tn,y,opt['ord'])
-    f['y'] = np.polyval(f['c'],tn)
-    f['rmsd'] = myl.rmsd(f['y'])
+    tn = utils.nrm_zero_set(
+        tt, {'t0': utils.trunc2(t[2]), 'rng': opt['nrm']['rng']})
+    f = {'tn': tn}
+    f['c'] = styl_polyfit(tn, y, opt['ord'])
+    f['y'] = np.polyval(f['c'], tn)
+    f['rmsd'] = utils.rmsd(f['y'])
 
     # errors from 0..opt['ord'] stylization
     # (same order as in f['c'], i.e. descending)
-    f['rms'] = [myl.rmsd(f['y'],y)]
-    for o in np.linspace(opt['ord']-1,0,opt['ord']):
-        c = styl_polyfit(tn,y,o)
-        r = np.polyval(c,tn)
-        f['rms'].append(myl.rmsd(r,y))
-        
+    f['rms'] = [utils.rmsd(f['y'], y)]
+    for o in np.linspace(opt['ord']-1, 0, opt['ord']):
+        c = styl_polyfit(tn, y, o)
+        r = np.polyval(c, tn)
+        f['rms'].append(utils.rmsd(r, y))
+
     return f
 
-### extended local segment feature set
-# decl and gestalt features
-# IN:
-#   copa
-# OUT: (ii=fileIdx, i=channelIdx, j=segmentIdx)
-#   +[i]['loc'][j]['decl'][*], see styl_decl_fit()
-#                 ['gst'][*], see styl_gestalt()
-def styl_loc_ext(copa,f_log_in=''):
+
+
+def styl_loc_ext(copa, f_log_in=''):
+
+    '''
+    extended local segment feature set
+    decl and gestalt features
+    
+    Args:
+      copa
+    
+    Returns: (ii=fileIdx, i=channelIdx, j=segmentIdx)
+      +[i]['loc'][j]['decl'][*], see styl_decl_fit()
+                    ['gst'][*], see styl_gestalt()
+    '''
+
     global f_log
     f_log = f_log_in
 
     myLog("DOING: styl loc ext")
-    
-    myl.check_var({'var':copa,'env':'copasul',
-                   'spec':{'step':'styl','dom':'loc_ext','req':False,
-                           'dep':['loc','glob']}})
+
+    utils.check_var({'var': copa, 'env': 'copasul',
+                     'spec': {'step': 'styl', 'dom': 'loc_ext', 'req': False,
+                              'dep': ['loc', 'glob']}})
 
     gopt = copa['config']['styl']['glob']
     lopt = copa['config']['styl']['loc']
 
     # over files
-    for ii in myl.numkeys(copa['data']):
-        #print(ii) #!v
-        copa = styl_loc_ext_file(copa,ii,gopt,lopt)
+    for ii in utils.numkeys(copa['data']):
+        # print(ii) #!v
+        copa = styl_loc_ext_file(copa, ii, gopt, lopt)
 
     return copa
 
-def styl_loc_ext_file(copa,ii,gopt,lopt):
+
+def styl_loc_ext_file(copa, ii, gopt, lopt):
 
     myFs = copa['config']['fs']
 
     # over channels
-    for i in myl.numkeys(copa['data'][ii]):
+    for i in utils.numkeys(copa['data'][ii]):
 
         fstm = copa['data'][ii][i]['fsys']['aud']['stm']
         myLog("\tfile {}, channel {}".format(fstm, i+1))
-        
+
         t = copa['data'][ii][i]['f0']['t']
         y = copa['data'][ii][i]['f0']['y']
 
-        # [[bl ml tl]...] medians over complete F0 contour (same length as y) 
-        med = styl_reg_med(y,gopt)
+        # [[bl ml tl]...] medians over complete F0 contour (same length as y)
+        med = styl_reg_med(y, gopt)
 
-        ## decl, gestalt
+        # decl, gestalt
         # over glob segments
-        for j in myl.numkeys(copa['data'][ii][i]['glob']):
+        for j in utils.numkeys(copa['data'][ii][i]['glob']):
             dfg = copa['data'][ii][i]['glob'][j]['decl']
             gto = copa['data'][ii][i]['glob'][j]['t']
             # on:0.01:off
-            gt = np.arange(gto[0],gto[1]+0.01,0.01)
+            gt = np.arange(gto[0], gto[1]+0.01, 0.01)
             # needed, since f0 time starts with 0.1
-            if gt[0]==0: gt=gt[1:]
+            if gt[0] == 0:
+                gt = gt[1:]
             lsi = copa['data'][ii][i]['glob'][j]['ri']
             # over contained loc segments
             for k in lsi:
                 # t and y of local segment
                 lt = copa['data'][ii][i]['loc'][k]['t']
                 # indices in entire utterance
-                yi = styl_yi(lt[[0,1]],myFs)
+                yi = styl_yi(lt[[0, 1]], myFs)
 
                 # orig time for rate calculation
-                if len(copa['data'][ii][i]['loc'][k]['to'])>1:
+                if len(copa['data'][ii][i]['loc'][k]['to']) > 1:
                     to = copa['data'][ii][i]['loc'][k]['to'][0:2]
                 else:
-                    to = lt[[0,1]]
+                    to = lt[[0, 1]]
 
                 # idx in copa['data'][ii][i]['glob'][j]['decl']['bl|ml|tl'][y]...
-                ygi = myl.find_interval(gt,lt[[0,1]])  #! don't use styl_yi() !
+                # ! don't use styl_yi() !
+                ygi = utils.find_interval(gt, lt[[0, 1]])
 
-                ## hack on: adjust lengths
-                yi, ygi = myl.hal(yi,ygi)
-                ## hack off
+                # hack on: adjust lengths
+                yi, ygi = utils.hal(yi, ygi)
 
+                # hack off
                 # inform
-                if len(yi)<4:
-                    myLog("WARNING! styl_loc_ext_file(): file num {}, channel num {}, local segment time interval {} {} too short for polynomial fitting.".format(ii,i,lt[0],lt[1]))
+                if len(yi) < 4:
+                    myLog("WARNING! styl_loc_ext_file(): file num {}, channel num {}, local segment time interval {} {} too short for polynomial fitting.".format(
+                        ii, i, lt[0], lt[1]))
 
                 ys = y[yi]
-                dfl = styl_decl_fit(ys,gopt,med[yi,:],to) # !sic gopt
+                dfl = styl_decl_fit(ys, gopt, med[yi, :], to)  # !sic gopt
                 copa['data'][ii][i]['loc'][k]['decl'] = dfl
-                #print('t=', t)
-                #print('gto=',gto)
-                #print('gt=',gt)
-                #print('lt=',lt)
-                #print('yi=',yi)
-                #print('ygi=',ygi)
-                #print(len(gt))
-                #print(len(ys))
-                #print(len(copa['data'][ii][i]['loc'][k]['decl']['bl']['y']))
-                #print(len(copa['data'][ii][i]['loc'][k]['decl']['ml']['y']))
-                #print(len(copa['data'][ii][i]['loc'][k]['decl']['tl']['y']))
-                #print(len(ygi))
-                copa['data'][ii][i]['loc'][k]['gst'] = styl_gestalt({'dfl':dfl,'dfg':dfg,'idx':ygi,'opt':lopt,'y':ys})
-                copl.plot_main({'call':'browse','state':'online','fit':dfl,'type':'loc',
-                                'set':'decl','y':ys,'infx':"{}-{}-{}".format(ii,i,j)},
+                # print('t=', t)
+                # print('gto=',gto)
+                # print('gt=',gt)
+                # print('lt=',lt)
+                # print('yi=',yi)
+                # print('ygi=',ygi)
+                # print(len(gt))
+                # print(len(ys))
+                # print(len(copa['data'][ii][i]['loc'][k]['decl']['bl']['y']))
+                # print(len(copa['data'][ii][i]['loc'][k]['decl']['ml']['y']))
+                # print(len(copa['data'][ii][i]['loc'][k]['decl']['tl']['y']))
+                # print(len(ygi))
+                copa['data'][ii][i]['loc'][k]['gst'] = styl_gestalt(
+                    {'dfl': dfl, 'dfg': dfg, 'idx': ygi, 'opt': lopt, 'y': ys})
+                copl.plot_main({'call': 'browse', 'state': 'online', 'fit': dfl, 'type': 'loc',
+                                'set': 'decl', 'y': ys, 'infx': "{}-{}-{}".format(ii, i, j)},
                                copa['config'])
     return copa
 
-# measures deviation of locseg declination from corresponding stretch of globseg
-# IN:
-#   obj['dfl'] decl_fit dict of locseg
-#      ['dfg'] decl_fit dict of globseg
-#      ['idx'] y indices in globseg spanned by locseg 
-#      ['y']   orig f0 values in locseg
-#      ['opt']['nrm']['mtd'|'rng'] normalization specs
-#             ['ord']   polyorder for residual
-# OUT:
-#   gst[myRegister]['rms'] RMSD between corresponding lines in globseg and locseg
-#                  ['d'] mean distance between corresponding lines in globseg and locseg. Directed as opposed to 'rms'
-#                  ['sd']  slope diff
-#                  ['d_init'] y[0] diff
-#                  ['d_fin']  y[-1] diff
-#      ['residual'][myRegister]['c'] polycoefs of f0 residual
-# myRegister := bl|ml|tl|rng
-# residual: ml, bl, tl subtraction, pointwise rng [0 1] normalization
-# REMARKS:
-#   - all diffs: locseg-globseg
-#   - sd is taken from (y_off-y_on)/lng since poly coefs 
-#     of globseg and locseg decl are derived from different
-#     time normalizations. That is, slopediff actually is a rate difference!
-#   - no alignment in residual stylization (i.e. no defined center := 0)
+
+
 def styl_gestalt(obj):
-    (dfl,dfg_in,idx,opt,y) = (obj['dfl'],obj['dfg'],obj['idx'],obj['opt'],obj['y'])
+
+    '''
+    measures deviation of locseg declination from corresponding stretch of globseg
+    
+    Args:
+      obj['dfl'] decl_fit dict of locseg
+         ['dfg'] decl_fit dict of globseg
+         ['idx'] y indices in globseg spanned by locseg
+         ['y']   orig f0 values in locseg
+         ['opt']['nrm']['mtd'|'rng'] normalization specs
+                ['ord']   polyorder for residual
+    
+    Returns:
+      gst[myRegister]['rms'] RMSD between corresponding lines in globseg and locseg
+                     ['d'] mean distance between corresponding lines in globseg and locseg. Directed as opposed to 'rms'
+                     ['sd']  slope diff
+                     ['d_init'] y[0] diff
+                     ['d_fin']  y[-1] diff
+         ['residual'][myRegister]['c'] polycoefs of f0 residual
+    myRegister := bl|ml|tl|rng
+    residual: ml, bl, tl subtraction, pointwise rng [0 1] normalization
+    REMARKS:
+      - all diffs: locseg-globseg
+      - sd is taken from (y_off-y_on)/lng since poly coefs
+        of globseg and locseg decl are derived from different
+        time normalizations. That is, slopediff actually is a rate difference!
+      - no alignment in residual stylization (i.e. no defined center := 0)
+    '''
+
+    (dfl, dfg_in, idx, opt, y) = (
+        obj['dfl'], obj['dfg'], obj['idx'], obj['opt'], obj['y'])
     dcl = {}
 
-    #print('in sub')
 
+    # print('in sub')
     # preps for residual calculation
-    dfg={}
-    for x in myl.lists():
-        #print(idx)
-        #print(len(dfg_in[x]['y']))
-        dfg[x]={}
-        dfg[x]['y']=dfg_in[x]['y'][idx]
+    dfg = {}
+    for x in utils.lists():
+        # print(idx)
+        # print(len(dfg_in[x]['y']))
+        dfg[x] = {}
+        dfg[x]['y'] = dfg_in[x]['y'][idx]
     l = len(idx)
-    dcl['residual']={}
+    dcl['residual'] = {}
     # gestalt features
-    for x in myl.lists():
-        dcl[x]={}
+    for x in utils.lists():
+        dcl[x] = {}
         yl = dfl[x]['y']
         yg = dfg[x]['y']
         # rms
-        dcl[x]['rms'] = myl.rmsd(yl,yg)
+        dcl[x]['rms'] = utils.rmsd(yl, yg)
         # mean distance d
         dcl[x]['d'] = np.mean(yl-yg)
         # slope diff sd
@@ -1690,92 +1967,113 @@ def styl_gestalt(obj):
         dcl[x]['d_init'] = yl[0]-yg[0]
         dcl[x]['d_fin'] = yl[-1]-yg[-1]
         # residual
-        r = styl_residual(y,dfg,x)
-        t = myl.nrm_vec(myl.idx_a(l),opt['nrm'])
-        dcl['residual'][x]={}
-        dcl['residual'][x]['c'] = styl_polyfit(t,r,opt['ord'])
+        r = styl_residual(y, dfg, x)
+        t = utils.nrm_vec(utils.idx_a(l), opt['nrm'])
+        dcl['residual'][x] = {}
+        dcl['residual'][x]['c'] = styl_polyfit(t, r, opt['ord'])
     return dcl
 
-# try-catch wrapper around polyfit
-# returns zeros if something goes wrong
-# coeffcients returned highest power first
-def styl_polyfit_old(x,y,o):
+
+
+def styl_polyfit_old(x, y, o):
+
+    '''
+    try-catch wrapper around polyfit
+    returns zeros if something goes wrong
+    coeffcients returned highest power first
+    '''
+
     try:
-        c = np.polyfit(x,y,o)
+        c = np.polyfit(x, y, o)
     except:
         c = np.zeros(o+1)
     return c
 
-def styl_polyfit(x,y,o):
+
+def styl_polyfit(x, y, o):
     o = np.int(o)
-    if len(x)==0:
+    if len(x) == 0:
         return np.zeros(o+1)
-    if len(x)<=o:
-        return myl.push(np.zeros(o),np.mean(y))
+    if len(x) <= o:
+        return utils.push(np.zeros(o), np.mean(y))
     try:
-        c = np.polyfit(x,y,o)
+        c = np.polyfit(x, y, o)
     except:
         c = np.zeros(o+1)
     return c
 
-###########################################
-####### boundary stylization ##############
-###########################################
-# IN:
-#   copa
-# OUT: (ii=fileIdx, i=channelIdx, j=tierIdx, k=segmentIdx)
-#   + ['data'][ii][i]['bnd'][j][k]['decl']; see styl_decl_fit()
-#   + ['data'][ii][i]['bnd'][j][k][myWindowing]; see styl_discount()
-#          for non-final segments only
-# myWindowing :=
-#   std - standard, i.e. neighboring segments
-#   win - symmetric window around segment boundary
-#         (using 'tn': norm window limited by current chunk, see pp_t2i())
-#   trend - from file onset to boundary, and from boundary to file offset
-#         (using 'tt': trend window [chunkOn timePoint chunkOff], see p_t2i())
-def styl_bnd(copa,f_log_in=''):
+
+
+def styl_bnd(copa, f_log_in=''):
+
+    '''
+    boundary stylization
+    
+    Args:
+      copa
+    
+    Returns: (ii=fileIdx, i=channelIdx, j=tierIdx, k=segmentIdx)
+      + ['data'][ii][i]['bnd'][j][k]['decl']; see styl_decl_fit()
+      + ['data'][ii][i]['bnd'][j][k][myWindowing]; see styl_discount()
+             for non-final segments only
+    myWindowing :=
+      std - standard, i.e. neighboring segments
+      win - symmetric window around segment boundary
+            (using 'tn': norm window limited by current chunk, see pp_t2i())
+      trend - from file onset to boundary, and from boundary to file offset
+            (using 'tt': trend window [chunkOn timePoint chunkOff], see p_t2i())
+    '''
+
     global f_log
     f_log = f_log_in
 
     myLog("DOING: styl bnd")
-    
-    myl.check_var({'var':copa,'env':'copasul',
-                   'spec':{'step':'styl','dom':'bnd'}})
+
+    utils.check_var({'var': copa, 'env': 'copasul',
+                     'spec': {'step': 'styl', 'dom': 'bnd'}})
 
     navi = copa['config']['navigate']
     opt = copa['config']['styl']['bnd']
 
     # over files
-    for ii in myl.numkeys(copa['data']):
-        copa = styl_bnd_file(copa,ii,navi,opt)
+    for ii in utils.numkeys(copa['data']):
+        copa = styl_bnd_file(copa, ii, navi, opt)
     return copa
 
-# called by styl_bnd for file-wise processing
-# IN:
-#   copa
-#   ii: fileIdx
-#   navi: navigation dict
-#   opt: copa['config']['styl']['bnd']
-# OUT:
-#   copa
-#     +['bnd'][j][k]['decl']
-#                   ['std']
-#                   ['win']
-#                   ['trend']
-#         j - tier idx, k - segment idx
-#         bnd features refer to boundary that FOLLOWS the segment k
-def styl_bnd_file(copa,ii,navi,opt):
+
+
+def styl_bnd_file(copa, ii, navi, opt):
+
+    '''
+    called by styl_bnd for file-wise processing
+    
+    Args:
+      copa
+      ii: fileIdx
+      navi: navigation dict
+      opt: copa['config']['styl']['bnd']
+    
+    Returns:
+      copa
+        +['bnd'][j][k]['decl']
+                      ['std']
+                      ['win']
+                      ['trend']
+            j - tier idx, k - segment idx
+            bnd features refer to boundary that FOLLOWS the segment k
+    '''
+
 
     myFs = copa['config']['fs']
 
     # over channels
-    for i in myl.numkeys(copa['data'][ii]):
+    for i in utils.numkeys(copa['data'][ii]):
         t = copa['data'][ii][i]['f0']['t']
 
         fstm = copa['data'][ii][i]['fsys']['aud']['stm']
-        
+
         myLog("\tfile {}, channel {}".format(fstm, i+1))
-        
+
         # which f0 contour to take (+/- residual)
         if opt['residual']:
             y = copa['data'][ii][i]['f0']['r']
@@ -1783,337 +2081,399 @@ def styl_bnd_file(copa,ii,navi,opt):
             y = copa['data'][ii][i]['f0']['y']
 
         # [[bl ml tl]...] medians over complete F0 contour (same length as y)
-        med = styl_reg_med(y,opt)
-        
+        med = styl_reg_med(y, opt)
+
         # over tiers
-        for j in myl.numkeys(copa['data'][ii][i]['bnd']):
+        for j in utils.numkeys(copa['data'][ii][i]['bnd']):
             # over segments
-            nk = myl.numkeys(copa['data'][ii][i]['bnd'][j])
+            nk = utils.numkeys(copa['data'][ii][i]['bnd'][j])
             for k in nk:
                 gt = copa['data'][ii][i]['bnd'][j][k]['t']
-                yi = styl_yi(gt,myFs,y)
+                yi = styl_yi(gt, myFs, y)
                 ys = y[yi]
                 # decl fit
-                df = styl_decl_fit(ys,opt,med[yi,:])
+                df = styl_decl_fit(ys, opt, med[yi, :])
                 copa['data'][ii][i]['bnd'][j][k]['decl'] = df
-                if k<1: continue
+                if k < 1:
+                    continue
                 a = copa['data'][ii][i]['bnd'][j][k-1]
                 b = copa['data'][ii][i]['bnd'][j][k]
 
                 # plotting dict
-                po = {'copa':copa,'infx':"{}-{}-{}-{}-std".format(ii,i,copa['data'][ii][i]['bnd'][j][k]['tier'],k-1)}
-                    
+                po = {'copa': copa, 'infx': "{}-{}-{}-{}-std".format(
+                    ii, i, copa['data'][ii][i]['bnd'][j][k]['tier'], k-1)}
+
                 # discont
-                copa['data'][ii][i]['bnd'][j][k-1]['std'] = styl_discont(t,y,a,b,opt,po,med,'bnd')
-                ## alternative bnd windows
+                copa['data'][ii][i]['bnd'][j][k -
+                                              1]['std'] = styl_discont(t, y, a, b, opt, po, med, 'bnd')
+                # alternative bnd windows
                 # trend
                 if navi['do_styl_bnd_trend'] == True:
-                    #print(copa['data'][ii][i]['bnd'][j])
-                    po['infx'] = "{}-{}-{}-{}-trend".format(ii,i,copa['data'][ii][i]['bnd'][j][k]['tier'],k-1)
-                    copa['data'][ii][i]['bnd'][j][k-1]['trend'] = styl_discont_wrapper(copa['data'][ii][i]['bnd'][j][k]['tt'],t,y,opt,po,med,'bnd_trend')
-                    
+                    # print(copa['data'][ii][i]['bnd'][j])
+                    po['infx'] = "{}-{}-{}-{}-trend".format(
+                        ii, i, copa['data'][ii][i]['bnd'][j][k]['tier'], k-1)
+                    copa['data'][ii][i]['bnd'][j][k-1]['trend'] = styl_discont_wrapper(
+                        copa['data'][ii][i]['bnd'][j][k]['tt'], t, y, opt, po, med, 'bnd_trend')
+
                 if navi['do_styl_bnd_win'] == True:
-                    po['infx'] = "{}-{}-{}-{}-win".format(ii,i,copa['data'][ii][i]['bnd'][j][k]['tier'],k-1)
-                    copa['data'][ii][i]['bnd'][j][k-1]['win'] = styl_discont_wrapper(copa['data'][ii][i]['bnd'][j][k]['tn'],t,y,opt,po,med,'bnd_win')
-                    
+                    po['infx'] = "{}-{}-{}-{}-win".format(
+                        ii, i, copa['data'][ii][i]['bnd'][j][k]['tier'], k-1)
+                    copa['data'][ii][i]['bnd'][j][k-1]['win'] = styl_discont_wrapper(
+                        copa['data'][ii][i]['bnd'][j][k]['tn'], t, y, opt, po, med, 'bnd_win')
+
     return copa
 
-# wrapper around styl_discont() for different calls
-# IN:
-#   tw: time array [on joint1 (joint2) off]
-#       if joint2 is missing, i.e. 3-element array: joint2=joint1
-#       discont is calculated between [on joint1] and [joint2 off]
-#   t: all time array
-#   y: all f0 array
-#   opt: copa['config']
-#   po: plotting options
-#   med: [[bl ml tl]...], same length as y (will be calculated in this function if not provided)
-#   caller: for evtl. plotting
-# OUT:
-#   dict from styl_discont()
-# REMARKS:
-#    tw: ['bnd'][j]['tn'|'tt'] can be passed on as is ('win', 'trend' discont)
-#        ['bnd'][j]['t'] + ['bnd'][j+1]['t'] needs to be concatenated ('std' discont)
-def styl_discont_wrapper(tw,t,y,opt,po={},med=myl.ea(),caller='bnd'):
+
+
+def styl_discont_wrapper(tw, t, y, opt, po={}, med=utils.ea(), caller='bnd'):
+
+    '''
+    wrapper around styl_discont() for different calls
     
+    Args:
+      tw: time array [on joint1 (joint2) off]
+          if joint2 is missing, i.e. 3-element array: joint2=joint1
+          discont is calculated between [on joint1] and [joint2 off]
+      t: all time array
+      y: all f0 array
+      opt: copa['config']
+      po: plotting options
+      med: [[bl ml tl]...], same length as y (will be calculated in this function if not provided)
+      caller: for evtl. plotting
+    
+    Returns:
+      dict from styl_discont()
+    REMARKS:
+       tw: ['bnd'][j]['tn'|'tt'] can be passed on as is ('win', 'trend' discont)
+           ['bnd'][j]['t'] + ['bnd'][j+1]['t'] needs to be concatenated ('std' discont)
+    '''
+
+
     myFs = opt['fs']
 
     # called with entire opt dict
     if 'styl' in opt:
-        opt=cp.deepcopy(opt['styl']['bnd'])
-        
-    # f0 medians [[bl ml tl]...], same length as y
-    if len(med)>0:
-        med = myl.lol(med)
-        
-    if len(med) != len(y):
-        med = styl_reg_med(y,opt)
+        opt = cp.deepcopy(opt['styl']['bnd'])
 
-    ### segments
-    if len(tw)==4:
+    # f0 medians [[bl ml tl]...], same length as y
+    if len(med) > 0:
+        med = utils.lol(med)
+
+    if len(med) != len(y):
+        med = styl_reg_med(y, opt)
+
+    # segments
+    if len(tw) == 4:
         on1, off1, on2, off2 = tw[0], tw[1], tw[2], tw[3]
     else:
         on1, off1, on2, off2 = tw[0], tw[1], tw[1], tw[2]
 
     # segments too short or missing
     # (e.g. if cross_chunk is False, and seg 1 ends at or seg2 starts at chunk bnd)
-    if on1==off1 or on2==off2:
-        return styl_discont([],[],{},{},{},{},[],'')
+    if on1 == off1 or on2 == off2:
+        return styl_discont([], [], {}, {}, {}, {}, [], '')
 
-    i1 = styl_yi([on1,off1],myFs)
-    i2 = styl_yi([on2,off2],myFs)
+    i1 = styl_yi([on1, off1], myFs)
+    i2 = styl_yi([on2, off2], myFs)
     # robust extension
-    i1, i2 = sdw_robust(i1,i2,len(y)-1)
+    i1, i2 = sdw_robust(i1, i2, len(y)-1)
     ys1 = y[i1]
     ys2 = y[i2]
-    med1 = med[i1,:]
-    med2 = med[i2,:]
+    med1 = med[i1, :]
+    med2 = med[i2, :]
 
-    ### decl fits
-    a = {'decl':styl_decl_fit(ys1,opt,med1),'t':[on1,off1],'to':[on1,off1]}
-    b = {'decl':styl_decl_fit(ys2,opt,med2),'t':[on2,off2],'to':[on2,off2]}
+    # decl fits
+    a = {'decl': styl_decl_fit(ys1, opt, med1), 't': [
+        on1, off1], 'to': [on1, off1]}
+    b = {'decl': styl_decl_fit(ys2, opt, med2), 't': [
+        on2, off2], 'to': [on2, off2]}
 
-    ### styl discontinuity
-    return styl_discont(t,y,a,b,opt,po,med,caller)
+    # styl discontinuity
+    return styl_discont(t, y, a, b, opt, po, med, caller)
 
-# for discont styl, padds indices so that index arrays have minlength 2
-# IN:
-#   i1, i2: index arrays of adjacent segments
-#   u: upper index limit (incl; lower is 0)
-def sdw_robust(i1,i2,u):
-    i1 = i1[myl.find(i1,'<=',u)]
-    i2 = i2[myl.find(i2,'<=',u)]
-    if len(i1)==0:
-        if len(i2)==0:
+
+
+def sdw_robust(i1, i2, u):
+
+    '''
+    for discont styl, padds indices so that index arrays have minlength 2
+    
+    Args:
+      i1, i2: index arrays of adjacent segments
+      u: upper index limit (incl; lower is 0)
+    '''
+
+    i1 = i1[utils.find(i1, '<=', u)]
+    i2 = i2[utils.find(i2, '<=', u)]
+    if len(i1) == 0:
+        if len(i2) == 0:
             i1 = [0]
         else:
-            i1 = np.asarray([max(0,i2[0]-2)])
-        #print('i1',i1)
-    if len(i2)==0:
+            i1 = np.asarray([max(0, i2[0]-2)])
+        # print('i1',i1)
+    if len(i2) == 0:
         i2 = np.asarray([i1[-1]])
-        #print('i2',i2)
+        # print('i2',i2)
     while len(i1) < 2 and i1[-1] < u:
-        i1 = np.append(i1,i1[-1]+1)
-        #print('i1a',i1)
-    while len(i2) < 2 and i2[-1] < u: 
-        i2 = np.append(i2,i2[-1]+1)
-        #print('i2a',i2)
+        i1 = np.append(i1, i1[-1]+1)
+        # print('i1a',i1)
+    while len(i2) < 2 and i2[-1] < u:
+        i2 = np.append(i2, i2[-1]+1)
+        # print('i2a',i2)
     return i1, i2
 
-####### speech rhythm ###################
 
-# IN:
-#   copa
-#   typ: 'en'|'f0'
-# OUT:
-#   +['rhy'], see output of styl_speech_rhythm()
-def styl_rhy(copa,typ,f_log_in=''):
+def styl_rhy(copa, typ, f_log_in=''):
+
+    '''
+    speech rhythm
+    
+    Args:
+      copa
+      typ: 'en'|'f0'
+    
+    Returns:
+      +['rhy'], see output of styl_speech_rhythm()
+    '''
+
     global f_log
     f_log = f_log_in
 
     myLog("DOING: styl rhy {}".format(typ))
-    
+
     fld = "rhy_{}".format(typ)
-    myl.check_var({'var':copa,'env':'copasul',
-                   'spec':{'step':'styl','dom':fld}})
+    utils.check_var({'var': copa, 'env': 'copasul',
+                     'spec': {'step': 'styl', 'dom': fld}})
     opt = cp.deepcopy(copa['config']['styl'][fld])
-    opt['type']=typ
+    opt['type'] = typ
     opt['plot'] = copa['config']['plot']
     opt['fsys'] = copa['config']['fsys']
     opt['navigate'] = copa['config']['navigate']
 
     # over files
-    for ii in myl.numkeys(copa['data']):
-        #print(copa['data'][ii][0]['fsys']['aud']['stm']) #!v
-        copa = styl_rhy_file(copa,ii,fld,opt)
+    for ii in utils.numkeys(copa['data']):
+        # print(copa['data'][ii][0]['fsys']['aud']['stm']) #!v
+        copa = styl_rhy_file(copa, ii, fld, opt)
 
     return copa
 
-# IN:
-#   copa
-#   ii fileIdx
-#   fld in copa 'rhy_en|f0'
-#   opt augmented deepcopy of copa[config]
-def styl_rhy_file(copa,ii,fld,opt):
+
+def styl_rhy_file(copa, ii, fld, opt):
+
+    '''
+    
+    Args:
+      copa
+      ii fileIdx
+      fld in copa 'rhy_en|f0'
+      opt augmented deepcopy of copa[config]
+    '''
+
 
     # over channels
-    for i in myl.numkeys(copa['data'][ii]):
+    for i in utils.numkeys(copa['data'][ii]):
 
         fstm = copa['data'][ii][i]['fsys']['aud']['stm']
         myLog("\tfile {}, channel {}".format(fstm, i+1))
-        
-        if opt['type']=='f0':
+
+        if opt['type'] == 'f0':
             t = copa['data'][ii][i]['f0']['t']
             y = copa['data'][ii][i]['f0']['y']
             myFs = copa['config']['fs']
         # wav file
         else:
             fp = copa['data'][ii][i]['fsys']['aud']
-            f = "{}/{}.{}".format(fp['dir'],fp['stm'],fp['ext'])
+            f = "{}/{}.{}".format(fp['dir'], fp['stm'], fp['ext'])
             y, fs_sig = sif.wavread(f)
 
-            if np.ndim(y)>1: y = y[:,i]
-            opt['fs']=fs_sig
-            t = myl.smp2sec(myl.idx_seg(1,len(y)),fs_sig,0)
+            if np.ndim(y) > 1:
+                y = y[:, i]
+            opt['fs'] = fs_sig
+            t = utils.smp2sec(utils.idx_seg(1, len(y)), fs_sig, 0)
             myFs = fs_sig
 
             # rescale to max to make different recordings comparable
             if opt['sig']['scale']:
                 amax = max(abs(y))
-                fac = max(1,(1/amax)-1)
+                fac = max(1, (1/amax)-1)
                 y *= fac
 
         # file wide
         r = copa['data'][ii][i]['rate']
-        #print('r1',r) #!
+        # print('r1',r) #!
         # for plotting
-        opt['infx'] = "{}-{}-file".format(ii,i)
-        copa['data'][ii][i]["{}_file".format(fld)] = styl_speech_rhythm(y,r,opt,copa['config'])
+        opt['infx'] = "{}-{}-file".format(ii, i)
+        copa['data'][ii][i]["{}_file".format(fld)] = styl_speech_rhythm(
+            y, r, opt, copa['config'])
         # over tiers
-        for j in myl.numkeys(copa['data'][ii][i][fld]):
+        for j in utils.numkeys(copa['data'][ii][i][fld]):
             # over segments
-            nk = myl.numkeys(copa['data'][ii][i][fld][j])
+            nk = utils.numkeys(copa['data'][ii][i][fld][j])
             for k in nk:
                 gt = copa['data'][ii][i][fld][j][k]['t']
 
-                #!u
-                #print(copa['data'][ii][i]['fsys']['annot'])
-                #print(i,j,gt)
 
-                yi = styl_yi(gt,myFs,y) 
+                #!u
+                # print(copa['data'][ii][i]['fsys']['annot'])
+                # print(i,j,gt)
+                yi = styl_yi(gt, myFs, y)
                 ys = y[yi]
                 r = copa['data'][ii][i][fld][j][k]['rate']
                 # for plotting
-                opt['infx'] = "{}-{}-{}-{}".format(ii,i,copa['data'][ii][i][fld][j][k]['tier'],k)
-                copa['data'][ii][i][fld][j][k]['rhy'] = styl_speech_rhythm(ys,r,opt,copa['config'])
-                #print(i,j,j,fld,copa['data'][ii][i][fld][j][k]['rhy']) #!
-                #myl.stopgo() #!
+                opt['infx'] = "{}-{}-{}-{}".format(ii, i,
+                                                   copa['data'][ii][i][fld][j][k]['tier'], k)
+                copa['data'][ii][i][fld][j][k]['rhy'] = styl_speech_rhythm(
+                    ys, r, opt, copa['config'])
+                # print(i,j,j,fld,copa['data'][ii][i][fld][j][k]['rhy']) #!
+                # utils.stopgo() #!
     return copa
 
-# DCT-related features on energy or f0 contours
-# y - array, f0 or amplitude sequence (raw signal, NOT energy contour)
-# r[myDomain] <{}> rate of myDomain (e.g. 'syl', 'ag', 'ip')]
-# opt['type'] - signal type: 'f0' or 'en'
-# opt['fs']  - sample frequency
-# opt['sig']           - options to extract energy contour
-#                        (relevant only for opt['type']=='en')
-#           ['wintyp'] - <'none'>, any type supported by
-#                        scipy.signal.get_window()
-#           ['winparam'] - <''> additionally needed window parameters,
-#                        scalar, string, list ...
-#           ['sts']    - stepsize of moving window
-#           ['win']    - window length
-#    ['rhy']           - DCT options
-#           ['wintyp'] - <'kaiser'>, any type supported by
-#                        scipy.signal.get_window()
-#           ['winparam'] - <1> additionally needed window parameters,
-#                        scalar, string, list ..., depends on 'wintyp'
-#           ['nsm']    - <3> number of spectral moments
-#           ['rmo']    - skip first (lowest) cosine (=constant offset)
-#                        in spectral moment calculation <1>|0
-#           ['lb']     - lower cutoff frequency for coef truncation <0> 
-#           ['ub']     - upper cutoff frequency (if 0, no cutoff) <0>
-#                        Recommended e.g. for f0 DCT, so that only influence
-#                        of events with <= 10Hz on f0 contour is considered)
-#           ['rb'] - <1> frequency catch band to measure influence
-#                    of rate of events in rate dict R in DCT
-#                    e.g. r['syl']=4, opt['rb']=1
-#                    'syl' influence on DCT: summed abs coefs of 3,4,5 Hz
-# OUT:
-#   rhy['c_orig'] all coefs
-#      ['f_orig'] all freq
-#      ['c'] coefs with freq between lb and ub
-#      ['f'] freq between lb and ub
-#      ['i'] indices of 'c' in 'c_orig'
-#      ['sm'] ndarray spectral moments
-#      ['m'] weighted coef mean
-#      ['sd'] weighted coef std
-#      ['cbin'] ndarray, summed abs coefs in freq bins between lb and ub
-#      ['fbin'] ndarray, corresponding frequencies
-#      ['wgt'][myDomain]['mae'] - mean absolute error between
-#                                 IDCT of coefs around resp rate
-#                                 and IDCT of coefs between 'lb' and 'ub'
-#                       ['prop'] - proportion of coefs around
-#                                 resp rate relative to coef sum
-#                       ['rate'] - rate in analysed domain
-#                       ['dgm'] dist to glob max in dct !
-#                       ['dlm'] dist to loc max in dct !
-#      ['dur'] - segment duration (in sec) 
-#      ['f_max'] - freq of max amplitude
-#      ['n_peak'] - number of peaks in DCT spectrum
-def styl_speech_rhythm(y,r={},opt={},copaConfig={}):
-    err=0
-    dflt={}
-    dflt['sig']= {'sts':0.01,'win':0.05,'wintyp':'hamming','winparam':None}
-    dflt['rhy'] = {'wintyp':'kaiser','winparam':1,'nsm':3,
-                   'rmo':True,'lb':0,'ub':0,'wgt':{'rb':1}}
+
+
+def styl_speech_rhythm(y, r={}, opt={}, copaConfig={}):
+
+    '''
+    DCT-related features on energy or f0 contours
+    y - array, f0 or amplitude sequence (raw signal, NOT energy contour)
+    r[myDomain] <{}> rate of myDomain (e.g. 'syl', 'ag', 'ip')]
+    opt['type'] - signal type: 'f0' or 'en'
+    opt['fs']  - sample frequency
+    opt['sig']           - options to extract energy contour
+                           (relevant only for opt['type']=='en')
+              ['wintyp'] - <'none'>, any type supported by
+                           scipy.signal.get_window()
+              ['winparam'] - <''> additionally needed window parameters,
+                           scalar, string, list ...
+              ['sts']    - stepsize of moving window
+              ['win']    - window length
+       ['rhy']           - DCT options
+              ['wintyp'] - <'kaiser'>, any type supported by
+                           scipy.signal.get_window()
+              ['winparam'] - <1> additionally needed window parameters,
+                           scalar, string, list ..., depends on 'wintyp'
+              ['nsm']    - <3> number of spectral moments
+              ['rmo']    - skip first (lowest) cosine (=constant offset)
+                           in spectral moment calculation <1>|0
+              ['lb']     - lower cutoff frequency for coef truncation <0>
+              ['ub']     - upper cutoff frequency (if 0, no cutoff) <0>
+                           Recommended e.g. for f0 DCT, so that only influence
+                           of events with <= 10Hz on f0 contour is considered)
+              ['rb'] - <1> frequency catch band to measure influence
+                       of rate of events in rate dict R in DCT
+                       e.g. r['syl']=4, opt['rb']=1
+                       'syl' influence on DCT: summed abs coefs of 3,4,5 Hz
+    
+    Returns:
+      rhy['c_orig'] all coefs
+         ['f_orig'] all freq
+         ['c'] coefs with freq between lb and ub
+         ['f'] freq between lb and ub
+         ['i'] indices of 'c' in 'c_orig'
+         ['sm'] ndarray spectral moments
+         ['m'] weighted coef mean
+         ['sd'] weighted coef std
+         ['cbin'] ndarray, summed abs coefs in freq bins between lb and ub
+         ['fbin'] ndarray, corresponding frequencies
+         ['wgt'][myDomain]['mae'] - mean absolute error between
+                                    IDCT of coefs around resp rate
+                                    and IDCT of coefs between 'lb' and 'ub'
+                          ['prop'] - proportion of coefs around
+                                    resp rate relative to coef sum
+                          ['rate'] - rate in analysed domain
+                          ['dgm'] dist to glob max in dct !
+                          ['dlm'] dist to loc max in dct !
+         ['dur'] - segment duration (in sec)
+         ['f_max'] - freq of max amplitude
+         ['n_peak'] - number of peaks in DCT spectrum
+    '''
+
+    err = 0
+    dflt = {}
+    dflt['sig'] = {'sts': 0.01, 'win': 0.05,
+                   'wintyp': 'hamming', 'winparam': None}
+    dflt['rhy'] = {'wintyp': 'kaiser', 'winparam': 1, 'nsm': 3,
+                   'rmo': True, 'lb': 0, 'ub': 0, 'wgt': {'rb': 1}}
     for x in list(dflt.keys()):
         if type(dflt[x]) is not dict:
             if x not in opt:
-                opt[x]=dflt[x]
+                opt[x] = dflt[x]
         else:
-            opt[x] = myl.opt_default(opt[x],dflt[x])
+            opt[x] = utils.opt_default(opt[x], dflt[x])
 
-    for x in ['type','fs']:
+    for x in ['type', 'fs']:
         if x not in opt:
             myLog('ERROR! speech_rhythm(): opt must contain {}'.format(x))
-            err=1
+            err = 1
         else:
-            opt['sig'][x]=opt[x]
-            opt['rhy'][x]=opt[x]
-    if err==1: myLog('ERROR! in speech rhythm extraction',True)
+            opt['sig'][x] = opt[x]
+            opt['rhy'][x] = opt[x]
+    if err == 1:
+        myLog('ERROR! in speech rhythm extraction', True)
 
     # adjust sample rate for type='en' (energy values per sec)
-    if opt['type']=='en':
-        opt['rhy']['fs'] = fs_sig2en(opt['sig']['sts'],opt['sig']['fs'])
+    if opt['type'] == 'en':
+        opt['rhy']['fs'] = fs_sig2en(opt['sig']['sts'], opt['sig']['fs'])
 
     # energy contour
-    if opt['type']=='en':
-        y = sif.sig_energy(y,opt['sig'])
-    
-    #print(opt['fsys']['rhy_f0']) #!
-    #myl.stopgo() #!
+    if opt['type'] == 'en':
+        y = sif.sig_energy(y, opt['sig'])
 
+
+    # print(opt['fsys']['rhy_f0']) #!
+    # utils.stopgo() #!
     # dct features
-    rhy = sif.dct_wrapper(y,opt['rhy'])
+    rhy = sif.dct_wrapper(y, opt['rhy'])
 
     # number of local maxima
     rhy['n_peak'] = len(rhy['f_lmax'])
 
     # duration
-    rhy['dur'] = myl.smp2sec(len(y),opt['rhy']['fs'])
-    
+    rhy['dur'] = utils.smp2sec(len(y), opt['rhy']['fs'])
+
     # domain weight features + ['wgt'][myDomain]['prop'|'mae'|'rate']
-    rhy = rhy_sub(y,r,rhy,opt)
+    rhy = rhy_sub(y, r, rhy, opt)
 
-    #myl.stopgo(rhy) #!v
 
-    copl.plot_main({'call':'browse','state':'online','fit':rhy,
-                    'type':"rhy_{}".format(opt['type']),'set':'rhy',
-                    'infx':opt['infx']},copaConfig)
+    # utils.stopgo(rhy) #!v
+    copl.plot_main({'call': 'browse', 'state': 'online', 'fit': rhy,
+                    'type': "rhy_{}".format(opt['type']), 'set': 'rhy',
+                    'infx': opt['infx']}, copaConfig)
     return rhy
 
-# sample rate transformation from raw signal to energy contour
-def fs_sig2en(sts,fs):
+
+
+def fs_sig2en(sts, fs):
+
+    '''
+    sample rate transformation from raw signal to energy contour
+    '''
+
     return round(fs/(sts*fs))
-    #sts = round(opt['sig']['sts']*opt['sig']['fs'])
-    #opt['rhy']['fs'] = round(opt['sig']['fs']/sts)
 
+    # sts = round(opt['sig']['sts']*opt['sig']['fs'])
+    # opt['rhy']['fs'] = round(opt['sig']['fs']/sts)
 
-# quantifying influence of events with specific rates on DCT
-# IN:
-#   y - ndarray contour
-#   r - dict {myEventId:myRate}
-#   rhy - output dict of dct_wrapper
-#   opt - dict, see speech_rhythm()
-# OUT:
-#   rhy
-#     +['wgt'][myDomain]['mae']
-#                       ['prop']
-#                       ['rate']
-#                       ['dgm'] dist to glob max in dct
-#                       ['dlm'] dist to loc max in dct
-def rhy_sub(y,r,rhy,opt):
+    
+def rhy_sub(y, r, rhy, opt):
+
+    '''
+    quantifying influence of events with specific rates on DCT
+    
+    Args:
+      y - ndarray contour
+      r - dict {myEventId:myRate}
+      rhy - output dict of dct_wrapper
+      opt - dict, see speech_rhythm()
+    
+    Returns:
+      rhy
+        +['wgt'][myDomain]['mae']
+                          ['prop']
+                          ['rate']
+                          ['dgm'] dist to glob max in dct
+                          ['dlm'] dist to loc max in dct
+    '''
+
     opt_rhy = cp.deepcopy(opt['rhy'])
 
     # catch region around event rate
@@ -2129,7 +2489,7 @@ def rhy_sub(y,r,rhy,opt):
     # IDCT by coefficients with freq between lb and ub
     #   (needed for MAE and prop normalization. Otherwise
     #    weights depend on length of y)
-    yr = sif.idct_bp(rhy['c_orig'],rhy['i'])
+    yr = sif.idct_bp(rhy['c_orig'], rhy['i'])
 
     rhy['wgt'] = {}
 
@@ -2149,33 +2509,40 @@ def rhy_sub(y,r,rhy,opt):
         ub = r[x]+rb
 
         # 'prop': DCT coef abs ampl around rate
-        if len(ac)==0:
-            j = myl.ea()
+        if len(ac) == 0:
+            j = utils.ea()
             prp = 0
         else:
-            j = myl.intersect(myl.find(rhy['f'],'>=',lb),
-                              myl.find(rhy['f'],'<=',ub))
+            j = utils.intersect(utils.find(rhy['f'], '>=', lb),
+                                utils.find(rhy['f'], '<=', ub))
             prp = sum(ac[j])/sac
 
         # 'mae': mean abs error between rhy[c] IDCT and IDCT of
         #        coefs between event-dependent lb and ub
-        yrx = sif.idct_bp(rhy['c_orig'],j)
-        ae = myl.mae(yr,yrx)
+        yrx = sif.idct_bp(rhy['c_orig'], j)
+        ae = utils.mae(yr, yrx)
 
-        rhy['wgt'][x] = {'mae':ae, 'prop':prp, 'rate':r[x],
+        rhy['wgt'][x] = {'mae': ae, 'prop': prp, 'rate': r[x],
                          'dlm': dl, 'dgm': dg}
 
     return rhy
 
 
-# log file output (if filehandle), else terminal output
-# IN:
-#   msg message string
-#   e <False>|True  do exit
-def myLog(msg,e=False):
+def myLog(msg, e=False):
+
+    '''
+    log file output (if filehandle), else terminal output
+    
+    Args:
+      msg message string
+      e <False>|True  do exit
+    '''
+
     global f_log
-    try: f_log
-    except: f_log = ''
+    try:
+        f_log
+    except:
+        f_log = ''
     if type(f_log) is not str:
         f_log.write("{}\n".format(msg))
         if e:
@@ -2186,3 +2553,4 @@ def myLog(msg,e=False):
             sys.exit(msg)
         else:
             print(msg)
+
