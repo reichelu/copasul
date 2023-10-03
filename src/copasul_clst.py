@@ -1,28 +1,22 @@
-
-
-# author: Uwe Reichel, Budapest, 2016
-import copasul_utils as utils
 import numpy as np
 import scipy as si
 import sklearn.cluster as sc
 import sklearn.preprocessing as sp
 import sklearn.metrics as sm
-import matplotlib.pyplot as plt
-import math
 
-# cluster constraints
-# ns: max n_samples for MeanShift
-max_ns = 1000
+import copasul_utils as utils
 
 
-def clst_main(copa, dom, f_log_in):
+def clst_main(copa, dom, f_log_in=None):
 
     '''
-    
+    local and global contour clustering
+
     Args:
-     dict copa
-     dom := 'glob'|'loc'
-    
+     copa: (dict)
+     dom: (str) 'glob'|'loc'
+     f_log_in: (filehandle) of logfile    
+
     Returns:
      copa
        .data
@@ -42,15 +36,8 @@ def clst_main(copa, dom, f_log_in):
     opt = copa['config']['clst'][dom]
     x = copa['clst'][dom]['c']
 
-    ## preprocessing ################################################
+    # preprocessing ################################################
     # robust centering+scaling (not as vulnerable to outliers)
-    # cs
-    #   -- attributes
-    #   .center_  [colMedians]
-    #   .scale_   [colIQR]
-    #   -- methods
-    #   .transform(x) -> operation
-    #   .inverse_transform(xn)
     cs = sp.RobustScaler().fit(x)
     xn = cs.transform(x)
 
@@ -58,7 +45,7 @@ def clst_main(copa, dom, f_log_in):
     copt = opt[mtd]
     bopt = opt['estimate_bandwidth']
 
-    ## clustering ####################################################
+    # clustering ####################################################
     if ((mtd == 'meanShift') or (copt['init'] == 'meanShift')):
         if opt['meanShift']['bandwidth'] is None or opt['meanShift']['bandwidth'] == 0:
             try:
@@ -115,7 +102,6 @@ def clst_main(copa, dom, f_log_in):
     return copa
 
 
-
 def featweights(x, c, do_nrm=True):
 
     '''
@@ -148,30 +134,30 @@ def featweights(x, c, do_nrm=True):
     return w
 
 
-
 def myLog(msg, e=False):
 
     '''
     log file output (if filehandle), else terminal output
     
     Args:
-      msg message string
-      e <False>|True  do exit
+      msg: (str) log message
+      e: (boolean) if True, do exit
     '''
 
     global f_log
     try:
         f_log
     except:
-        f_log = ''
-    if type(f_log) is not str:
-        f_log.write("{}\n".format(msg))
-        if e:
-            f_log.close()
-            sys.exit(msg)
-    else:
+        f_log = None
+    if f_log is None:
         if e:
             sys.exit(msg)
         else:
             print(msg)
+    else:
+        f_log.write(f"{msg}\n")
+        if e:
+            f_log.close()
+            sys.exit(msg)
+    
 

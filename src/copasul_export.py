@@ -1,6 +1,3 @@
-
-
-# author: Uwe Reichel, Budapest, 2016
 import copasul_utils as utils
 import numpy as np
 import scipy as si

@@ -1,6 +1,3 @@
-
-
-# author: Uwe Reichel, Budapest, 2016
 import copasul_utils as utils
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -822,8 +819,8 @@ def plot_styl_rhy(obj, opt):
         spl[i, 0].set_title(tit, fontsize=18)
         r = rhy['wgt'][x]['rate']
         b = [max([0, r-rb]), r+rb]
-        w = utils.intersect(utils.find(rhy['f'], '>=', b[0]),
-                            utils.find(rhy['f'], '<=', b[1]))
+        w = np.where((rhy['f'] >= b[0]) & (rhy['f'] <= b[1]))[0]
+
         if len(w) == 0:
             continue
         ml, sl, bl = spl[i, 0].stem(rhy['f'][w], abs(rhy['c'][w])/c_sum)
@@ -1026,8 +1023,7 @@ def sgc_rhy_wrp(obj, rhy_en, rhy_f0, opt):
     spl[0].title.set_text('influence on energy')
     rb = opt['styl']['rhy_en']['rhy']['wgt']['rb']
     b = [max([0, r-rb]), r+rb]
-    w = utils.intersect(utils.find(rhy['f'], '>=', b[0]),
-                        utils.find(rhy['f'], '<=', b[1]))
+    w = np.where((rhy['f'] >= b[0]) & (rhy['f'] <= b[1]))[0]
     if len(w) == 0:
         return
     ml, sl, bl = spl[0].stem(rhy['f'][w], abs(rhy['c'][w])/c_sum)
@@ -1046,8 +1042,7 @@ def sgc_rhy_wrp(obj, rhy_en, rhy_f0, opt):
     spl[1].title.set_text('influence on F0')
     rb = opt['styl']['rhy_f0']['rhy']['wgt']['rb']
     b = [max([0, r-rb]), r+rb]
-    w = utils.intersect(utils.find(rhy['f'], '>=', b[0]),
-                        utils.find(rhy['f'], '<=', b[1]))
+    w = np.where((rhy['f'] >= b[0]) & (rhy['f'] <= b[1]))[0]
     if len(w) == 0:
         return
     ml, sl, bl = spl[1].stem(rhy['f'][w], abs(rhy['c'][w])/c_sum)

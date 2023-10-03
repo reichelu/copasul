@@ -1,12 +1,13 @@
-import os
 import json
+import os
+
 import copasul
 
 # load minimal example config
 pth = os.path.dirname(os.path.abspath(__file__))
-with open("{}/../minex/config/minex.json".format(pth), "r") as h:
+with open(f"{pth}/../minex/config/minex.json", "r") as h:
     opt = json.load(h)
-
+    
 # init Copasul() object
 fex = copasul.Copasul()
 

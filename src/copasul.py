@@ -1,21 +1,19 @@
-
-
 # author: Uwe Reichel, Budapest, 2016
+
 import argparse
-import os
-import sys
-import copasul_utils as utils
 import numpy as np
-import copasul_init as coin
+import os
+import re
+import sys
+
 import copasul_augment as coag
+import copasul_clst as cocl
+import copasul_export as coex
+import copasul_init as coin
+import copasul_plot as copl
 import copasul_preproc as copp
 import copasul_styl as cost
-import copasul_clst as cocl
-import copasul_plot as copl
-import copasul_export as coex
-import os.path as op
-import re
-
+import copasul_utils as utils
 
 
 class Copasul(object):
@@ -28,54 +26,56 @@ class Copasul(object):
 
     def process(self, config: dict = None, copa: dict = None):
 
+        ''' process files specified in config
+        
+        Args:
+        config: (dict) of process specifications
+        copa: (dict) previously generated copasul output dict for warm starts
+
+        Returns:
+        copa: (dict) copasul output
+        '''
+        
         if dict is None:
             sys.exit("process() requires config dictionary argument")
 
         if type(copa) is dict:
             config["navigate"]["from_scratch"] = False
 
-        return copasul({"config": config, "copa": copa})
+        return copasul(config=config, copa=copa)
 
 
-def copasul(args={}):
+def copasul(config, copa=None):
 
     '''
     wrapper aroung all copasul analysis steps
     calls from terminal or from Copasul.process()
     
     Args:
-      args dict
-          ['config']: string myConfigFile.json
-                      or dict of config file content
-          ['copa']: copa dict, facultatively. Will be read from file
-                    if not provided
-    
+    config: (str) name of config json file
+    copa: (dict) copasul output for war start
+
     Returns:
-      copa dict; see documentation
+      copa: (dict) copasul output
     '''
 
     # config #########################################
-    if 'config' not in args:
-        sys.exit("args[config] needs to be specified")
-    opt = coin.copa_opt_init(args['config'])
-
+    opt = coin.copa_opt_init(config)
+    
     # generate new copa dict?
     # or load it/take it from input args
     if opt['navigate']['from_scratch']:
         copa = coin.copa_init(opt)
     else:
-        if ('copa' in args and
-            (type(args['copa']) is dict) and
-                len(args['copa'].keys()) > 0):
-            copa = args['copa']
-        else:
+        if copa is None or len(copa.keys()) == 0:
             copa = copa_load(opt)
+            
         # replace copa-contained config?
         if opt['navigate']['overwrite_config']:
             copa['config'] = opt
         else:
             opt = copa['config']
-
+            
     # log file #############################################
     f_log = copa_log('open', copa)
 
@@ -96,23 +96,19 @@ def copasul(args={}):
         diagnosis_err = copp.diagnosis(copa, f_log)
 
     # stylization ##########################################
+    print("stylization ...")
     # global segments
     if opt['navigate']['do_styl_glob']:
-       # or opt['navigate']['do_styl_loc'] or
-       # opt['navigate']['do_styl_loc_ext']):
-        print("styl_glob ...")
         copa = cost.styl_glob(copa, f_log)
         copa_save(copa)
 
     # local segments
     if opt['navigate']['do_styl_loc']:
-        print("styl_loc ...")
         copa = cost.styl_loc(copa, f_log)
         copa_save(copa)
 
     # extended local feature set
     if opt['navigate']['do_styl_loc_ext']:
-        print("styl_loc_ext ...")
         copa = cost.styl_loc_ext(copa, f_log)
         copa_save(copa)
 
@@ -120,54 +116,45 @@ def copasul(args={}):
     if (opt['navigate']['do_styl_bnd'] or
         opt['navigate']['do_styl_bnd_win'] or
             opt['navigate']['do_styl_bnd_trend']):
-        print("styl_bnd ...")
         copa = cost.styl_bnd(copa, f_log)
         copa_save(copa)
 
     # general features: f0, energy
     if opt['navigate']['do_styl_gnl_f0']:
-        print("styl_gnl_f0 ...")
         copa = cost.styl_gnl(copa, 'f0', f_log)
         copa_save(copa)
     if opt['navigate']['do_styl_gnl_en']:
-        print("styl_gnl_en ...")
         copa = cost.styl_gnl(copa, 'en', f_log)
         copa_save(copa)
 
     # speech rhythm: f0, energy
     if opt['navigate']['do_styl_rhy_f0']:
-        print("styl_rhy_f0 ...")
         copa = cost.styl_rhy(copa, 'f0', f_log)
         copa_save(copa)
     if opt['navigate']['do_styl_rhy_en']:
-        print("styl_rhy_en ...")
         copa = cost.styl_rhy(copa, 'en', f_log)
         copa_save(copa)
 
     # voice quality
     if opt['navigate']['do_styl_voice']:
-        print("styl_voice ...")
         copa = cost.styl_voice(copa, f_log)
         copa_save(copa)
 
     # clustering ##############################################
+    print("clustering ...")
     # global segments
     if opt['navigate']['do_clst_glob']:
-        print("clst_glob ...")
         copa = cocl.clst_main(copa, 'glob', f_log)
         copa_save(copa)
 
     # local segments
     if opt['navigate']['do_clst_loc']:
-        print("clst_loc ...")
         copa = cocl.clst_main(copa, 'loc', f_log)
         copa_save(copa)
 
     # export ##################################################
     if opt['navigate']['do_export']:
         print("export ...")
-        # copp.pp_grp_wrapper(copa) #!
-        # copa_save(copa)
         copa = coex.export_main(copa)
 
     # plot ####################################################
@@ -218,10 +205,10 @@ def copa_log(task, copa, f_log=''):
 
     if task == 'open':
         ff = os.path.join(copa['config']['fsys']['export']['dir'],
-                          "{}.log.txt".format(copa['config']['fsys']['export']['stm']))
+                          f"{copa['config']['fsys']['export']['stm']}.log.txt")
         copa['config']['fsys']['log'] = {'f': ff}
         f_log = open(copa['config']['fsys']['log']['f'], 'a')
-        f_log.write("\n## {}\n".format(utils.isotime()))
+        f_log.write(f"\n## {utils.isotime()}\n")
         return f_log
     elif task == 'val':
         vv = copa['val']
@@ -229,12 +216,12 @@ def copa_log(task, copa, f_log=''):
         for x in sorted(vv.keys()):
             for y in sorted(vv[x].keys()):
                 for z in sorted(vv[x][y].keys()):
-                    f_log.write("{}.{}.{}: {}\n".format(x, y, z, vv[x][y][z]))
+                    f_log.write(f"{x}.{y}.{z}: {vv[x][y][z]}\n")
         f_log.close()
         return True
 
 
-def copa_save(copa, infx=''):
+def copa_save(copa, infx=None):
 
     '''
     save/load
@@ -244,16 +231,16 @@ def copa_save(copa, infx=''):
       copa
       infx <''> to further specify file name
     '''
-
-    if len(infx) > 0:
-        f = "{}.{}.pickle".format(os.path.join(
-            copa['config']['fsys']['export']['dir'], copa['config']['fsys']['export']['stm']), infx)
+    
+    z = os.path.join(copa['config']['fsys']['export']['dir'],
+                     copa['config']['fsys']['export']['stm'])
+    
+    if infx is not None:
+        f = f"{z}.{infx}.pickle"
     else:
-        f = "{}.pickle".format(os.path.join(
-            copa['config']['fsys']['export']['dir'], copa['config']['fsys']['export']['stm']))
+        f = f"{z}.pickle"
 
     utils.output_wrapper(copa, f, 'pickle')
-
 
 
 def copa_load(opt, infx=''):
@@ -262,31 +249,32 @@ def copa_load(opt, infx=''):
     loads copa from pickle file
     
     Args:
-      opt (copa['config'])
-      infx <''> to further specify file name
+      opt (dict) copa['config']
+      infx (str) to further specify file name
     
     Returns:
-      copa
+      copa (dict)
     '''
 
-    if len(infx) > 0:
-        f = "{}.{}.pickle".format(os.path.join(
-            opt['fsys']['export']['dir'], opt['fsys']['export']['stm']), infx)
+    z = os.path.join(opt['fsys']['export']['dir'],
+                     opt['fsys']['export']['stm'])
+    
+    if infx is not None:
+        f = f"{z}.{infx}.pickle"
     else:
-        f = "{}.pickle".format(os.path.join(
-            opt['fsys']['export']['dir'], opt['fsys']['export']['stm']))
+        
+        f = f"{z}.pickle"
+        
     return utils.input_wrapper(f, 'pickle')
 
 
-
-##### Call ##############################################
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
         description="copasul.py -- Intonation analysis tool version 1.0.6")
     parser.add_argument(
-        '-c', '--config', help='myConfigFile.json', required=True)
-    args = vars(parser.parse_args())
-    copa = copasul(args)
+        '-c', '--config', help='myConfigFile.json', type=str, required=True)
+    kwargs = vars(parser.parse_args())
+    copa = copasul(**kwargs)
 

@@ -1,12 +1,9 @@
-
-
-# author: Uwe Reichel, Budapest, 2016
 import os
 import copasul_utils as utils
 import pandas as pd
 import numpy as np
 import scipy as si
-import sigFunc as sif
+import copasul_sigproc as cosp
 import sys
 import re
 import copy as cp
@@ -54,12 +51,12 @@ def pp_main(copa, f_log_in=''):
 
     # detach config
     opt = cp.deepcopy(copa['config'])
+
     # ff['f0'|'aud'|'annot'|'pulse'] list of full/path/files
     ff = pp_file_collector(opt)
-
+    
     # over files
     for ii in range(len(ff['f0'])):
-
 
         # print(ff['annot'][ii]) #!c
         copa['data'][ii] = {}
@@ -175,7 +172,7 @@ def pp_f0_grp_bv(fg, opt):
     b = opt['preproc']['base_prct']
     bv = {}
     for x in fg:
-        yi = utils.find(fg[x], '>', 0)
+        yi = np.where(fg[x] > 0)[0]
         cbv, b = pp_bv(fg[x][yi], opt)
         bv[x] = cbv
 
@@ -773,9 +770,9 @@ def too_short(typ, seg, fstm):
 
 def rm_too_short(typ, dat, fstm):
     d = dat[:, 1]-dat[:, 0]
-    bad_i = utils.find(d, '<=', 0)
+    bad_i = np.where(d <= 0)[0]
     if len(bad_i) > 0:
-        good_i = utils.find(d, '>', 0)
+        good_i = np.where(d > 0)[0]
         myLog("WARNING! {}: file contains too short {} segments, which were removed.".format(
             fstm, typ))
         dat = dat[good_i,]
@@ -813,14 +810,14 @@ def pp_f0_preproc(f0, t_max, opt):
     if np.max(y) == 0:
         return y, t, y, 1
     # setting outlier to 0
-    y = sif.pp_outl(y, opt['preproc']['out'])
+    y = cosp.pp_outl(y, opt['preproc']['out'])
     # interpolation over 0
-    y = sif.pp_interp(y, opt['preproc']['interp'])
+    y = cosp.pp_interp(y, opt['preproc']['interp'])
     # smoothing
     if 'smooth' in opt['preproc']:
-        y = sif.pp_smooth(y, opt['preproc']['smooth'])
+        y = cosp.pp_smooth(y, opt['preproc']['smooth'])
     # <0 -> 0
-    y[utils.find(y, '<', 0)] = 0
+    y[y < 0] = 0
     # semitone transform, base ref value (in Hz)
     #     later by calculating the base value over a grp factor (e.g. spk)
     if 'base_prct_grp' in opt['preproc']:
@@ -1013,10 +1010,10 @@ def pp_rate_in_interval(t, bnd):
     if utils.ndim(t) == 1:
         i = utils.find_interval(t, bnd)
         n = len(i)
+
     # interval tier
     else:
-        i = utils.intersect(utils.find(t[:, 0], '<', bnd[1]),
-                            utils.find(t[:, 1], '>', bnd[0]))
+        i = np.where((t[:, 0] < bnd[1]) & (t[:, 1] > bnd[0]))[0]
         n = len(i)
         # partial intervals within bnd
         if n > 0:
@@ -1148,7 +1145,7 @@ def pp_file_collector(opt):
     '''
 
     ff = {}
-
+    
     for x in utils.lists('afa'):
         if x not in opt['fsys']:
             continue
@@ -1156,7 +1153,7 @@ def pp_file_collector(opt):
                                  opt['fsys'][x]['ext'])
         if len(f) > 0 or x == 'annot':
             ff[x] = f
-
+            
     # length check
     # file lists must have length 0 or equal length
     # at least one list must have length > 0
@@ -1164,11 +1161,9 @@ def pp_file_collector(opt):
     #    in this case stems of f0 (or aud) files are taken over
     for xy in ['f0', 'aud', 'annot']:
         if xy not in ff:
-            myLog("ERROR! No {} files found!".format(xy), True)
+            myLog(f"ERROR! No {xy} files found!", True)
     l = max(len(ff['f0']), len(ff['aud']), len(ff['annot']))
 
-
-    # print(len(ff['f0']),len(ff['aud']),len(ff['annot']))
     if l == 0:
         myLog("ERROR! Neither signal nor annotation files found!", True)
     for x in utils.lists('afa'):
@@ -1542,12 +1537,10 @@ def pp_link(x, y):
     if len(y) == 0:
         return -1
     if len(x) > 2:
-        i = utils.intersect(utils.find(y[:, 0], '<=', x[2]),
-                            utils.find(y[:, 1], '>=', x[2]))
+        i = np.where((y[:, 0] <= x[2]) & (y[:, 1] >= x[2]))[0]
     else:
         m = np.mean(x)
-        i = utils.intersect(utils.find(y[:, 0], '<=', m),
-                            utils.find(y[:, 1], '>=', m))
+        i = np.where((y[:, 0] <= m) & (y[:, 1] >= m))[0]
     if len(i) == 0:
         i = -1
     else:
@@ -1861,7 +1854,7 @@ def pp_semton(y, opt, bv=-1):
     semitone conversion
     '''
 
-    yi = utils.find(y, '>', 0)
+    yi = np.where(y > 0)[0]
     if opt['preproc']['base_prct'] > 0 and bv < 0:
         bv, b = pp_bv(y[yi], opt)
     elif bv > 0:
@@ -1890,8 +1883,7 @@ def pp_bv(yp, opt):
     '''
 
     px = np.percentile(yp, opt['preproc']['base_prct'])
-    yy = yp[utils.find(yp, '<=', px)]
-    bv = np.median(yp[utils.find(yp, '<=', px)])
+    bv = np.median(yp[yp <= px])
     b = max(bv, 1)
     return bv, b
 

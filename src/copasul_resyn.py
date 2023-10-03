@@ -1,13 +1,8 @@
-
-
-# author: Uwe Reichel, Budapest, 2016
-import copasul_utils as utils
-import numpy as np
-import os
 import copy as cp
-import sys
+import numpy as np
 import re
 
+import copasul_utils as utils
 
 
 def resyn(copa):
@@ -17,7 +12,7 @@ def resyn(copa):
     (in Hz; for non-AG segments no resyn values provided, thus set to 0)
     
     Args:
-      copa
+      copa: (dict)
     
     Returns:
       +['data'][myFileIdx][myChannelIdx]['f0']['resyn']
@@ -29,7 +24,6 @@ def resyn(copa):
         for i in utils.numkeys(copa['data'][ii]):
             copa = resyn_channel(copa, ii, i)
     return copa
-
 
 
 def resyn_channel(copa, ii, i):
@@ -74,11 +68,10 @@ def resyn_channel(copa, ii, i):
             yl = resyn_add_register(yl, y_reg, gi)
             # -> Hz transform
             if opt['preproc']['st']:
-                yl = 2**(yl/12)*bv
+                yl = 2 ** (yl / 12) * bv
             yi, yl = utils.hal(yi, yl)
             c['f0']['resyn'][yi] = yl
     return copa
-
 
 
 def resyn_add_register(y, reg, i):
@@ -87,9 +80,9 @@ def resyn_add_register(y, reg, i):
     add register to local f0 contour
     
     Args:
-      y   - local f0 contour
-      reg - either vector to add or dict with 'bl' and 'tl' for range de-norm
-      i   - idx in reg corresponding to y
+      y: (np.array) local f0 contour
+      reg: (np.array or dict with values for 'bl' and 'tl') for range de-norm
+      i: (index) idx in reg corresponding to y
     
     Returns:
       y+register
@@ -99,7 +92,8 @@ def resyn_add_register(y, reg, i):
     if type(reg) is not dict:
         r = reg[i]
         y, r = utils.hal(y, r)
-        return y+r
+        return y + r
+    
     # range de-norm
     bl = reg['bl'][i]
     tl = reg['tl'][i]
@@ -107,6 +101,6 @@ def resyn_add_register(y, reg, i):
     y, tl = utils.hal(y, tl)
     z = np.asarray([])
     for u in range(len(bl)):
-        z = utils.push(z, bl[u]+y[u]*(tl[u]-bl[u]))
+        z = utils.push(z, bl[u] + y[u] * (tl[u] - bl[u]))
     return z
 

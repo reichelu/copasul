@@ -1,6 +1,3 @@
-
-
-# author: Uwe Reichel, Budapest, 2016
 import os
 import shutil as sh
 import sys
@@ -174,6 +171,8 @@ def sec2idx(i, fs, ons=0):
     transforms seconds to numpy array indices (=samplesIdx-1)
     '''
 
+    #ok
+
     return np.round(i*fs+ons-1).astype(int)
 
 
@@ -184,6 +183,8 @@ def sec2smp(i, fs, ons=0):
     transforms seconds to sample indices (arrayIdx+1)
     '''
 
+    #ok
+    
     return np.round(i*fs+ons).astype(int)
 
 
@@ -995,11 +996,12 @@ def robust_div(x, y):
     returns np.nan for 0-divisions
     '''
 
-    if y == 0:
+    #ok
+    
+    if y == 0 or np.isnan(x) or np.isnan(y):
         return np.nan
-    if np.isnan(x) or np.isnan(y):
-        return np.nan
-    return x/y
+    
+    return x / y
 
 
 
@@ -1010,10 +1012,12 @@ def mse(x, y=[]):
     or of one vector and zeros (=mean squared dev)
     '''
 
+    #ok
+    
     if len(y) == 0:
         y = np.zeros(len(x))
-    x = np.asarray(x)
-    return np.mean((x-y)**2)
+        
+    return np.mean((x - y) ** 2)
 
 
 
@@ -1023,17 +1027,19 @@ def rmsd(x, y=[]):
     returns RMSD of two vectors or of one vector and zeros
     
     Args:
-     x: 1-dim array
-     y: 1-dim array <zeros(len(x))>
+     x: (np.array)
+     y: (np.array) <zeros(len(x))>
     
     Returns:
      root mean squared dev between x and y
     '''
 
+    #ok
+
     if len(y) == 0:
         y = np.zeros(len(x))
-    x = np.asarray(x)
-    return np.sqrt(np.mean((x-y)**2))
+        
+    return np.sqrt(np.mean((x - y) ** 2))
 
 
 
@@ -1229,7 +1235,9 @@ def intersect(a, b):
     returns intersection list of two 1-dim lists
     '''
 
-    return list(set(a) & set(b))
+    #ok
+    
+    return sorted(set(a) & set(b))
 
 
 
@@ -2827,13 +2835,15 @@ def nrm_vec(x, opt):
       'std' - divided by std (whitening)
     
     Args:
-      x - vector
-      opt - dict 'mtd'|'rng'|'max'|'min'
+      x: (np.array)
+      opt: (dict) keys: 'mtd', 'rng', 'max', 'min'
     
     Returns:
       x normalized
     '''
 
+    #ok
+    
     if opt['mtd'] == 'minmax':
         r = opt['rng']
         if 'max' in opt:
@@ -2845,8 +2855,8 @@ def nrm_vec(x, opt):
         else:
             mi = min(x)
         if ma > mi:
-            x = (x-mi)/(ma-mi)
-            x = r[0] + x*(r[1]-r[0])
+            x = (x - mi) / (ma - mi)
+            x = r[0] + x * (r[1] - r[0])
     elif opt['mtd'] == 'zscore':
         x = st.zscore(x)
     elif opt['mtd'] == 'std':
@@ -2930,9 +2940,9 @@ def idx_a(l, sts=1):
     thus highest idx is l-1
     '''
 
+    #ok
+    
     return np.arange(0, l, sts)
-
-#    return np.asarray(range(l))
 
 
 def idx_seg(on, off, sts=1):
@@ -2940,6 +2950,8 @@ def idx_seg(on, off, sts=1):
     '''
     returns index array between on and off (both included)
     '''
+
+    #ok
 
     return np.arange(on, off+1, sts)
 
@@ -2951,6 +2963,8 @@ def idx(l):
     returns index iterable of list L
     '''
 
+    #ok
+    
     return range(len(l))
 
 

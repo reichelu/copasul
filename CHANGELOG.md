@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## Version 1.1.0 (2023-10-03)
+* bugfix in copasul_styl.styl_voice_feat(): sorting pulse time stamps
+* `sigFunc.py` renamed to `copasul_sigproc.py`
+* added progress bars for stylization steps
+* ongoing refactoring
+
 ## Version 1.0.6 (2023-09-30)
 * all code pep8-ified
 * docstrings unified

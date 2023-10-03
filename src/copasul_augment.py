@@ -1,6 +1,3 @@
-
-
-# author: Uwe Reichel, Budapest, 2016
 import scipy.io.wavfile as sio
 import scipy.signal as sis
 import numpy as np
@@ -12,7 +9,7 @@ import copy as cp
 import scipy.fftpack as sf
 import sklearn.cluster as sc
 import sklearn.preprocessing as sp
-import sigFunc as sif
+import copasul_sigproc as cosp
 import os.path as op
 import shutil as sh
 import copasul_init as coin
@@ -585,7 +582,7 @@ def aug_sub(f, f_f0, annot, fstm, opt, add_mat):
         ## Chunking ##################################
         if opt['navigate']['do_augment_chunk']:
             # print("\tchunking ...")
-            chunk = sif.pau_detector(y, opt_chunk)
+            chunk = cosp.pau_detector(y, opt_chunk)
             annot = aug_annot_upd(
                 'chunk', annot, {'t': chunk['tc']}, i, opt, lng)
         ## Syllable nucleus + boundary detection #####
@@ -880,7 +877,7 @@ def aug_syl(y, annot, opt, fs, i, fstm, f, lng, spec):
         cs = y[ii]
         opt_syl['ons'] = ii[0]
         # add syllable time stamps
-        s, b = sif.syl_ncl(cs, opt_syl)
+        s, b = cosp.syl_ncl(cs, opt_syl)
         # force at least 1 syllable to be in each parent tier unit
         if opt["augment"]["syl"]["force"] and len(s['t']) == 0:
             s['t'] = force_syl(cs, fs) + opt_syl['ons']/fs
@@ -908,7 +905,7 @@ def force_syl(s, fs):
       d: 1 element vector with time point (in sec) of energy max
     '''
 
-    y = sif.wrapper_energy(s, {}, fs)
+    y = cosp.wrapper_energy(s, {}, fs)
     ima = np.argmax(y[:, 1])
     return np.array([y[ima, 0]])
 
@@ -1076,7 +1073,7 @@ def aug_glob_seg(c, tc, t, to, pt, pto, fto, opt):
                 ons = to[j+1, 0]
         # parent tier bnd (use nk2 for comparison)
         else:
-            pti = utils.find(pt[:, 1], '==', t[j, 1])
+            pti = np.where(pt[:, 1] == t[j, 1])[0]
             if len(pti) > 0:
                 d = utils.push(d, [ons, to[j, 1]])
                 if pti+1 < len(pt)-1:
@@ -1084,13 +1081,6 @@ def aug_glob_seg(c, tc, t, to, pt, pto, fto, opt):
                 elif j+1 < len(t)-1:
                     ons = to[j+1, 0]
 
-
-        # if (c[j]==1 or len(utils.find(pt[:,1],'==',t[j,1]))>0):
-        # d = utils.push(d,[ons, utils.trunc2(to[j,1])])
-        #    d = utils.push(d,[ons, to[j,1]])
-        #    print('-> YES',d)
-        #    if j+1 < len(t)-1:
-        #        ons = to[j+1,0]
     # + adding pto boundaries
     if len(d) == 0:
         d = utils.push(d, [pto[0, 0], pto[-1, 1]])
@@ -1424,7 +1414,7 @@ def force_acc(f):
       d: 1 element vector with time point (in sec) of energy max
     '''
 
-    y = sif.wrapper_energy(f)
+    y = cosp.wrapper_energy(f)
     ima = np.argmax(y[:, 1])
     return np.array([y[ima, 0]])
 
@@ -1771,7 +1761,7 @@ def aug_fv_mrg(fx, wx):
                     wgt = utils.ea()
                 break
             # non-zero weights
-            w1 = utils.find(wx[x], '>', 0)
+            w1 = np.where(wx[x] > 0)[0]
             # print(w1,type(w1),type(wx[x])) #!cl
             # v = np.append(v,fx[x][i,:])
             v = np.append(v, fx[x][i, w1])
@@ -1789,8 +1779,8 @@ def aug_fv_mrg(fx, wx):
     # nan rows
     i_nan = set()
     for i in utils.idx(fv):
-        l_nan = utils.find(fv[i], 'is', 'nan')
-        l_inf = utils.find(fv[i], 'is', 'inf')
+        l_nan = np.where(np.isnan(fv[i]))[0]
+        l_inf = np.where(~np.isfinite(fv[i]))[0]
         if len(l_nan)+len(l_inf) > 0:
             i_nan.add(i)
 
@@ -2165,7 +2155,6 @@ def aug_loc_preselect(t, to, lab, at, ato, alab, opt):
         sto = np.append(sto, to[jj])
         slab.append(lab[jj])
     return st, sto, slab, False
-
 
 
 def aug_cntr_wrapper(typ, x, tc, wgt, opt, is0=set(), is1=set(), i_nan=set(), meas='abs', ij=utils.eai()):
