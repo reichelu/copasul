@@ -1,12 +1,11 @@
-import copasul_utils as utils
-import matplotlib as mpl
+import copy as cp
+import math
 import matplotlib.pyplot as plt
+import numpy as np
 import re
 import sys
-import numpy as np
-import math
-import copy as cp
 
+import copasul_utils as utils
 
 
 def plot_browse(copa):
@@ -17,7 +16,6 @@ def plot_browse(copa):
     do clst first (single plot)
     '''
 
-
     c = copa['data']
 
     opt = copa['config']
@@ -27,12 +25,12 @@ def plot_browse(copa):
     if o['time'] != 'final':
         return
 
-    ### clustering ###########
+    # clustering ###########
     if o['type']['clst'] and o['type']['clst']['contours']:
         plot_main({'call': 'browse', 'state': 'final',
                   'type': 'clst', 'set': 'contours', 'fit': copa}, opt)
 
-    ### stylization ##########
+    # stylization ##########
     # domains
     for x in sorted(o['type'].keys()):
         if x == 'clst':
@@ -42,9 +40,9 @@ def plot_browse(copa):
             if not o['type'][x][y]:
                 continue
             # files
-            for ii in utils.numkeys(c):
+            for ii in utils.sorted_keys(c):
                 # channels
-                for i in utils.numkeys(c[ii]):
+                for i in utils.sorted_keys(c[ii]):
 
                     # check grouping constraints ("and"-connected)
                     if "grp" in o:
@@ -74,9 +72,9 @@ def plot_browse_channel(copa, typ, s, ii, i):
       i channelIdx
     '''
 
-
     c = copa['data']
     po = copa['config']['plot']['browse']
+
     # time, f0, f0-residual
     t = c[ii][i]['f0']['t']
     y = c[ii][i]['f0']['y']
@@ -98,11 +96,13 @@ def plot_browse_channel(copa, typ, s, ii, i):
     myStm = c[ii][i]['fsys']['f0']['stm']
 
     # segments
-    for j in utils.numkeys(c[ii][i][dom]):
+    for j in utils.sorted_keys(c[ii][i][dom]):
+
         # verbose to find plot again
         if utils.ext_true(po, 'verbose'):
-            print("file_i={}, channel_i={}, segment_i={}".format(ii, i, j))
-        # skip all but certain segment is reached
+            print(f"file_i={ii}, channel_i={i}, segment_i={j}")
+
+            # skip all but certain segment is reached
         if ('single_plot' in po) and utils.ext_true(po['single_plot'], 'active'):
             if (ii != po['single_plot']['file_i'] or
                 i != po['single_plot']['channel_i'] or
@@ -111,25 +111,17 @@ def plot_browse_channel(copa, typ, s, ii, i):
 
         if typ != 'complex':
             if re.search('^rhy_', typ):
+
                 # tiers
-                for k in utils.numkeys(c[ii][i][dom][j]):
+                for k in utils.sorted_keys(c[ii][i][dom][j]):
                     myFit = c[ii][i][dom][j][k][s]
-                    myInfx = "{}-{}-{}-{}".format(ii,
-                                                  i, c[ii][i][dom][j][k]['tier'], k)
+                    myInfx = f"{ii}-{i}-{c[ii][i][dom][j][k]['tier']}-{k}"
                     myTim = c[ii][i][dom][j][k]['t']
                     myTier = c[ii][i][dom][j][k]['tier']
-                    myLoc = "{}:{}:[{} {}]".format(
-                        myStm, myTier, myTim[0], myTim[1])
+                    myLoc = f"{myStm}:{myTier}:[{myTim[0]} {myTim[1]}]"
                     obj = {'call': 'browse', 'state': 'final',
                            'fit': myFit, 'type': typ, 'set': s,
                            'infx': myInfx, 'local': myLoc}
-
-
-                    # sgc on
-                    # sgc_rhy_wrp(obj,c[ii][i]['rhy_en'][j][k][s],
-                    #            c[ii][i]['rhy_f0'][j][k][s],copa['config'])
-                    # continue
-                    # sgc off
                     plot_main(obj, copa['config'])
             else:
                 myFit = cp.deepcopy(c[ii][i][dom][j][s])
@@ -145,10 +137,11 @@ def plot_browse_channel(copa, typ, s, ii, i):
 
                 obj = {'call': 'browse', 'state': 'final',
                        'fit': myFit, 'type': typ, 'set': s, 'y': ys,
-                       'infx': "{}-{}-{}".format(ii, i, j), 'local': myLoc}
+                       'infx': f"{ii}-{i}-{j}", 'local': myLoc}
                 plot_main(obj, copa['config'])
         else:
             if re.search('^bnd', s):
+                
                 # get key depending on s
                 if s == 'bnd':
                     z = 'std'
@@ -156,8 +149,9 @@ def plot_browse_channel(copa, typ, s, ii, i):
                     z = 'win'
                 else:
                     z = 'trend'
+
                 # tiers
-                for k in utils.numkeys(c[ii][i][dom][j]):
+                for k in utils.sorted_keys(c[ii][i][dom][j]):
                     if z not in c[ii][i][dom][j][k] or 'plot' not in c[ii][i][dom][j][k][z]:
                         continue
                     myObj = c[ii][i][dom][j][k][z]['plot']
@@ -165,12 +159,10 @@ def plot_browse_channel(copa, typ, s, ii, i):
                         myLab = c[ii][i][dom][j][k][z]['lab']
                     else:
                         myLab = ''
-                    myInfx = "{}-{}-{}-{}".format(ii,
-                                                  i, c[ii][i][dom][j][k]['tier'], k)
+                    myInfx = f"{ii}-{i}-{c[ii][i][dom][j][k]['tier']}-{k}"
                     myTim = c[ii][i][dom][j][k]['t']
                     myTier = c[ii][i][dom][j][k]['tier']
-                    myLoc = "{}:{}:[{} {}]".format(
-                        myStm, myTier, myTim[0], myTim[1])
+                    myLoc = f"{myStm}:{myTier}:[{myTim[0]} {myTim[1]}]"
                     obj = {'call': 'browse', 'state': 'final',
                            'type': 'complex', 'set': s,
                            'fit': myObj['fit'],
@@ -186,7 +178,7 @@ def plot_browse_channel(copa, typ, s, ii, i):
                 else:
                     myLab = ''
                 obj = {'call': 'browse', 'state': 'final', 'fit': copa, 'type': 'complex',
-                       'set': s, 'i': [ii, i, j], 'infx': "{}-{}-{}".format(ii, i, j), 'local': myLoc,
+                       'set': s, 'i': [ii, i, j], 'infx': f"{ii}-{i}-{j}", 'local': myLoc,
                        'lab': myLab, 't_glob': c[ii][i]['glob'][j]['to'], 'stm': myStm}
                 plot_main(obj, copa['config'])
 
@@ -197,9 +189,9 @@ def plot_loc(c, ii, i, dom, j, myStm):
     myTim = c[ii][i][dom][j]['t']
     if 'tier' in c[ii][i][dom][j]:
         myTier = c[ii][i][dom][j]['tier']
-        myLoc = "{}:{}:[{} {}]".format(myStm, myTier, myTim[0], myTim[1])
+        myLoc = f"{myStm}:{myTier}:[{myTim[0]} {myTim[1]}]"
     else:
-        myLoc = "{}:[{} {}]".format(myStm, myTim[0], myTim[1])
+        myLoc = f"{myStm}:[{myTim[0]} {myTim[1]}]"
     return myLoc
 
 
@@ -255,13 +247,12 @@ def plot_main(obj, opt):
         if (po['browse']['save'] and fig):
             # output file name
             fs = opt['fsys']['pic']
-            fb = "{}/{}".format(fs['dir'], fs['stm'])
+            fb = f"{fs['dir']}/{fs['stm']}"
             if 'infx' in obj:
-                fo = "{}_{}_{}_{}_{}.png".format(
-                    fb, obj['state'], obj['type'], obj['set'], obj['infx'])
+                fo = f"{fb}_{obj['state']}_{obj['type']}_{obj['set']}_" \
+                     f"{obj['infx']}.png"
             else:
-                fo = "{}_{}_{}_{}.png".format(
-                    fb, obj['state'], obj['type'], obj['set'])
+                fo = f"{fb}_{obj['state']}_{obj['type']}_{obj['set']}.png"
             fig.savefig(fo)
 
     elif obj['call'] == 'grp':
@@ -287,28 +278,37 @@ def plot_doNothing(obj, opt):
     if not opt['navigate']['do_plot']:
         return True
     po = opt['plot']
+
     # final vs online
     if ((obj['call'] != 'grp') and (po[obj['call']]['time'] != obj['state'])):
         return True
+
     # type not specified
     if not po[obj['call']]['type'][obj['type']]:
         return True
+
     # type/set not compliant
     if obj['set'] not in po[obj['call']]['type'][obj['type']]:
         return True
+
     # type-set set to 0 in config
     if not po[obj['call']]['type'][obj['type']][obj['set']]:
         return True
 
-
-    #### customized func to skip specified data portions ##########
+    # customized func to skip specified data portions
     # ! comment if not needed !
-    # return plot_doNothing_custom_senta_coop(obj,opt)
-    ###############################################################
+    # return plot_doNothing_custom(obj, opt)
+
     return False
 
 
-def plot_doNothing_custom_senta_coop(obj, opt):
+def plot_doNothing_custom(obj, opt):
+
+    ''' manual intervention to plot one certain plot only
+    in browsing context. Uncomment function call above and
+    hard-code file stem and time onset below.
+    Or hard-code any other constraints here ... ''' 
+    
     stm, t = '16-02-116-216-Coop', 33.4
     if not obj['stm'] == stm:
         return True
@@ -317,50 +317,11 @@ def plot_doNothing_custom_senta_coop(obj, opt):
     return False
 
 
-def plot_doNothing_custom_senta_comp(obj, opt):
-    if not obj['stm'] == '10-04-110-210-Comp':
-        return True
-    if obj['t_glob'][0] < 98.3:
-        return True
-    return False
-
-
-def plot_doNothing_custom2(obj, opt):
-    cond = 'Coop'
-    if not re.search(cond, obj['local']):
-        return True
-    if not re.search('RW', obj['lab']):
-        return True
-    return False
-
-
-def plot_doNothing_custom(obj, opt):
-    if not re.search('hun003', obj['local']):
-        return True
-
-    return False
-
-
-
-def plot_doNothing_custom1(obj, opt):
-
-    '''
-    to be customized by user: criteria to skip certain segments
-    '''
-
-    if (('local' in obj) and (not re.search('fra', obj['local']))):
-        return True
-
-    return False
-
-
-
 def plot_styl_bnd(obj, opt):
 
     '''
     plot 3 declination objects underlying boundary features
     '''
-
 
     if 'fit' not in obj:
         return
@@ -371,6 +332,7 @@ def plot_styl_bnd(obj, opt):
     # segment a.b
     bid = plot_styl_cont({'fit': obj['fit']['ab'], 'type': 'glob', 'set': 'decl', 'y': obj['y']['ab'],
                           't': obj['t']['ab'], 'tnrm': False, 'show': False, 'newfig': False}, opt)
+
     # segment a
     bid = plot_styl_cont({'fit': obj['fit']['a'], 'type': 'glob', 'set': 'decl',
                           't': obj['t']['a'], 'tnrm': False, 'show': False, 'newfig': False}, opt)
@@ -401,7 +363,7 @@ def plot_grp(obj, opt):
     h = plot_harvest(c, dom, mySet, opt['plot']['grp']['grouping'])
 
     # output file stem
-    fb = "{}/{}".format(opt['fsys']['pic']['dir'], opt['fsys']['pic']['stm'])
+    fb = f"{opt['fsys']['pic']['dir']}/{opt['fsys']['pic']['stm']}"
 
     # normalized time
     t = np.linspace(opt['styl'][dom]['nrm']['rng'][0],
@@ -420,10 +382,10 @@ def plot_grp(obj, opt):
     #              'bl'|'ml'|'tl':
     #                 F0 array
     # getting ylim over all groups for unified yrange
-    fo_data = "{}_{}_{}_{}_grpPlotData.pickle".format(
-        fb, obj['call'], obj['type'], obj['set'])
+    fo_data = f"{fb}_{obj['call']}_{obj['type']}_{obj['set']}_grpPlotData.pickle"
     plot_data = {'x': t, 'ylim': [], 'y': {}}
     all_y = []
+
     for x in h:
         if mySet == 'acc':
             y = np.polyval(np.mean(h[x], axis=0), t)
@@ -439,8 +401,7 @@ def plot_grp(obj, opt):
 
     # again over all groups, this time plotting
     for x in h:
-        fo = "{}_{}_{}_{}_{}.png".format(
-            fb, obj['call'], obj['type'], obj['set'], x)
+        fo = f"{fb}_{obj['call']}_{obj['type']}_{obj['set']}_{x}.png"
         if mySet == 'acc':
             fig = plot_styl_cont({'fit': {'tn': t, 'y': plot_data["y"][x]},
                                   'type': dom, 'set': mySet, 'show': False,
@@ -458,7 +419,6 @@ def plot_grp(obj, opt):
             plt.close()
 
     utils.output_wrapper(plot_data, fo_data, 'pickle')
-
 
 
 def plot_harvest(c, dom, mySet, grp):
@@ -482,13 +442,14 @@ def plot_harvest(c, dom, mySet, grp):
 
     h = {}
     # files
-    for ii in utils.numkeys(c):
+    for ii in utils.sorted_keys(c):
         # channels
-        for i in utils.numkeys(c[ii]):
+        for i in utils.sorted_keys(c[ii]):
             # segments
-            for j in utils.numkeys(c[ii][i][dom]):
+            for j in utils.sorted_keys(c[ii][i][dom]):       
                 # grouping key
                 gk = copa_grp_key(grp, c, dom, ii, i, j)
+
                 # decl set (same for dom='glob'|'loc')
                 if mySet == 'decl':
                     # new key
@@ -504,8 +465,8 @@ def plot_harvest(c, dom, mySet, grp):
                     if gk not in h:
                         h[gk] = np.asarray([])
                     h[gk] = utils.push(h[gk], c[ii][i][dom][j][mySet]['c'])
-    return h
 
+    return h
 
 
 def copa_grp_key(grp, c, dom, ii, i, j):
@@ -553,46 +514,6 @@ def copa_grp_key(grp, c, dom, ii, i, j):
             else:
                 key.append('#')
     return "_".join(key)
-
-
-def plot_newfig(fs=()):
-
-    '''
-    init new figure with onclick->next, keypress->exit
-    figsize can be customized
-    
-    Args:
-      fs tuple <()>
-    
-    Returns:
-      figure object
-    
-    Returns:
-      figureHandle
-    '''
-
-    if len(fs) == 0:
-        fig = plt.figure()
-    else:
-        fig = plt.figure(figsize=fs)
-    cid1 = fig.canvas.mpl_connect('button_press_event', onclick_next)
-    cid2 = fig.canvas.mpl_connect('key_press_event', onclick_exit)
-    return fig
-
-
-def plot_newfig_big():
-    fig = plt.figure(figsize=(15, 15))
-    cid1 = fig.canvas.mpl_connect('button_press_event', onclick_next)
-    cid2 = fig.canvas.mpl_connect('key_press_event', onclick_exit)
-    return fig
-
-
-def plot_newfig_verybig():
-    fig = plt.figure(figsize=(25, 25))
-    cid1 = fig.canvas.mpl_connect('button_press_event', onclick_next)
-    cid2 = fig.canvas.mpl_connect('key_press_event', onclick_exit)
-    return fig
-
 
 
 def plot_styl_complex(obj, opt):
@@ -647,7 +568,7 @@ def plot_styl_complex(obj, opt):
                 regs = np.asarray(reg[utils.find_interval(ttg, tl)])
                 while len(regs) < len(ttl):
                     regs = utils.push(regs, regs[-1])
-                ls['acc']['y'] = ls['acc']['y']+regs
+                ls['acc']['y'] = ls['acc']['y'] + regs
 
             elif opt['styl']['register'] == 'rng':
                 bl_seg = gs['decl']['bl']['y'][utils.find_interval(ttg, tl)]
@@ -680,7 +601,6 @@ def plot_styl_cont(obj, opt):
          .y   original y values
       OPT copa['config']
     '''
-
 
     # to allow embedded calls (e.g. complex-superpos/gestalt)
     for x in ['show', 'newfig', 'tnrm']:
@@ -732,7 +652,7 @@ def plot_styl_cont(obj, opt):
 
         # plt.plot(tbl,ybl,cc[0],tml,yml,cc[1],ttl,ytl,cc[2],linewidth=4)
 
-        # plot line crossings #!v
+        # plot line crossings
         # if "eou" in obj["fit"]:
         #    z = obj["fit"]["eou"]
         #    plt.plot([z["tl_ml_cross_t"],z["tl_bl_cross_t"],z["ml_bl_cross_t"]],
@@ -794,9 +714,6 @@ def plot_styl_rhy(obj, opt):
     else:
         doco = False
 
-
-    # if 'SYL_2' in rhy['wgt']:    #!csl
-    #    del rhy['wgt']['SYL_2']  #!csl
     fig, spl = plt.subplots(len(rhy['wgt'].keys()), 1, squeeze=False)
     cid1 = fig.canvas.mpl_connect('button_press_event', onclick_next)
     cid2 = fig.canvas.mpl_connect('key_press_event', onclick_exit)
@@ -805,6 +722,7 @@ def plot_styl_rhy(obj, opt):
     # domain-influence window
     i = 0
     c_sum = sum(abs(rhy['c']))
+
     # tiers
     for x in sorted(rhy['wgt'].keys()):
         if doco:
@@ -814,8 +732,6 @@ def plot_styl_rhy(obj, opt):
             plt.setp(sla, 'color', 'k', 'linewidth', 2)
 
         tit = x
-        # tit = 'influence on f0' #!csl
-        # spl[i,0].title.set_text(tit, fontsize=18)
         spl[i, 0].set_title(tit, fontsize=18)
         r = rhy['wgt'][x]['rate']
         b = [max([0, r-rb]), r+rb]
@@ -829,17 +745,15 @@ def plot_styl_rhy(obj, opt):
         else:
             plt.setp(sl, 'color', 'k', 'linewidth', 4)
 
-
         # local maxima (green lines)
         # if 'f_lmax' in rhy:
         #    for fm in rhy['f_lmax']:
         #        spl[i,0].plot([fm,fm],[0,rhy['c_cog']/c_sum],'-g',linewidth=5)
+
         # 1st spectral moment (thick black vertical line)
         spl[i, 0].plot([rhy['sm'][0], rhy['sm'][0]], [
                        0, rhy['c_cog']/c_sum], '-k', linewidth=5)
 
-
-        # plt.ylim([0,0.4]) #!csl
         spl[i, 0].set_xlabel('f (Hz)', fontsize=18)
         spl[i, 0].set_ylabel('|coef|', fontsize=18)
         i += 1
@@ -881,26 +795,28 @@ def plot_clst(obj, opt):
         cc = 'b'
     else:
         cc = 'k'
-
+        
     # glob
-    # time
+    # ... time
     rg = copa['config']['styl']['glob']['nrm']['rng']
     tg = np.linspace(rg[0], rg[1], 100)
 
-    # coefs
+    # ... coefs
     cg = copa['clst']['glob']['cntr']
+
     # loc
-    # time
+    # ... time
     rl = copa['config']['styl']['loc']['nrm']['rng']
     tl = np.linspace(rl[0], rl[1], 100)
-    # coefs
+
+    # ... coefs
     cl = copa['clst']['loc']['cntr']
 
     # number of subplots/rows, columns
     nsp = len(cl)+1
     nrow, ncol = nn_subplots(nsp)
 
-    fig, spl = plt.subplots(nrow, ncol)  # ,figsize=(15,60))
+    fig, spl = plt.subplots(nrow, ncol)
 
     cid1 = fig.canvas.mpl_connect('button_press_event', onclick_next)
     cid2 = fig.canvas.mpl_connect('key_press_event', onclick_exit)
@@ -912,17 +828,19 @@ def plot_clst(obj, opt):
     i_col = 0
 
     # glob and loc y values
-    (yg, yl) = ([], [])
+    yg, yl = [], []
     for i in range(len(cg)):
-        yg = utils.push(yg, np.polyval([cg[i, :], 0], tg))
+        yg.append(list(np.polyval(np.append(cg[i, :], 0), tg)))
     for i in range(len(cl)):
-        yl = utils.push(yl, np.polyval(cl[i, :], tl))
-
+        yl.append(list(np.polyval(cl[i, :], tl)))
+    yg = np.array(yg)
+    yl = np.array(yl)
+    
     ylim_g = [int(math.floor(np.min(yg))),
               int(math.ceil(np.max(yg)))]
     ylim_l = [int(math.floor(np.min(np.min(yl)))),
               int(math.ceil(np.max(np.max(yl))))]
-
+    
     plot_data = {"glob": {"ylim": ylim_g, "x": tg, "y": {}},
                  "loc": {"ylim": ylim_l, "x": tl, "y": {}}}
 
@@ -930,7 +848,7 @@ def plot_clst(obj, opt):
         if i == 0:
             for j in range(len(yg)):
                 spl[i_row, i_col].plot(
-                    tg, yg[j, :], cc, label="{}".format(j+1))
+                    tg, yg[j, :], cc, label=f"{j+1}")
                 plot_data["glob"]["y"][j] = yg[j, :]
             spl[i_row, i_col].set_title("g_*")
             spl[i_row, i_col].set_ylim(ylim_g)
@@ -939,7 +857,7 @@ def plot_clst(obj, opt):
             # spl[i_row,i_col].legend(loc='best', fontsize=8)
         else:
             spl[i_row, i_col].plot(tl, yl[i-1, :], cc)
-            spl[i_row, i_col].set_title("l_{}".format(i-1))
+            spl[i_row, i_col].set_title(f"l_{i-1}")
             # spl[i_row,i_col].set_ylim(ylim_l)
             plot_data["loc"]["y"][i-1] = yl[i-1, :]
             # if i>1:
@@ -951,18 +869,16 @@ def plot_clst(obj, opt):
         else:
             i_col += 1
 
-    fo_data = "{}/{}_clstPlotData.pickle".format(opt["fsys"]["pic"]["dir"],
-                                                 opt["fsys"]["pic"]["stm"])
+    fo_data = f"{opt['fsys']['pic']['dir']}/{opt['fsys']['pic']['stm']}_clstPlotData.pickle"
     utils.output_wrapper(plot_data, fo_data, "pickle")
     plt.show()
     return fig
 
 
-
 def nn_subplots(n):
 
     '''
-    returns optimal nrow, ncol depending on num of subplots (inpur)
+    returns optimal nrow, ncol depending on num of subplots (input)
     '''
 
     if n <= 4:
@@ -972,6 +888,45 @@ def nn_subplots(n):
         ncol = 3
         nrow = int(math.ceil(n/ncol))
     return nrow, ncol
+
+
+def plot_newfig(fs=()):
+
+    '''
+    init new figure with onclick->next, keypress->exit
+    figsize can be customized
+    
+    Args:
+      fs tuple <()>
+    
+    Returns:
+      figure object
+    
+    Returns:
+      figureHandle
+    '''
+
+    if len(fs) == 0:
+        fig = plt.figure()
+    else:
+        fig = plt.figure(figsize=fs)
+    cid1 = fig.canvas.mpl_connect('button_press_event', onclick_next)
+    cid2 = fig.canvas.mpl_connect('key_press_event', onclick_exit)
+    return fig
+
+
+def plot_newfig_big():
+    fig = plt.figure(figsize=(15, 15))
+    cid1 = fig.canvas.mpl_connect('button_press_event', onclick_next)
+    cid2 = fig.canvas.mpl_connect('key_press_event', onclick_exit)
+    return fig
+
+
+def plot_newfig_verybig():
+    fig = plt.figure(figsize=(25, 25))
+    cid1 = fig.canvas.mpl_connect('button_press_event', onclick_next)
+    cid2 = fig.canvas.mpl_connect('key_press_event', onclick_exit)
+    return fig
 
 
 def onclick_next(event):
@@ -991,64 +946,4 @@ def onclick_exit(event):
     '''
 
     sys.exit()
-
-
-
-############# customized functions for publications etc #################
-def sgc_rhy_wrp(obj, rhy_en, rhy_f0, opt):
-
-    '''
-    for slovak game corpus visualization only!
-    syl rate influence on energy and f0 contour
-     tier SYL_1 only
-    '''
-
-
-    if not re.search('turns', obj['local']):
-        return
-
-    fig, spl = plt.subplots(1, 2)
-    cid1 = fig.canvas.mpl_connect('button_press_event', onclick_next)
-    cid2 = fig.canvas.mpl_connect('key_press_event', onclick_exit)
-    fig.subplots_adjust(hspace=0.8)
-
-    # energy
-    rhy = rhy_en
-    if len(rhy['f']) == 0 or len(rhy['c']) == 0:
-        return
-    c_sum = sum(abs(rhy['c']))
-    r = rhy['wgt']['SYL_1']['rate']
-    mla, sla, bla = spl[0].stem(rhy['f'], abs(rhy['c'])/c_sum, '-.')
-    plt.setp(sla, 'color', 'k', 'linewidth', 3)
-    spl[0].title.set_text('influence on energy')
-    rb = opt['styl']['rhy_en']['rhy']['wgt']['rb']
-    b = [max([0, r-rb]), r+rb]
-    w = np.where((rhy['f'] >= b[0]) & (rhy['f'] <= b[1]))[0]
-    if len(w) == 0:
-        return
-    ml, sl, bl = spl[0].stem(rhy['f'][w], abs(rhy['c'][w])/c_sum)
-    plt.setp(sl, 'color', 'k', 'linewidth', 4)
-    spl[0].set_xlabel('f (Hz)')
-    spl[0].set_ylabel('|coef|')
-
-    # f0
-    rhy = rhy_f0
-    if len(rhy['f']) == 0 or len(rhy['c']) == 0:
-        return
-    c_sum = sum(abs(rhy['c']))
-    r = rhy['wgt']['SYL_1']['rate']
-    mla, sla, bla = spl[1].stem(rhy['f'], abs(rhy['c'])/c_sum, '-.')
-    plt.setp(sla, 'color', 'k', 'linewidth', 3)
-    spl[1].title.set_text('influence on F0')
-    rb = opt['styl']['rhy_f0']['rhy']['wgt']['rb']
-    b = [max([0, r-rb]), r+rb]
-    w = np.where((rhy['f'] >= b[0]) & (rhy['f'] <= b[1]))[0]
-    if len(w) == 0:
-        return
-    ml, sl, bl = spl[1].stem(rhy['f'][w], abs(rhy['c'][w])/c_sum)
-    plt.setp(sl, 'color', 'k', 'linewidth', 4)
-    spl[1].set_xlabel('f (Hz)')
-    spl[1].set_ylabel('|coef|')
-
-    plt.show()
 

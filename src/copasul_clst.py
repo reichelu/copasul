@@ -18,7 +18,7 @@ def clst_main(copa, dom, f_log_in=None):
      f_log_in: (filehandle) of logfile    
 
     Returns:
-     copa
+     copa (dict)
        .data
           .<dom>
               .ci      clusterIdx
@@ -81,7 +81,7 @@ def clst_main(copa, dom, f_log_in=None):
     cc = obj.cluster_centers_
     ci = obj.labels_
 
-    ## validation ############################################
+    # validation ############################################
     try:
         copa['clst'][dom]['val'] = sm.silhouette_score(
             xn, ci, metric='euclidean')
@@ -89,9 +89,11 @@ def clst_main(copa, dom, f_log_in=None):
         copa['clst'][dom]['val'] = np.nan
     copa['val']['clst'][dom]['sil_mean'] = np.mean(copa['clst'][dom]['val'])
 
-    ## updating copa ##########################################
+    # updating copa ##########################################
+
     # cluster object
     copa['clst'][dom]['obj'] = obj
+
     # denormalized centroids
     copa['clst'][dom]['cntr'] = cs.inverse_transform(cc)
 
@@ -109,28 +111,32 @@ def featweights(x, c, do_nrm=True):
     based on related mean silhouette value
     
     Args:
-      x: n x m feature matrix
-      c: n x 1 cluster index vector (must be numeric!)
-      do_nrm: <True> normalize features
+      x: (np.array) m x n feature matrix
+      c: (np.array) 1 x m cluster index vector (numeric!)
+      do_nrm: (boolean) it True, do normalize features
     
     Returns:
-      w: 1 x m weight vector
+      w: (np.array) 1 x n weight vector
     '''
 
-    w = np.ones(utils.ncol(x))
+    w = np.ones(x.shape[1])
     c = np.asarray(c).astype(int)
+    
     # only one class -> equal wgt
     if len(np.unique(c)) == 1:
         return w
+
     # over columns
     for i in utils.idx_a(len(w)):
         s = sm.silhouette_score(x[:, i].reshape(-1, 1), c, metric='euclidean')
-        w[i] = np.mean(s)+1
+        w[i] = np.mean(s) + 1
+
     # normalize
     if do_nrm:
-        w = w/np.sum(w)
+        w = w / np.sum(w)
     else:
         w -= 1
+        
     return w
 
 

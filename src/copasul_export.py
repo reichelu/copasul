@@ -1,16 +1,13 @@
-import copasul_utils as utils
-import numpy as np
-import scipy as si
-import pandas as pd
-import os
 import copy as cp
-import sys
-import re
 import csv
+import numpy as np
+import os
+import pandas as pd
+import re
+import sys
+
 import copasul_resyn as core
-from pandas import DataFrame
-
-
+import copasul_utils as utils
 
 
 ### export to f0 files ######
@@ -50,7 +47,7 @@ def export_main(copa):
     in respective export_loc|glob|...()
     by pasting:
     for x in list(d.keys()):
-       print("{}: {}".format(x,len(d[x])))
+       print(f"{x}: {len(d[x])}")
     (resp df.keys) in front of exp_to_file()
     '''
 
@@ -71,7 +68,6 @@ def export_main(copa):
     return copa
 
 
-
 def export_f0(copa, fld):
 
     '''
@@ -81,6 +77,7 @@ def export_f0(copa, fld):
     opt = copa['config']
 
     c = copa['data']
+
     # subdir
     if fld == 'y':
         sd = 'f0_preproc'
@@ -88,24 +85,29 @@ def export_f0(copa, fld):
         sd = 'f0_residual'
     elif fld == 'resyn':
         sd = 'f0_resyn'
+
     if not os.path.isdir(opt['fsys']['export']['dir']):
         os.mkdir(opt['fsys']['export']['dir'])
     if not os.path.isdir(os.path.join(opt['fsys']['export']['dir'], sd)):
         os.mkdir(os.path.join(opt['fsys']['export']['dir'], sd))
 
     pth = os.path.join(opt['fsys']['export']['dir'], sd)
+
     # over files
-    for ii in utils.numkeys(c):
-        fo = "{}.f0".format(os.path.join(pth, c[ii][0]['fsys']['f0']['stm']))
+    for ii in utils.sorted_keys(c):
+
+        u = os.path.join(pth, c[ii][0]['fsys']['f0']['stm'])
+        fo = f"{u}.f0"
         x = np.asarray([c[ii][0]['f0']['t']]).T
+
         # over channels
-        for i in utils.numkeys(c[ii]):
+        for i in utils.sorted_keys(c[ii]):
             if fld not in c[ii][i]['f0']:
                 c[ii][i]['f0'][fld] = c[ii][i]['f0']['y']
             x = np.concatenate(
                 (x, np.asarray([c[ii][i]['f0'][fld]]).T), axis=1)
             np.savetxt(fo, x, fmt='%.2f')
-
+            
 
 def export_summary(copa):
 
@@ -132,10 +134,13 @@ def export_summary(copa):
     '''
 
     opt = copa['config']
+
     # output files stem
     fo = utils.fsys_stm(opt, 'export')
+
     # list of feature sets
     fset = utils.lists('featsets', 'list')
+
     # general factor variables
     fac = utils.lists('factors', 'set')
     suma = {}
@@ -146,9 +151,9 @@ def export_summary(copa):
     for fs in sorted(fset):
         for u in ['segment', 'file']:
             if u == 'segment':
-                f = "{}.{}.csv".format(fo, fs)
+                f = f"{fo}.{fs}.csv"
             else:
-                f = "{}.{}_file.csv".format(fo, fs)
+                f = f"{fo}.{fs}_file.csv"
             if not os.path.isfile(f):
                 continue
 
@@ -159,6 +164,7 @@ def export_summary(copa):
             fileIdx = utils.uniq(d['fi'])
             channelIdx = utils.uniq(d['ci'])
             d = exp_dataframe(d)
+            
             # over file indices
             for fi in fileIdx:
                 for ci in channelIdx:
@@ -173,7 +179,6 @@ def export_summary(copa):
     suma2exp(suma, fo, fp, sep)
 
 
-
 def upd_suma(suma, fs_in, d, fi, ci, fac, u):
 
     '''
@@ -181,12 +186,12 @@ def upd_suma(suma, fs_in, d, fi, ci, fac, u):
     
     Args:
       suma dict
-      fs_in - featSet name
-      d - input dict from csv file
-      fi - file index
-      ci - channel index
-      fac - list of factor variable names
-      u - unit 'segment'|'file' (to indicate whether gnl_en or gnl_en_file
+      fs_in: featSet name
+      d: input dict from csv file
+      fi: file index
+      ci: channel index
+      fac: list of factor variable names
+      u: unit 'segment'|'file' (to indicate whether gnl_en or gnl_en_file
                                has been read)
     
     Returns:
@@ -194,7 +199,7 @@ def upd_suma(suma, fs_in, d, fi, ci, fac, u):
     '''
 
     if u == 'file':
-        fs = "{}_{}".format(fs_in, u)
+        fs = f"{fs_in}_{u}"
     else:
         fs = fs_in
     if fi not in suma:
@@ -203,6 +208,7 @@ def upd_suma(suma, fs_in, d, fi, ci, fac, u):
         suma[fi][ci] = {fs: {}}
     elif fs not in suma[fi][ci]:
         suma[fi][ci][fs] = {}
+        
     # subset for resp. file idx
     dd = d[d.fi == fi]
     dd = dd[dd.ci == ci]
@@ -235,8 +241,8 @@ def upd_suma_feat(suma, fs, ds, fi, ci, fac, u, x, t):
     
     Args:
       see upd_suma()
-      x featName
-      t tierName
+      x: featName
+      t: tierName
     
     Returns:
       suma upd
@@ -245,47 +251,51 @@ def upd_suma_feat(suma, fs, ds, fi, ci, fac, u, x, t):
 
     if t == '*':
         # key = x
-        key = "CHANNEL{}_{}".format(int(ci)+1, x)
+        key = f"CHANNEL{int(ci) + 1}_{x}"
     else:
-        key = "{}_{}".format(t, x)
+        key = f"{t}_{x}"
 
     # file-level grouping
     if (x == 'stm' or re.search('^grp_', x)):
         v = list(ds[x])
         suma[fi][ci][fs][key] = {'g': v[0], 'u': u}
         return suma
+    
     # skip factor variables (except of class)
     if ((x in fac) or re.search('^(lab|spk|tier)', x) or
         re.search('_(lab|tier)$', x) or
             re.search('_(lab|tier)_', x)):
         return suma
+
     v = np.asarray(ds[x])
     # feat values: NA -> np.nan -> remove
     v = utils.nan_repl(ds[x])
     v = v.astype('float')
     v = utils.rm_nan(v)
+
     # contour class feat
     if x == 'class':
         suma[fi][ci][fs][key] = {'v': v, 'h': np.nan, 'u': u}
         if len(v) > 0:
             suma[fi][ci][fs][key]['h'] = utils.list2entrop(v)
         return suma
+
     # all other features
     suma[fi][ci][fs][key] = {'v': v, 'm': np.nan, 'sd': np.nan,
                              'med': np.nan, 'iqr': np.nan, 'u': u}
+
     # segment- or file-level
     if u == 'segment':
         if len(v) > 0:
             suma[fi][ci][fs][key]['m'] = np.mean(v)
             suma[fi][ci][fs][key]['med'] = np.median(v)
             suma[fi][ci][fs][key]['sd'] = np.std(v)
-            suma[fi][ci][fs][key]['iqr'] = si.std(v)
+            suma[fi][ci][fs][key]['iqr'] = np.percentile(v, 75) - np.percentile(v, 25)
     else:
         if len(v) == 0:
             suma[fi][ci][fs][key]['v'] = [np.nan]
 
     return suma
-
 
 
 def suma2exp(suma, fo, fp, sep):
@@ -294,13 +304,14 @@ def suma2exp(suma, fo, fp, sep):
     summary -> export dict -> .csv|R
     
     Args:
-      suma summary dict (see export_summary())
-      fo output stem
-      fp fullPath for csv reference in R output True|False from opt
-      sep column separator
+      suma: summary dict (see export_summary())
+      fo: output stem
+      fp: fullPath for csv reference in R output True|False from opt
+      sep: column separator
     
     Returns:
       csv and R file; 1 row per file
+    
     VAR:
     exp export dict
       'fi' -> [fileIndices]
@@ -309,21 +320,15 @@ def suma2exp(suma, fo, fp, sep):
       myFeatSet_myFeat_myMeas -> [featureValMeansAndVars]
     '''
 
-
     exp = suma2exp_init(suma)
+
     # incremental d update
-    for fi in utils.numkeys(suma):
-        for ci in utils.numkeys(suma[fi]):
+    for fi in utils.sorted_keys(suma):
+        for ci in utils.sorted_keys(suma[fi]):
             exp = suma2exp_upd(exp, suma, fi, ci)
 
     # remove redundant grouping columns
     exp = exp_rm_redun(exp)
-
-
-    #!v
-    # for x in exp:
-    #    print(x,len(exp[x]))
-    #!v
     exp_to_file(exp, fo, 'summary', checkFld='fi',
                 facpat='', fullPath=fp, sep=sep)
 
@@ -334,10 +339,10 @@ def exp_rm_redun(exp):
     remove redundant grouping and stem columns from export dict
     
     Args:
-      exp - export dict
+      exp: export dict
     
     Returns:
-      exp - without redundant columns
+      exp: without redundant columns
     '''
 
 
@@ -356,26 +361,24 @@ def exp_rm_redun(exp):
     return exp
 
 
-
 def suma2exp_init(suma):
 
     '''
     inits export dict exp from summary dict suma
     
     Args:
-      suma dict
+      suma: (dict)
     
     Returns:
-      exp dict
+      exp: (dict)
     '''
 
-    i = utils.numkeys(suma)
+    i = utils.sorted_keys(suma)
     fi = i[0]
-    i = utils.numkeys(suma[fi])
-    # exp = {'fi':[], 'ci':[]}
+    i = utils.sorted_keys(suma[fi])
     exp = {'fi': []}
     # over channel idx (since tier names as IP_1 and IP_2 are part of keys)
-    for ci in utils.numkeys(suma[fi]):
+    for ci in utils.sorted_keys(suma[fi]):
         # over featsets
         for fs in suma[fi][ci]:
             # over features/groupings
@@ -401,24 +404,25 @@ def suma2exp_upd(exp, suma, fi, ci):
     update export dict
     
     Args:
-      exp - export dict (becoming csv and R file later on)
-      suma - summary dict
-      fi - file index
-      ci - channel index
+      exp: export dict (becoming csv and R file later on)
+      suma: summary dict
+      fi: file index
+      ci: channel index
     
     Returns:
-      d updated
+      d: updated
     '''
 
     if ci == 0 or ci == '0':
         exp['fi'].append(fi)
-    # exp['ci'].append(ci)
+        
     # over featsets
     for fs in suma[fi][ci]:
         # over features/groupings
         for x in suma[fi][ci][fs]:
             if suma[fi][ci][fs][x]['u'] == 'file':
                 key = exp_suma_key(fs, x, 'g')
+
                 # featval or grouping val?
                 if 'v' in suma[fi][ci][fs][x]:
                     s = 'v'
@@ -426,6 +430,7 @@ def suma2exp_upd(exp, suma, fi, ci):
                     s = 'g'
                 exp[key].append(suma[fi][ci][fs][x][s][0])
                 continue
+
             # over subfields m,sd,med...
             for s in suma[fi][ci][fs][x]:
                 if re.search('[vu]', s):
@@ -433,7 +438,6 @@ def suma2exp_upd(exp, suma, fi, ci):
                 key = exp_suma_key(fs, x, s)
                 exp[key].append(suma[fi][ci][fs][x][s])
     return exp
-
 
 
 def exp_suma_key(fs, x, s):
@@ -444,20 +448,20 @@ def exp_suma_key(fs, x, s):
     other variables: <featSet>_<varName>_{m|med|...}
     
     Args:
-      fs featSetName
-      x  varName
-      s  statMeasName
+      fs: featSetName
+      x:  varName
+      s:  statMeasName
     
     Returns:
       key
     '''
 
     if s == 'g':
-        key = "{}_{}".format(fs, x)
+        key = f"{fs}_{x}"
     else:
-        key = "{}_{}_{}".format(fs, x, s)
+        key = f"{fs}_{x}_{s}"
+        
     return key
-
 
 
 def export_csv(copa):
@@ -494,8 +498,6 @@ def export_csv(copa):
     df_rhy = {}
 
 
-    # print(c[0][0])
-    # sys.exit()
     copa["export"] = {"glob": None,
                       "loc": None,
                       "bnd": None,
@@ -602,9 +604,9 @@ def export_glob(c, fo, opt):
 
     d = init_exp_dict(cn, opt)
 
-    for ii in utils.numkeys(c):
-        for i in utils.numkeys(c[ii]):
-            for j in utils.numkeys(c[ii][i]['glob']):
+    for ii in utils.sorted_keys(c):
+        for i in utils.sorted_keys(c[ii]):
+            for j in utils.sorted_keys(c[ii][i]['glob']):
                 d['fi'].append(ii)
                 d['ci'].append(i)
                 d['si'].append(j)
@@ -624,20 +626,20 @@ def export_glob(c, fo, opt):
                 dd = c[ii][i]['glob'][j]['decl']
                 eou = c[ii][i]['glob'][j]['eou']
                 for x in utils.lists():
-                    d["{}_c1".format(x)].append(dd[x]['c'][0])
-                    d["{}_c0".format(x)].append(dd[x]['c'][1])
-                    d["{}_r".format(x)].append(dd[x]['r'])
-                    d["{}_rate".format(x)].append(dd[x]['rate'])
-                    d["{}_m".format(x)].append(dd[x]['m'])
-                    q = "{}_drop".format(x)
+                    d[f"{x}_c1"].append(dd[x]['c'][0])
+                    d[f"{x}_c0"].append(dd[x]['c'][1])
+                    d[f"{x}_r"].append(dd[x]['r'])
+                    d[f"{x}_rate"].append(dd[x]['rate'])
+                    d[f"{x}_m"].append(dd[x]['m'])
+                    q = f"{x}_drop"
                     d[q].append(eou[q])
                 if 'class' in cn:
                     d['class'].append(c[ii][i]['glob'][j]['class'])
                 # line crossings
                 for ra in utils.lists():
                     for rb in utils.lists():
-                        qx = "{}_{}_cross_t".format(ra, rb)
-                        qy = "{}_{}_cross_f0".format(ra, rb)
+                        qx = f"{ra}_{rb}_cross_t"
+                        qy = f"{ra}_{rb}_cross_f0"
                         if qx not in eou:
                             continue
                         d[qx].append(eou[qx])
@@ -645,8 +647,6 @@ def export_glob(c, fo, opt):
                 # grouping
                 d = export_grp_upd(d, c[ii][i]['grp'])
 
-
-    # for x in list(d.keys()): print("{}: {}".format(x,len(d[x]))) #!c
     exp_to_file(d, fo, 'glob', fullPath=opt['fsys']['export']['fullpath'],
                 sep=opt['fsys']['export']['sep'])
 
@@ -668,34 +668,40 @@ def export_loc(c, fo, opt):
           'lab_acc', 'm', 'sd', 'med', 'iqr', 'max', 'maxpos', 'min', 'dur',
           'is_init', 'is_fin', 'is_init_chunk', 'is_fin_chunk',
           'tier_ag', 'tier_acc']
+
     # normalized values
     for x in cn:
-        y = "{}_nrm".format(x)
+        y = f"{x}_nrm"
         if y in c[0][0]['loc'][0]['gnl']:
             cn.append(y)
+
     # contour class
     if 'class' in c[0][0]['loc'][0]:
         cn.append('class')
+
     # gestalt feature set
     cne = ['bl_rms', 'bl_sd', 'bl_d_init', 'bl_d_fin', 'bl_d',
            'ml_rms', 'ml_sd', 'ml_d_init', 'ml_d_fin', 'ml_d',
            'tl_rms', 'tl_sd', 'tl_d_init', 'tl_d_fin', 'tl_d',
            'rng_rms', 'rng_sd', 'rng_d_init', 'rng_d_fin', 'rng_d']
+
     # declination feature set
     cnd = ['bl_c0', 'bl_c1', 'bl_rate', 'bl_m',
            'ml_c0', 'ml_c1', 'ml_rate', 'ml_m',
            'tl_c0', 'tl_c1', 'tl_rate', 'tl_m',
            'rng_c0', 'rng_c1', 'rng_rate', 'rng_m']
+
     # area under polyval
     cn.append("rmsd")
+
     # poly coef columns for cno and cne dep on polyord
     po = opt['styl']['loc']['ord']
     for i in range(po+1):
-        cn.append("c{}".format(i))
-        cn.append("rms_c{}".format(i))
+        cn.append(f"c{i}")
+        cn.append(f"rms_c{i}")
         # over register types
         for x in utils.lists():
-            cne.append("res_{}_c{}".format(x, i))
+            cne.append(f"res_{x}_c{i}")
 
     # + extended feature set (gst + decl)
     if 'gst' in c[0][0]['loc'][0].keys():
@@ -706,12 +712,9 @@ def export_loc(c, fo, opt):
 
     d = init_exp_dict(cn, opt)
 
-    for ii in utils.numkeys(c):
-        for i in utils.numkeys(c[ii]):
-            for j in utils.numkeys(c[ii][i]['loc']):
-                #!print("### j is: ", j)
-                #!print(c[ii][i]['loc'][j])
-                #!print(c[ii][i]['loc'][j]['lab_ag'])
+    for ii in utils.sorted_keys(c):
+        for i in utils.sorted_keys(c[ii]):
+            for j in utils.sorted_keys(c[ii][i]['loc']):
                 d['fi'].append(ii)
                 d['ci'].append(i)
                 d['si'].append(j)
@@ -735,49 +738,48 @@ def export_loc(c, fo, opt):
                 for x in c[ii][i]['loc'][j]['gnl']:
                     d[x].append(c[ii][i]['loc'][j]['gnl'][x])
                 for o in range(po+1):
-                    d["c{}".format(o)].append(
+                    d[f"c{o}"].append(
                         c[ii][i]['loc'][j]['acc']['c'][po-o])
-                    d["rms_c{}".format(o)].append(
+                    d[f"rms_c{o}"].append(
                         c[ii][i]['loc'][j]['acc']['rms'][po-o])
                 d["rmsd"].append(c[ii][i]['loc'][j]['acc']['rmsd'])
+
                 # gestalt featset
                 if 'bl_rms' in cn:
                     if 'gst' in c[ii][i]['loc'][j]:
                         gg = c[ii][i]['loc'][j]['gst']
                         for x in utils.lists():
                             for y in ['rms', 'sd', 'd_init', 'd_fin', 'd']:
-                                d["{}_{}".format(x, y)].append(gg[x][y])
-                            for o in range(po+1):
-                                d["res_{}_c{}".format(x, o)].append(
+                                d[f"{x}_{y}"].append(gg[x][y])
+                            for o in range(po + 1):
+                                d[f"res_{x}_c{o}"].append(
                                     gg['residual'][x]['c'][po-o])
                     else:  # e.g. empty segment. TODO, repair already in preproc!!
                         for x in utils.lists():
                             for y in ['rms', 'sd', 'd_init', 'd_fin', 'd']:
-                                d["{}_{}".format(x, y)].append('NA')
-                            for o in range(po+1):
-                                d["res_{}_c{}".format(x, o)].append('NA')
+                                d[f"{x}_{y}"].append('NA')
+                            for o in range(po + 1):
+                                d[f"res_{x}_c{o}"].append('NA')
 
                 # declination featset
                 if 'bl_c1' in cn:
                     if 'decl' in c[ii][i]['loc'][j]:
                         gg = c[ii][i]['loc'][j]['decl']
                         for x in utils.lists():
-                            d["{}_c1".format(x)].append(gg[x]['c'][0])
-                            d["{}_c0".format(x)].append(gg[x]['c'][1])
-                            d["{}_rate".format(x)].append(gg[x]['rate'])
-                            d["{}_m".format(x)].append(gg[x]['m'])
+                            d[f"{x}_c1"].append(gg[x]['c'][0])
+                            d[f"{x}_c0"].append(gg[x]['c'][1])
+                            d[f"{x}_rate"].append(gg[x]['rate'])
+                            d[f"{x}_m"].append(gg[x]['m'])
                     else:  # e.g. empty segment
                         for x in utils.lists():
-                            d["{}_c1".format(x)].append('NA')
-                            d["{}_c0".format(x)].append('NA')
-                            d["{}_rate".format(x)].append('NA')
-                            d["{}_m".format(x)].append('NA')
+                            d[f"{x}_c1"].append('NA')
+                            d[f"{x}_c0"].append('NA')
+                            d[f"{x}_rate"].append('NA')
+                            d[f"{x}_m"].append('NA')
 
                 # grouping
                 d = export_grp_upd(d, c[ii][i]['grp'])
 
-
-    # for x in list(d.keys()): print("{}: {}".format(x,len(d[x])))
     exp_to_file(d, fo, 'loc', fullPath=opt['fsys']['export']['fullpath'],
                 sep=opt['fsys']['export']['sep'])
 
@@ -797,24 +799,25 @@ def export_bnd(c, fo, opt):
     cn = ['ci', 'fi', 'si', 'tier', 'p', 'lab', 'lab_next', 't_on', 't_off',
           'is_init', 'is_fin', 'is_init_chunk', 'is_fin_chunk']
     # [std|win|trend]_[bl|ml|tl|rng]_[r|rms|rms_pre|rms_post]
+
     for x in utils.lists('bndtyp'):
         if (x in c[0][0]['bnd'][0][0]):
             for y in utils.lists('register'):
                 for z in utils.lists('bndfeat'):
-                    cn.append("{}_{}_{}".format(x, y, z))
+                    cn.append(f"{x}_{y}_{z}")
 
     # labels of current and next segment
     # (either both interval or both point, thus col is called 'lab')
     d = init_exp_dict(cn, opt)
 
     # files
-    for ii in utils.numkeys(c):
+    for ii in utils.sorted_keys(c):
         # channels
-        for i in utils.numkeys(c[ii]):
+        for i in utils.sorted_keys(c[ii]):
             # tiers
-            for j in utils.numkeys(c[ii][i]['bnd']):
+            for j in utils.sorted_keys(c[ii][i]['bnd']):
                 # boundaries
-                for k in utils.numkeys(c[ii][i]['bnd'][j]):
+                for k in utils.sorted_keys(c[ii][i]['bnd'][j]):
                     if not ('std' in c[ii][i]['bnd'][j][k]):
                         continue
                     d['fi'].append(ii)
@@ -831,7 +834,7 @@ def export_bnd(c, fo, opt):
                         c[ii][i]['bnd'][j][k]['is_init_chunk'])
                     d['is_fin_chunk'].append(
                         c[ii][i]['bnd'][j][k]['is_fin_chunk'])
-                    if k+1 in c[ii][i]['bnd'][j]:
+                    if k + 1 in c[ii][i]['bnd'][j]:
                         d['lab_next'].append(c[ii][i]['bnd'][j][k+1]['lab'])
                     else:
                         d['lab_next'].append('')
@@ -842,13 +845,11 @@ def export_bnd(c, fo, opt):
                             for y in utils.lists('register'):
                                 # r|rms|...
                                 for z in utils.lists('bndfeat'):
-                                    d["{}_{}_{}".format(w, y, z)].append(
+                                    d[f"{w}_{y}_{z}"].append(
                                         c[ii][i]['bnd'][j][k][w][y][z])
                     # grouping
                     d = export_grp_upd(d, c[ii][i]['grp'])
 
-
-    # for x in list(d.keys()): print("{}: {}".format(x,len(d[x])))
     exp_to_file(d, fo, 'bnd', fullPath=opt['fsys']['export']['fullpath'],
                 sep=opt['fsys']['export']['sep'])
 
@@ -870,14 +871,16 @@ def export_rhy(c, fo, opt, typ):
     cn = ['fi', 'ci', 'si', 'stm', 't_on', 't_off', 'tier', 'lab', 'dur',
           'f_max', 'n_peak',
           'is_init', 'is_fin', 'is_init_chunk', 'is_fin_chunk']
+
     # file-level
-    typf = "{}_file".format(typ)
+    typf = f"{typ}_file"
     cnf = ['fi', 'ci', 'stm', 'dur', 'f_max', 'n_peak']
+
     # spectral moments
     smo = opt['styl'][typ]['rhy']['nsm']
     for i in utils.idx_seg(1, smo, 1):
-        cn.append("sm{}".format(i))
-        cnf.append("sm{}".format(i))
+        cn.append(f"sm{i}")
+        cnf.append(f"sm{i}")
 
     # influence of tier_rate (syl, AG etc) in tier (chunk etc)
     # 'analysisSegment_influenceSegment_mae|prop|rate'
@@ -894,27 +897,29 @@ def export_rhy(c, fo, opt, typ):
         for tk in rhy_rate_tiers(c, tj, opt):
             # segment level tier_tierRate_param
             if tk not in seen_r.keys():
-                cn.append("{}_prop".format(tk))
-                cn.append("{}_mae".format(tk))
-                cn.append("{}_rate".format(tk))
-                cn.append("{}_dlm".format(tk))
-                cn.append("{}_dgm".format(tk))
-                cnf.append("{}_prop".format(tk))
-                cnf.append("{}_mae".format(tk))
-                cnf.append("{}_rate".format(tk))
-                cnf.append("{}_dlm".format(tk))
-                cnf.append("{}_dgm".format(tk))
+                cn.append(f"{tk}_prop")
+                cn.append(f"{tk}_mae")
+                cn.append(f"{tk}_rate")
+                cn.append(f"{tk}_dlm")
+                cn.append(f"{tk}_dgm")
+                cnf.append(f"{tk}_prop")
+                cnf.append(f"{tk}_mae")
+                cnf.append(f"{tk}_rate")
+                cnf.append(f"{tk}_dlm")
+                cnf.append(f"{tk}_dgm")
                 seen_r[tk] = True
             tierComb[tj][tk] = True
+            
     # segment-level
     d = init_exp_dict(cn, opt)
+
     # file-level
     df = init_exp_dict(cnf, opt)
 
     # over files
-    for ii in utils.numkeys(c):
+    for ii in utils.sorted_keys(c):
         # over channels
-        for i in utils.numkeys(c[ii]):
+        for i in utils.sorted_keys(c[ii]):
             # file-level
             if typf not in c[ii][i]:
                 continue
@@ -925,7 +930,7 @@ def export_rhy(c, fo, opt, typ):
             df = export_grp_upd(df, c[ii][i]['grp'])
             # spec moms
             for q in utils.idx_seg(1, smo, 1):
-                df["sm{}".format(q)].append(c[ii][i][typf]['sm'][q-1])
+                df[f"sm{q}"].append(c[ii][i][typf]['sm'][q-1])
 
             # freq of glob amplitude maximum and num of local peaks
             for q in ['f_max', 'n_peak']:
@@ -935,7 +940,7 @@ def export_rhy(c, fo, opt, typ):
             # file-level
             for rt in seen_r:
                 for kk in ['rate', 'mae', 'prop', 'dlm', 'dgm']:
-                    zz = "{}_{}".format(rt, kk)
+                    zz = f"{rt}_{kk}"
                     if rt not in c[ii][i][typf]['wgt']:
                         df[zz].append(np.nan)
                     else:
@@ -944,10 +949,11 @@ def export_rhy(c, fo, opt, typ):
             # segment-level
             if 'rhy' not in c[ii][i][typ][0][0]:
                 continue
+            
             # over tiers
-            for j in utils.numkeys(c[ii][i][typ]):
+            for j in utils.sorted_keys(c[ii][i][typ]):
                 # over segments
-                for k in utils.numkeys(c[ii][i][typ][j]):
+                for k in utils.sorted_keys(c[ii][i][typ][j]):
                     tt = c[ii][i][typ][j][k]['tier']
                     d['fi'].append(ii)
                     d['ci'].append(i)
@@ -969,14 +975,14 @@ def export_rhy(c, fo, opt, typ):
                     d['dur'].append(c[ii][i][typ][j][k]['rhy']['dur'])
                     # spec moms
                     for q in utils.idx_seg(1, smo, 1):
-                        d["sm{}".format(q)].append(
+                        d[f"sm{q}"].append(
                             c[ii][i][typ][j][k]['rhy']['sm'][q-1])
                     for q in ['f_max', 'n_peak']:
                         d[q].append(c[ii][i][typ][j][k]['rhy'][q])
                     # influence of tier_rates (syl, AG etc) in tier (chunk etc)
                     for rt in seen_r:
                         for kk in ['rate', 'mae', 'prop', 'dlm', 'dgm']:
-                            zz = "{}_{}".format(rt, kk)
+                            zz = f"{rt}_{kk}"
                             if rt in c[ii][i][typ][j][k]['rhy']['wgt']:
                                 d[zz].append(c[ii][i][typ][j][k]
                                              ['rhy']['wgt'][rt][kk])
@@ -987,14 +993,11 @@ def export_rhy(c, fo, opt, typ):
                     # grouping
                     d = export_grp_upd(d, c[ii][i]['grp'])
 
-
-    # for x in list(df.keys()): print("{}: {}".format(x,len(df[x])))
     exp_to_file(d, fo, typ, fullPath=opt['fsys']['export']
                 ['fullpath'], sep=opt['fsys']['export']['sep'])
     exp_to_file(df, fo, typf, fullPath=opt['fsys']['export']
                 ['fullpath'], sep=opt['fsys']['export']['sep'])
     return {'seg': d, 'file': df}
-
 
 
 def rhy_rate_tiers(c, t, opt):
@@ -1014,9 +1017,11 @@ def rhy_rate_tiers(c, t, opt):
     # channel idx of t
     if t not in opt['fsys']['channel']:
         return []
+
     ci = opt['fsys']['channel'][t]
+
     # find entry in c[0][ci][rhy_f0]
-    for i in utils.numkeys(c[0][ci]['rhy_f0']):
+    for i in utils.sorted_keys(c[0][ci]['rhy_f0']):
         if c[0][ci]['rhy_f0'][i][0]['tier'] == t:
             return c[0][ci]['rhy_f0'][i][0]['rhy']['wgt'].keys()
     return []
@@ -1031,23 +1036,26 @@ def export_voice(c, fo, opt):
 
     typ = 'voice'
     typf = 'voice_file'
+
     # segment-level
     cn = ['fi', 'ci', 'si', 'stm', 't_on', 't_off', 'tier', 'lab',
           'is_init', 'is_fin', 'is_init_chunk', 'is_fin_chunk']
+
     # file-level
-    typf = "{}_file".format(typ)
+    typf = f"{typ}_file"
     cnf = ['fi', 'ci', 'stm']
+
     for fld in ['jit', 'shim']:
         cn.append(fld)
         cnf.append(fld)
-        cn.append("{}_nrm".format(fld))
+        cn.append(f"{fld}_nrm")
         for subfld in ['m', 'sd']:
-            cn.append("{}_{}".format(fld, subfld))
-            cn.append("{}_{}_nrm".format(fld, subfld))
-            cnf.append("{}_{}".format(fld, subfld))
+            cn.append(f"{fld}_{subfld}")
+            cn.append(f"{fld}_{subfld}_nrm")
+            cnf.append(f"{fld}_{subfld}")
         for i in [0, 1, 2, 3]:
-            cn.append("{}_c{}".format(fld, i))
-            cnf.append("{}_c{}".format(fld, i))
+            cn.append(f"{fld}_c{i}")
+            cnf.append(f"{fld}_c{i}")
 
     # segment-level
     d = init_exp_dict(cn, opt)
@@ -1056,9 +1064,9 @@ def export_voice(c, fo, opt):
     df = init_exp_dict(cnf, opt)
 
     # files
-    for ii in utils.numkeys(c):
+    for ii in utils.sorted_keys(c):
         # channels
-        for i in utils.numkeys(c[ii]):
+        for i in utils.sorted_keys(c[ii]):
             # file-level
             df['fi'].append(ii)
             df['ci'].append(i)
@@ -1067,19 +1075,19 @@ def export_voice(c, fo, opt):
             # over jit, shim
             for x in c[ii][i][typf].keys():
                 df[x].append(c[ii][i][typf][x]['v'])
-                df["{}_m".format(x)].append(c[ii][i][typf][x]['m'])
-                df["{}_sd".format(x)].append(c[ii][i][typf][x]['sd'])
+                df[f"{x}_m"].append(c[ii][i][typf][x]['m'])
+                df[f"{x}_sd"].append(c[ii][i][typf][x]['sd'])
                 coef = c[ii][i][typf][x]['c']
                 coef = coef[::-1]
                 # over coefs
                 for ci in utils.idx(coef):
-                    df["{}_c{}".format(x, ci)].append(coef[ci])
+                    df[f"{x}_c{ci}"].append(coef[ci])
 
             # segment level
             # over segments
-            for j in utils.numkeys(c[ii][i][typ]):
+            for j in utils.sorted_keys(c[ii][i][typ]):
                 # over tiers
-                for k in utils.numkeys(c[ii][i][typ][j]):
+                for k in utils.sorted_keys(c[ii][i][typ][j]):
                     d['fi'].append(ii)
                     d['ci'].append(i)
                     d['si'].append(j)
@@ -1090,6 +1098,7 @@ def export_voice(c, fo, opt):
                     else:
                         d['t_off'].append(c[ii][i][typ][j][k]['to'][0])
                     d['tier'].append(c[ii][i][typ][j][k]['tier'])
+
                     # grouping
                     d = export_grp_upd(d, c[ii][i]['grp'])
                     d['lab'].append(c[ii][i][typ][j][k]['lab'])
@@ -1099,24 +1108,23 @@ def export_voice(c, fo, opt):
                         c[ii][i][typ][j][k]['is_init_chunk'])
                     d['is_fin_chunk'].append(
                         c[ii][i][typ][j][k]['is_fin_chunk'])
+
                     # over jit, shim
                     for x in ['jit', 'shim']:
                         d[x].append(c[ii][i][typ][j][k][x]['v'])
-                        d["{}_nrm".format(x)].append(
+                        d[f"{x}_nrm"].append(
                             c[ii][i][typ][j][k][x]['v_nrm'])
                         for zz in ["m", "sd"]:
-                            d["{}_{}".format(x, zz)].append(
+                            d[f"{x}_{zz}"].append(
                                 c[ii][i][typ][j][k][x][zz])
-                            d["{}_{}_nrm".format(x, zz)].append(
-                                c[ii][i][typ][j][k][x]["{}_nrm".format(zz)])
+                            d[f"{x}_{zz}_nrm"].append(
+                                c[ii][i][typ][j][k][x][f"{zz}_nrm"])
                         coef = c[ii][i][typ][j][k][x]['c']
                         coef = coef[::-1]
                         # over coefs
                         for ci in utils.idx(coef):
-                            d["{}_c{}".format(x, ci)].append(coef[ci])
+                            d[f"{x}_c{ci}"].append(coef[ci])
 
-
-    # for x in list(d.keys()): print("{}: {}".format(x,len(d[x])))
     exp_to_file(d, fo, typ, fullPath=opt['fsys']['export']
                 ['fullpath'], sep=opt['fsys']['export']['sep'])
     exp_to_file(df, fo, typf, fullPath=opt['fsys']['export']
@@ -1131,18 +1139,19 @@ def export_gnl(c, fo, opt, typ):
     segment- and file-level output
     '''
 
-    typf = "{}_file".format(typ)
+    typf = f"{typ}_file"
+
     # segment-/file-level
     cn = ['m', 'sd', 'med', 'iqr', 'max', 'maxpos', 'min', 'dur']
     cnf = cp.deepcopy(cn)
+
     # en: rms, *_nrm, r_en_f0, and sb (*_nrm and sb for segment level only)
     # f0: *_nrm, bv for file level only
     for x in cp.deepcopy(cn):
-        cn.append("{}_nrm".format(x))
+        cn.append(f"{x}_nrm")
     if typ == 'gnl_en':
         cn.append('rms')
         cn.append('rms_nrm')
-        # cnf.append('rms')
         cn.append('sb')
         cn.append('r_en_f0')
     else:
@@ -1166,9 +1175,9 @@ def export_gnl(c, fo, opt, typ):
     df = init_exp_dict(cnf, opt)
 
     # files
-    for ii in utils.numkeys(c):
+    for ii in utils.sorted_keys(c):
         # channels
-        for i in utils.numkeys(c[ii]):
+        for i in utils.sorted_keys(c[ii]):
             # file-level
             if typf not in c[ii][i].keys():
                 continue
@@ -1185,9 +1194,9 @@ def export_gnl(c, fo, opt, typ):
             if typ not in c[ii][i]:
                 continue
             # over segments
-            for j in utils.numkeys(c[ii][i][typ]):
+            for j in utils.sorted_keys(c[ii][i][typ]):
                 # over tiers
-                for k in utils.numkeys(c[ii][i][typ][j]):
+                for k in utils.sorted_keys(c[ii][i][typ][j]):
                     d['fi'].append(ii)
                     d['ci'].append(i)
                     d['si'].append(j)
@@ -1211,27 +1220,23 @@ def export_gnl(c, fo, opt, typ):
                     # grouping
                     d = export_grp_upd(d, c[ii][i]['grp'])
 
-
-    # for x in list(d.keys()): print("{}: {}".format(x,len(d[x])))
     exp_to_file(d, fo, typ, fullPath=opt['fsys']['export']
                 ['fullpath'], sep=opt['fsys']['export']['sep'])
     exp_to_file(df, fo, typf, fullPath=opt['fsys']['export']
                 ['fullpath'], sep=opt['fsys']['export']['sep'])
+
     return {'seg': d, 'file': df}
-
-
-#### merge export tables ####################################
 
 
 def export_merge(fo, infx, dd, opt):
 
     '''
-    merges gnl_f0|en and rhy_f0|en
+    merges gnl_f0|en and rhy_f0|en export tables
     
     Args:
-      fo - outputFileStem
-      infx - infix string 'gnl'|'rhy'
-      dd - dict ['en'|'f0']['seg|file'] -> output of export_gnl or _rhy
+      fo: outputFileStem
+      infx: infix string 'gnl'|'rhy'
+      dd: dict ['en'|'f0']['seg|file'] -> output of export_gnl or _rhy
                 featSubset  segment-/file-level
     
     Returns:
@@ -1252,20 +1257,19 @@ def export_merge(fo, infx, dd, opt):
         # features, file-level
         for y in dd[x]['file']:
             if ((y not in ff) and (not re.search(pat, y))):
-                n = "{}_{}".format(x, y)
+                n = f"{x}_{y}"
             else:
                 n = y
             df[n] = dd[x]['file'][y]
+            
         # features, segment-level
         for y in dd[x]['seg']:
             if ((y not in ff) and (not re.search(pat, y))):
-                n = "{}_{}".format(x, y)
+                n = f"{x}_{y}"
             else:
                 n = y
             d[n] = dd[x]['seg'][y]
 
-
-    # for x in list(d.keys()): print("{}: {}".format(x,len(d[x]))) #!c
     # check for same length (not provided, if not same number of tiers used for gnl_f0|en)
     nl = -1
     for x in list(d.keys()):
@@ -1274,7 +1278,7 @@ def export_merge(fo, infx, dd, opt):
         if len(d[x]) != nl:
             return
 
-    exp_to_file(df, fo, "{}_file".format(infx), fullPath=opt['fsys']['export']['fullpath'],
+    exp_to_file(df, fo, f"{infx}_file", fullPath=opt['fsys']['export']['fullpath'],
                 sep=opt['fsys']['export']['sep'])
     exp_to_file(d, fo, infx, fullPath=opt['fsys']['export']['fullpath'],
                 sep=opt['fsys']['export']['sep'])
@@ -1288,11 +1292,11 @@ def export_grp_init(opt, cn):
     updates column name list
     
     Args:
-      opt   copa['config']
-      cn    columnNameList
+      opt:   copa['config']
+      cn:    columnNameList
     
     Returns:
-      cn    with added grouping columns with own namespace 'grp_*'
+      cn:    with added grouping columns with own namespace 'grp_*'
     '''
 
     # unique grouping namespace
@@ -1302,9 +1306,8 @@ def export_grp_init(opt, cn):
         for x in grp['lab']:
             if len(x) == 0:
                 continue
-            cn.append("{}_{}".format(ns, x))
+            cn.append(f"{ns}_{x}")
     return cn
-
 
 
 def export_grp_upd(d, grp):
@@ -1313,16 +1316,16 @@ def export_grp_upd(d, grp):
     updates filename-based grouping columns in output dict
     
     Args:
-      d   output dict
-      grp ['data'][ii][i]['grp']
+      d:   output dict
+      grp: ['data'][ii][i]['grp']
     
     Returns:
-      d   with updated grouping columns
+      d:   with updated grouping columns
     '''
 
     ns = 'grp'
     for x in grp.keys():
-        d["{}_{}".format(ns, x)].append(grp[x])
+        d[f"{ns}_{x}"].append(grp[x])
     return d
 
 
@@ -1345,15 +1348,11 @@ def exp_to_file(d, fo, infx, checkFld='fi', facpat='', fullPath=False, sep=','):
       df: dataframe (same content as csv output)
     '''
 
-
-
-    # for x in d: #!v
-    #    print(x,":",len(d[x])) #!v
     if ((checkFld in d) and (len(d[checkFld]) > 0)):
         df = exp_dataframe(d)
-        df.to_csv("{}.{}.csv".format(fo, infx), na_rep='NA',
+        df.to_csv(f"{fo}.{infx}.csv", na_rep='NA',
                   index_label=False, index=False, sep=sep)
-        exp_R(d, "{}.{}".format(fo, infx), facpat, fullPath, sep)
+        exp_R(d, f"{fo}.{infx}", facpat, fullPath, sep)
 
 
 def exp_dataframe(d):
@@ -1363,12 +1362,14 @@ def exp_dataframe(d):
     return df.reindex(columns=sorted(df.columns))
 
 
-def exp_to_file_quoteNonnum(d, fo, infx, checkFld='fi', facpat='', fullPath=False, sep=','):
+def exp_to_file_quoteNonnum(d, fo, infx, checkFld='fi',
+                            facpat='', fullPath=False, sep=','):
+
     if ((checkFld in d) and (len(d[checkFld]) > 0)):
         df = exp_dataframe(d)
-        df.to_csv("{}.{}.csv".format(fo, infx), na_rep='NA', index_label=False,
+        df.to_csv(f"{fo}.{infx}.csv", na_rep='NA', index_label=False,
                   index=False, quoting=csv.QUOTE_NONNUMERIC, sep=sep)
-        exp_R(d, "{}.{}".format(fo, infx), facpat, fullPath, sep)
+        exp_R(d, f"{fo}.{infx}", facpat, fullPath, sep)
 
 
 def exp_R(d, fo, facpat='', fullPath=False, sep=','):
@@ -1389,12 +1390,13 @@ def exp_R(d, fo, facpat='', fullPath=False, sep=','):
         foo = fo
     else:
         foo = os.path.basename(fo)
+        
     # factors (next to grp_*, lab_*)
     fac = utils.lists('factors', 'set')
-    o = ["d<-read.table(\"{}.csv\",header=T,fileEncoding=\"UTF-8\",sep =\"{}\",".format(
-        foo, sep), "\tcolClasses=c("]
+    o = [f"d<-read.table('{foo}.csv', header=T, fileEncoding='UTF-8', sep='{sep}',",
+         "\tcolClasses=c("]
+
     for x in sorted(d.keys()):
-        # if ((x in fac) or re.search('^(grp|lab|class)',x)):typ = 'factor'
         if ((x in fac) or re.search('^(grp|lab|class|spk|tier)', x) or
             re.search('_(grp|lab|class|tier)$', x) or
             re.search('_(grp|lab|class|tier)_', x) or
@@ -1404,14 +1406,13 @@ def exp_R(d, fo, facpat='', fullPath=False, sep=','):
             typ = 'factor'
         else:
             typ = 'numeric'
-        z = "{}=\'{}\',".format(x, typ)
+        z = f"{x}='{typ}',"
         if (not re.search(',$', o[-1])):
             o[-1] += z
         else:
             o.append("\t\t"+z)
     o[-1] = o[-1].replace(',', '))')
-    utils.output_wrapper(o, "{}.R".format(fo), 'list')
-
+    utils.output_wrapper(o, f"{fo}.R", 'list')
 
 
 def init_exp_dict(c, opt):
@@ -1420,7 +1421,6 @@ def init_exp_dict(c, opt):
     export dict init from colnames in list C (-> keys)
     add grouping columns
     '''
-
 
     # grouping columns from filename
     c = export_grp_init(opt, c)
@@ -1431,19 +1431,18 @@ def init_exp_dict(c, opt):
     return d
 
 
-
 def copa_contains(c, dom, ft):
 
     '''
     checks whether copa dict contains domain-related feature sets
     
     Args:
-     c - copa['data']
-     dom - domain 'glob'|'loc'|'bnd' etc
-     ft - dict domain -> characteristic feature set ('std' etc)
+     c: copa['data']
+     dom: domain 'glob'|'loc'|'bnd' etc
+     ft: dict domain -> characteristic feature set ('std' etc)
     
     Returns:
-     boolean
+      bool
     '''
 
     if ((0 in c.keys()) and (0 in c[0].keys()) and
@@ -1467,24 +1466,27 @@ def selAbs(v, n, fset, sel=('glob', 'loc', 'bnd')):
     
     Returns:
      v or abs(v)
-#
+
     assym features:
       loc: c1, c3, bl|ml|tl|rng_c1|r|rate|d_init|d_fin|sd|d
       glob: bl|ml|tl|rng_c1|rate
     '''
 
     if fset not in sel:
-        # print('-> {}'.format(v))
         return v
+    
     # loc
     if re.search('^c[13579]$', n):
         return abs(v)
+
     # gnl
     if re.search('(f0|en)_c[13]', n):
         return abs(v)
+
     # glob/loc
     if re.search('^([bmt]l|rng)_(r|c1|rate|d_(init|fin)|s?d)$', n):
         return abs(v)
+
     # bnd
     if re.search('_([bmt]l|rng)_r$', n):
         return abs(v)

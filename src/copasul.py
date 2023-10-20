@@ -1,6 +1,7 @@
 # author: Uwe Reichel, Budapest, 2016
 
 import argparse
+import audeer
 import numpy as np
 import os
 import re
@@ -61,6 +62,9 @@ def copasul(config, copa=None):
 
     # config #########################################
     opt = coin.copa_opt_init(config)
+
+    # output dir
+    _ = audeer.mkdir(opt["fsys"]["export"]["dir"])
     
     # generate new copa dict?
     # or load it/take it from input args
@@ -81,12 +85,10 @@ def copasul(config, copa=None):
 
     # augmenting input #####################################
     if opt['navigate']['do_augment']:
-        print("augment ...")
         coag.aug_main(copa, f_log)
 
     # preprocessing ########################################
     if opt['navigate']['do_preproc']:
-        print("preproc ...")
         copa = copp.pp_main(copa, f_log)
         copa_save(copa)
 
@@ -96,7 +98,6 @@ def copasul(config, copa=None):
         diagnosis_err = copp.diagnosis(copa, f_log)
 
     # stylization ##########################################
-    print("stylization ...")
     # global segments
     if opt['navigate']['do_styl_glob']:
         copa = cost.styl_glob(copa, f_log)
@@ -141,14 +142,15 @@ def copasul(config, copa=None):
         copa_save(copa)
 
     # clustering ##############################################
-    print("clustering ...")
     # global segments
     if opt['navigate']['do_clst_glob']:
+        print("clustering glob ...")
         copa = cocl.clst_main(copa, 'glob', f_log)
         copa_save(copa)
 
     # local segments
     if opt['navigate']['do_clst_loc']:
+        print("clustering loc ...")
         copa = cocl.clst_main(copa, 'loc', f_log)
         copa_save(copa)
 
@@ -164,6 +166,8 @@ def copasul(config, copa=None):
     # log end #################################################
     did_log = copa_log('val', copa, f_log)
 
+    print("done.")
+    
     return copa
 
 
@@ -243,7 +247,7 @@ def copa_save(copa, infx=None):
     utils.output_wrapper(copa, f, 'pickle')
 
 
-def copa_load(opt, infx=''):
+def copa_load(opt, infx=None):
 
     '''
     loads copa from pickle file

@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## Version 1.2.0 (2023-10-20)
+* bugfix in copasul_export.upd_suma_feat(): IQR calculation corrected (before it was STD; affects all `*iqr` columns `summary.csv` output)
+* `copasul_sigproc.specmom()`: replaced `sum()` by `np.sum()` leading to slightly different spectral moment values (differences are smaller than 1e-06)
+* `copasul_augment.aug_prep_copy()`: keep original timestamps for automatically detected accents instead of those rounded to 2nd decimal.
+
 ## Version 1.1.0 (2023-10-03)
 * bugfix in copasul_styl.styl_voice_feat(): sorting pulse time stamps
 * `sigFunc.py` renamed to `copasul_sigproc.py`

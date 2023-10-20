@@ -19,9 +19,9 @@ def resyn(copa):
     '''
 
     # files
-    for ii in utils.numkeys(copa['data']):
+    for ii in utils.sorted_keys(copa['data']):
         # channels
-        for i in utils.numkeys(copa['data'][ii]):
+        for i in utils.sorted_keys(copa['data'][ii]):
             copa = resyn_channel(copa, ii, i)
     return copa
 
@@ -43,7 +43,7 @@ def resyn_channel(copa, ii, i):
     reg = opt['styl']['register']
     c['f0']['resyn'] = np.zeros(len(t))
     # glob segs
-    for j in utils.numkeys(c['glob']):
+    for j in utils.sorted_keys(c['glob']):
         gs = c['glob'][j]
         # time in glob seg
         ttg = np.linspace(gs['t'][0], gs['t'][1], len(gs['decl']['tn']))
