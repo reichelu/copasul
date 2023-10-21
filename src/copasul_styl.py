@@ -82,6 +82,7 @@ def styl_gnl_file(copa, ii, fld, opt):
 
     # wav of f0 input (wav to be loaded once right here)
     if opt['type'] == 'en':
+
         # mean subtraction? (default; translates to do_preproc)
         if (('centering' not in opt) or opt['centering']):
             meanSub = True
@@ -106,6 +107,7 @@ def styl_gnl_file(copa, ii, fld, opt):
             opt['fs'] = myFs
             y_f0i, r_ef = None, None
         else:
+
             # for f0-energy correlation
             t_f0 = copa['data'][ii][i]['f0']['t']
             y_f0 = copa['data'][ii][i]['f0']['y']
@@ -132,7 +134,7 @@ def styl_gnl_file(copa, ii, fld, opt):
             y_f0i = interp(t)
 
             # correlation of energy and f0 contour
-            r_ef = np.corrcoef(y, y_f0i)
+            r_ef = utils.robust_corrcoef(y, y_f0i)
 
         # file wide
         yz = f"{fld}_file"
@@ -140,10 +142,11 @@ def styl_gnl_file(copa, ii, fld, opt):
         copa['data'][ii][i][yz] = styl_std_quot(
             y, opt, copa['data'][ii][i][yz])
         if r_ef is not None:
-            copa['data'][ii][i][yz]["r_en_f0"] = r_ef[0, 1]
+            copa['data'][ii][i][yz]["r_en_f0"] = r_ef
 
         # over tiers
         for j in utils.sorted_keys(copa['data'][ii][i][fld]):
+
             # over segments (+ normalization ['*_nrm'])
             nk = utils.sorted_keys(copa['data'][ii][i][fld][j])
             for k in nk:
@@ -180,9 +183,9 @@ def styl_gnl_file(copa, ii, fld, opt):
                         rms_yn == 1
                     sf['sb'] = sb
                     sf['rms'] = rms_y
-                    sf['rms_nrm'] = rms_y/rms_yn
-                    r_ef = np.corrcoef(y[yi], y_f0i[yi])
-                    sf['r_en_f0'] = r_ef[0, 1]
+                    sf['rms_nrm'] = rms_y / rms_yn
+                    r_ef = utils.robust_corrcoef(y[yi], y_f0i[yi])
+                    sf['r_en_f0'] = r_ef
 
                 copa['data'][ii][i][fld][j][k]['std'] = sf
                 
@@ -196,7 +199,7 @@ def styl_std_quot(y, opt, r={}):
     
     Args:
       y: (np.array) f0 or energy contout
-      opt: (opt) config['styl']
+      opt: (dict) config['styl']
       r: (dict) <{}> of stylization results
     
     Returns:
@@ -370,7 +373,6 @@ def styl_voice(copa, f_log_in=None):
         copa = styl_voice_file(copa, ii, fld, opt)
 
     return copa
-
 
 
 def styl_voice_file(copa, ii, fld, opt):
@@ -827,7 +829,7 @@ def styl_std_feat(y, opt, t=[]):
     standard f0 features mean, std
     
     Args:
-      y f0 segment
+      y: (np.array) f0 segment
       opt
       t = [] time on/offset (for original time values instead of sample counting)
     
@@ -843,13 +845,15 @@ def styl_std_feat(y, opt, t=[]):
     '''
 
     if len(y) == 0:
-        y = np.asarray([0])
+        y = np.array([0])
+    elif not utils.listType(y):
+        y = np.array(y)
 
     if len(t) > 0:
         d = t[1] - t[0]
     else:
         d = utils.smp2sec(len(y), opt['fs'])
-
+        
     return {'m': np.mean(y), 'sd': np.std(y), 'med': np.median(y),
             'iqr': np.percentile(y, 75) - np.percentile(y, 25),
             'max': np.max(y), 'min': np.min(y),
@@ -2110,10 +2114,10 @@ def sdw_robust(i1, i2, u):
         if len(i2) == 0:
             i1 = [0]
         else:
-            i1 = np.asarray([max(0, i2[0] - 2)])
+            i1 = np.array([max(0, i2[0] - 2)])
 
     if len(i2) == 0:
-        i2 = np.asarray([i1[-1]])
+        i2 = np.array([i1[-1]])
 
     while len(i1) < 2 and i1[-1] < u:
         i1 = np.append(i1, i1[-1] + 1)

@@ -267,12 +267,12 @@ def aug_batch_ps(dom, ff_wav, ff_annot, ff_f0, opt, add_mat):
                 
             if add_pho:
                 pho = aug_pho(dom, pho, annot, tc, i, fstm, opt)
-
+                
             ps = aug_batch_ps_upd(ps, dom, ii, i, fv, wgt,
                                   tc, is0, is1, i_nan, lng, psf, oi)
-
+            
             oi = len(ps['batch']['fv'])
-
+            
     # normalize vowel durations
     if add_pho:
         
@@ -282,7 +282,7 @@ def aug_batch_ps(dom, ff_wav, ff_annot, ff_f0, opt, add_mat):
         # reinsert weight
         opt['augment'][dom]['wgt']['pho'] = wgt_pho
         ps = aug_ps_pho_mrg(ps, ndur, opt['augment'][dom])
-
+        
     return ps
 
 
@@ -1547,6 +1547,7 @@ def aug_loc(ty, y, bv, annot, opt, i, fstm, f, lng, add_mat, spec):
     c, cntr, wgt = aug_cntr_wrapper('loc', fv, tc, wgt, opt, is0, is1, i_nan,
                                     opt['augment']['loc']['measure'])
 
+    
     # accent time stamps
     d = aug_loc_acc(c, fv, wgt, to, ato, do_postsel, cntr)
 
@@ -1681,7 +1682,7 @@ def aug_loc_fv(ty, y, bv, annot, opt, i, fstm, f, lng, add_mat, spec):
     # - if analysis point tier
     t, to, lab_t, do_postsel = aug_loc_preselect(
         t, to, lab, at, ato, alab, opt)
-    
+
     # keep all accents if:
     # - analysis tier is available and consists of segments
     # - all AGs are to be selected
@@ -1693,7 +1694,7 @@ def aug_loc_fv(ty, y, bv, annot, opt, i, fstm, f, lng, add_mat, spec):
 
     # fallback: file segments
     ft, fto, flab = t_file_parent(lng)
-    
+
     # parent tier
     ptn = aug_tn('tier_parent', spec, annot, opt, i, 'loc')
     if ptn == 'FILE':
@@ -1718,7 +1719,7 @@ def aug_loc_fv(ty, y, bv, annot, opt, i, fstm, f, lng, add_mat, spec):
 
     # parent tier declination
     copa = cost.styl_glob(copa, f_log, silent=True)
-    
+
     # fallback: file-level
     if 0 not in copa['data'][ii][i]['glob']:
         copa, t_upd, to_upd = aug_prep_copy(t, to, fto, annot, i, opt, add_mat)
@@ -1748,7 +1749,7 @@ def aug_loc_fv(ty, y, bv, annot, opt, i, fstm, f, lng, add_mat, spec):
             copa = cost.styl_gnl(copa, 'f0', f_log, silent=True)
         elif x == 'gnl_en':
             copa = cost.styl_gnl(copa, 'en', f_log, silent=True)
-
+            
         v, w, tc, tco = aug_loc_feat(x, copa, ii, i)
         fx[x] = v
         wx[x] = w

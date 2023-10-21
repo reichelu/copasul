@@ -419,6 +419,27 @@ def robust_div(x, y):
     
     return x / y
 
+def robust_corrcoef(x, y):
+
+    '''
+    robust wrapper around np.corrcoef
+    
+    Args:
+    x, y: (np.arrays) of same length
+    
+    Returns:
+    r: (float) Pearson correlation coef
+    '''
+
+    if len(x) <= 1:
+        return 0.0
+    elif np.min(x) == np.max(x) and np.min(y) == np.max(y):
+        return 1.0
+    elif np.min(x) == np.max(x) or np.min(y) == np.max(y):
+        return 0.0
+
+    r = np.corrcoef(x, y)
+    return r[0, 1]
 
 def mse(x, y=None):
 
@@ -4580,7 +4601,7 @@ def myPlot(xin=[], yin=[], opt=None):
 
     plt.show()
 
-
+    
 def myCmd(cmd, opt):
 
     '''
@@ -4598,8 +4619,6 @@ def myCmd(cmd, opt):
         return f"sudo {cmd}"
     
     return (cmd)
-
-
 
 
 def is_file(x):

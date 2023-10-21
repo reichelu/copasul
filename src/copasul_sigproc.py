@@ -986,8 +986,8 @@ def pau_detector_sub(y, opt):
                 yie = yi[-1]
                 if len(t) - 1 == j:
                     # values belong to already detected pause
-                    if len(t) > 0 and yis < t[j, 1]:
-                        t[j, 1] = yie
+                    if len(t) > 0 and yis < t[j][1]:
+                        t[j][1] = yie
                         # evtl. needed to throw away superfluous
                         # pauses with high e_ratio
                         e_ratio[j] = np.mean([e_ratio[j], e_y / e_r])
@@ -1015,13 +1015,13 @@ def pau_detector_sub(y, opt):
         
         # only slim non-init and -fin pauses
         if i > 0:
-            ts = t[i, 0] + mar
+            ts = t[i][0] + mar
         else:
-            ts = t[i, 0]
+            ts = t[i][0]
         if i < len(t) - 1:
-            te = t[i, 1] - mar
+            te = t[i][1] - mar
         else:
-            te = t[i, 1]
+            te = t[i][1]
 
         # pause disappeared
         if te <= ts:
@@ -1129,7 +1129,7 @@ def pau_detector_merge(t, e, opt):
     em = np.array(em)
     
     # merging pauses across short chunks
-    tn = [list([tm[0, :]])]
+    tn = list([tm[0, :]])
     en = [em[0]]
     if (tn[0][0] < mcl):
         tn[0][0] = 0.0
