@@ -49,8 +49,10 @@ def clst_main(copa, dom, f_log_in=None):
     if ((mtd == 'meanShift') or (copt['init'] == 'meanShift')):
         if opt['meanShift']['bandwidth'] is None or opt['meanShift']['bandwidth'] == 0:
             try:
-                bw = sc.estimate_bandwidth(xn, quantile=bopt['quantile'],
-                                           n_samples=min([bopt['n_samples'], len(xn)]))
+                bw = sc.estimate_bandwidth(
+                    xn, quantile=bopt['quantile'],
+                    n_samples=min([bopt['n_samples'], len(xn)]),
+                    random_state=opt["seed"])
             except:
                 bw = 0.5
         else:
@@ -68,16 +70,18 @@ def clst_main(copa, dom, f_log_in=None):
             kmi = ms.cluster_centers_
             k = len(kmi)
             km = sc.KMeans(
-                init=kmi, max_iter=copt['max_iter'], n_clusters=k, n_init=1)
+                init=kmi, max_iter=copt['max_iter'], n_clusters=k,
+                n_init=1, random_state=opt["seed"])
         else:
             kmi = copt['init']
             k = copt['n_cluster']
             km = sc.KMeans(
-                n_clusters=k, max_iter=copt['max_iter'], n_init=copt['n_init'])
+                n_clusters=k, max_iter=copt['max_iter'], n_init=copt['n_init'],
+                random_state=opt["seed"])
 
         km.fit(xn)
         obj = km
-
+        
     cc = obj.cluster_centers_
     ci = obj.labels_
 

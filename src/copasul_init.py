@@ -390,7 +390,8 @@ def copasul_default():
                 "estimate_bandwidth": {
                     "quantile": 0.3,
                     "n_samples": 1000
-                }
+                },
+                "seed": 42
             },
             "loc": {
                 "mtd": "meanShift",
@@ -408,7 +409,8 @@ def copasul_default():
                 "estimate_bandwidth": {
                     "quantile": 0.3,
                     "n_samples": 1000
-                }
+                },
+                "seed": 42
             }
         },
         "augment": {
@@ -451,7 +453,8 @@ def copasul_default():
                 "cntr_mtd": "seed_prct",
                 "min_l": 0.5,
                 "use_gaps": True,
-                "unit": "file"
+                "unit": "file",
+                "seed": 42
             },
             "loc": {
                 "measure": "abs",
@@ -467,7 +470,8 @@ def copasul_default():
                 "ag_select": "max",
                 "unit": "file",
                 "c_no_abs": False,
-                "force": 0
+                "force": 0,
+                "seed": 42
             }
         },
         "plot": {

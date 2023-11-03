@@ -214,7 +214,8 @@
 	    "min_l": 1.0,
 	    "cntr_mtd": "seed_prct",
 	    "use_gaps": true,
-	    "heuristics": "ORT"
+	    "heuristics": "ORT",
+	    "seed": 42
 	},
 	"loc": {
 	    "measure": "abs+delta",
@@ -247,7 +248,8 @@
 	    "min_l": 0.2,
 	    "heuristics": "ORT",
 	    "min_l_a": 0.5,
-	    "max_l_na": 0.2
+	    "max_l_na": 0.2,
+	    "seed": 42
 	}
     },
     "styl": {
@@ -351,7 +353,8 @@
 	    "estimate_bandwidth": {
 		"quantile": 0.3,
 		"n_samples": 1000
-	    }
+	    },
+	    "seed": 42
 	},
 	"loc": {
 	    "mtd": "meanShift",
@@ -369,7 +372,8 @@
 	    "estimate_bandwidth": {
 		"quantile": 0.3,
 		"n_samples": 1000
-	    }
+	    },
+	    "seed": 42
 	}
     },
     "plot": {

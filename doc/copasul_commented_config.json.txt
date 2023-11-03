@@ -667,9 +667,12 @@
 		"quantile": 0.3,
 		# number of samples to be used
 		"n_samples": 1000
-	    }
+	    },
+	    # random seed for KMeans and bandwidth estimation
+	    # to ensure reproducibility
+	    "seed": 42
 	},
-	# accent related contour coefs (see IP-related)
+	# accent related contour coefs (comments see above)
 	"loc": {
 	    "mtd": "meanShift",
 	    "kMeans": {
@@ -686,7 +689,8 @@
 	    "estimate_bandwidth": {
 		"quantile": 0.3,
 		"n_samples": 1000
-	    }
+	    },
+	    "seed": 42
 	}
     },
     ## plotting options

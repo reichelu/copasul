@@ -2617,7 +2617,7 @@ def aug_cntr_seed(x, seed, opt):
 
     # feature weights (e.g. silhouette) based on init centroids
     w = aug_wgt(opt['wgt_mtd'], x, c)
-
+    
     # keep initial centroids; nearest centroid classif by
     # weighted distance
     if req and opt['cntr_mtd'] == 'seed_wgt':
@@ -2626,12 +2626,12 @@ def aug_cntr_seed(x, seed, opt):
     # kmeans
     if req and opt['cntr_mtd'] == 'seed_kmeans':
         km = sc.KMeans(n_clusters=2, init=np.concatenate(([c[0]], [c[1]])),
-                       n_init=1)
+                       n_init=1, random_state=opt["seed"])
         km.fit(x)
         c[0] = km.cluster_centers_[0, :]
         c[1] = km.cluster_centers_[1, :]
         return c, w
-
+    
     # percentile-based centroid (for less balanced class expectations)
     # 'seed_prct'
     # n x 1 dist ratio vector, 1 element per featvec
