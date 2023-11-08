@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## Version 1.2.3 (2023-11-08)
+* fixed: `copasul_styl.styl_polyfit()` replaced `np.int()` by `int()`, since the former is not supported anymore by numpy.
+
 ## Version 1.2.2 (2023-11-03)
 * changed: `copasul_init.copasul_default()`, `copasul_augment.aug_cntr_seed()`, and `copasul_clst.clst_main()`: provide `seed` for KMeans clustering and bandwidth estimation for the purpose of reproducibility
 

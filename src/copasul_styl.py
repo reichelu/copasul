@@ -1887,7 +1887,7 @@ def styl_polyfit(x, y, o):
 
     '''
 
-    o = np.int(o)
+    o = int(o)
      
     if len(x) == 0:
         return np.zeros(o + 1)
