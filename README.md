@@ -102,9 +102,9 @@ copa_further_processed = fex.process(config=config_dict, copa=copa)
 
 ## Material
 
-* [Manual](https://github.com/reichelu/copasul/docs/copasul_manual_latest.pdf)
-* [Example configuration](https://github.com/reichelu/copasul/tests/minex/config/minex.json)
-* [Commented configuration](https://github.com/reichelu/copasul/docs/copasul_commented_config.json.txt)
+* [Manual](https://github.com/reichelu/copasul/blob/master/docs/copasul_manual_latest.pdf)
+* [Example configuration](https://github.com/reichelu/copasul/blob/master/tests/minex/config/minex.json)
+* [Commented configuration](https://github.com/reichelu/copasul/blob/master/docs/copasul_commented_config.json.txt)
 
 ## Reference
 
