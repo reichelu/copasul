@@ -1,0 +1,435 @@
+{
+    "fs": 100,
+    "navigate": {
+	"from_scratch": true,
+	"overwrite_config": true,
+	"do_diagnosis": false,
+	"do_augment_chunk": false,
+	"do_augment_syl": false,
+	"do_augment_glob": false,
+	"do_augment_loc": false,
+	"do_preproc": true,
+	"do_styl_glob": true,
+	"do_styl_loc": true,
+	"do_styl_loc_ext": true,
+	"do_styl_gnl_f0": true,
+	"do_styl_gnl_en": true,
+	"do_styl_bnd": true,
+	"do_styl_bnd_win": true,
+	"do_styl_bnd_trend": true,
+	"do_styl_rhy_f0": true,
+	"do_styl_rhy_en": true,
+	"do_styl_voice": true,
+	"do_clst_loc": true,
+	"do_clst_glob": true,
+	"do_export": true,
+	"do_plot": false
+    },
+    "fsys": {
+	"f0": {
+	    "dir": "../input",
+	    "ext": "f0",
+	    "typ": "tab"
+	},
+	"pulse": {
+	    "dir": "../input",
+	    "ext": "pulse",
+	    "typ": "tab"
+	},
+	"aud": {
+	    "dir": "../input",
+	    "typ": "wav",
+	    "ext": "wav"
+	},
+	"annot": {
+	    "dir": "../input",
+	    "typ": "TextGrid",
+	    "ext": "TextGrid"
+	},
+	"export": {
+	    "dir": "../output",
+	    "stm": "test",
+	    "csv": true,
+	    "sep": ",",
+	    "summary": true,
+	    "f0_preproc": false,
+	    "f0_residual": false,
+	    "f0_resyn": false
+	},
+	"pic": {
+            "dir": "../output",
+            "stm": ""
+        },
+	"grp": {
+	    "src": "f0",
+	    "sep": "_",
+	    "lab": [
+		"dialog",
+		"turn",
+		"spk"
+	    ]
+	},
+	"label": {
+	    "pau": "<p:>",
+	    "chunk": "x",
+	    "syl": "x"
+	},
+	"augment": {
+	    "chunk": {
+		"tier_out_stm": "CHUNK"
+	    },
+	    "syl": {
+		"tier_out_stm": "SYL",
+		"tier_parent": "CHUNK"
+	    },
+	    "glob": {
+		"tier": "WRD",
+		"tier_out_stm": "IP",
+		"tier_parent": "CHUNK"
+	    },
+	    "loc": {
+		"tier_acc": "SYL",
+		"tier_ag": "IP",
+		"tier_out_stm": "ACC",
+		"tier_parent": "IP"
+	    }
+	},
+	"glob": {
+	    "tier": [
+		"IP"
+	    ]
+	},
+	"loc": {
+	    "tier_ag": [
+		"WRD"
+	    ],
+	    "tier_acc": [
+		"ACC"		
+	    ]
+	},
+	"bnd": {
+	    "tier": [
+		"WRD"
+	    ]
+	},
+	"gnl_f0": {
+	    "tier": [
+		"ACC"
+	    ]
+	},
+	"gnl_en": {
+	    "tier": [
+		"ACC"
+	    ]
+	},
+	"rhy_f0": {
+	    "tier": [
+		"IP"
+	    ],
+	    "tier_rate": [
+		"ACC"
+	    ]
+	},
+	"rhy_en": {
+	    "tier": [
+		"IP"
+	    ],
+	    "tier_rate": [
+		"ACC"
+	    ]
+	},
+	"voice": {
+	    "tier": [
+		"ACC"
+	    ]
+	},
+	"channel": {
+	    "CHUNK": 1,
+	    "WRD": 1,
+	    "ACC": 1,
+	    "IP": 1
+	}
+    },
+    "preproc": {
+	"st": true,
+	"base_prct": 5,
+	"smooth": {
+	    "mtd": "sgolay",
+	    "win": 7,
+	    "ord": 3
+	},
+	"out": {
+	    "f": 3,
+	    "m": "mean"
+	},
+	"nrm_win": 0.6,
+	"point_win": 0.2
+    },
+    "augment": {
+	"chunk": {
+	    "e_rel": 0.1,
+	    "l": 0.15,
+	    "l_ref": 5,
+	    "n": -1,
+	    "fbnd": false,
+	    "min_pau_l": 0.5,
+	    "min_chunk_l": 0.2,
+	    "flt": {
+		"btype": "low",
+		"f": 8000,
+		"ord": 5
+	    }
+	},
+	"syl": {
+	    "e_rel": 1.02,
+	    "e_val": 1,
+	    "l": 0.07,
+	    "l_ref": 0.12,
+	    "d_min": 0.1,
+	    "e_min": 0.16,
+	    "flt": {
+		"f": [200, 3500],
+		"btype": "band",
+		"ord": 5
+	    }
+	},
+	"glob": {
+	    "measure": "abs+delta",
+	    "prct": 75,
+	    "wgt": {
+		"win":  {
+		    "ml": {
+			"rms": 1,
+			"rms_pre": 1,
+			"rms_post": 1
+		    },
+		    "rng": {
+			"rms": 1,
+			"rms_pre": 1,
+			"rms_post": 1
+		    }
+		}
+	    },
+	    "wgt_mtd": "silhouette",
+	    "min_l": 1.0,
+	    "cntr_mtd": "seed_prct",
+	    "use_gaps": true,
+	    "heuristics": "ORT",
+	    "seed": 42
+	},
+	"loc": {
+	    "measure": "abs+delta",
+	    "prct": 30,
+	    "wgt": {
+		"gst": {
+                    "ml": {
+                        "d": 1
+                    },
+                    "rng": {
+                        "d": 1
+                    }
+                },
+		"gnl_en": {
+		    "rms_nrm": 1,
+		    "med_nrm": 1,
+                    "max_nrm": 1
+		},
+		"gnl_f0": {
+		    "med_nrm": 1,
+		    "iqr_nrm": 1,
+                    "rms_nrm": 1,
+                    "max_nrm": 1
+		}
+	    },
+	    "acc_select": "max",
+            "ag_select": "max",
+	    "wgt_mtd": "silhouette",
+	    "cntr_mtd": "seed_prct",
+	    "min_l": 0.2,
+	    "heuristics": "ORT",
+	    "min_l_a": 0.5,
+	    "max_l_na": 0.2,
+	    "seed": 42
+	}
+    },
+    "styl": {
+	"glob": {
+	    "nrm": {
+		"mtd": "minmax",
+		"rng": [0,1]
+	    },
+	    "decl_win": 0.1,
+	    "prct": {
+		"bl": 5,
+		"tl": 95
+	    }
+	},
+	"loc": {
+	    "nrm": {
+		"mtd": "minmax",
+		"rng": [-1,1]
+	    },
+	    "ord": 3
+	},
+	"register": "ml",
+	"bnd": {
+	    "nrm": {
+		"mtd": "minmax",
+		"rng": [0,1]
+	    },
+	    "decl_win": 0.1,
+	    "prct": {
+		"bl": 5,
+		"tl": 95
+	    },
+	    "win": 0.6,
+	    "cross_chunk": true
+	},
+	"gnl_en": {
+	    "alpha": 0.95,
+	    "sts": 0.01,
+	    "win": 0.05,
+	    "wintyp": "hamming",
+	    "winparam": null,
+	    "sb": {
+		"domain": "freq",
+		"win": 0.03,
+		"f": -1,
+		"btype": "none",
+		"alpha": 1000
+	    }
+	},
+	"rhy_f0": {
+	    "typ": "f0",
+	    "sig": {
+	    },
+	    "rhy": {
+		"wintyp": "kaiser",
+		"winparam": 1,
+		"lb": 0,
+		"ub": 10,
+		"nsm": 3,
+		"rmo": true,
+		"wgt": {
+		    "rb": 1
+		}
+	    }
+	},
+	"rhy_en": {
+	    "typ": "en",
+	    "sig": {
+		"sts": 0.01,
+		"win": 0.05,
+		"wintyp": "hamming",
+		"winparam": null
+	    },
+	    "rhy": {
+		"wintyp": "kaiser",
+		"winparam": 1,
+		"lb": 0,
+		"ub": 10,
+		"nsm": 3,
+		"rmo": true,
+		"wgt": {
+		    "rb": 1
+		}
+	    }
+	}
+    },
+    "clst": {
+	"glob": {
+	    "mtd": "meanShift",
+	    "kMeans": {
+		"init": "meanShift",
+		"n_cluster": 3,
+		"max_iter": 300,
+		"n_init": 10
+	    },
+	    "meanShift": {
+		"bin_seeding": false,
+		"min_bin_freq": 1,
+		"bandwidth": null
+	    },
+	    "estimate_bandwidth": {
+		"quantile": 0.3,
+		"n_samples": 1000
+	    },
+	    "seed": 42
+	},
+	"loc": {
+	    "mtd": "meanShift",
+	    "kMeans": {
+		"init": "meanShift",
+		"n_cluster": 5,
+		"max_iter": 300,
+		"n_init": 10
+	    },
+	    "meanShift": {
+		"bin_seeding": false,
+		"min_bin_freq": 1,
+		"bandwidth": null
+	    },
+	    "estimate_bandwidth": {
+		"quantile": 0.3,
+		"n_samples": 1000
+	    },
+	    "seed": 42
+	}
+    },
+    "plot": {
+        "browse": {
+            "time": "final",
+            "type": {
+                "loc": {
+                    "decl": false,
+                    "acc": false
+                },
+                "glob": {
+                    "decl": false
+                },
+                "rhy_f0": {
+                    "rhy": false
+                },
+                "rhy_en": {
+                    "rhy": false
+                },
+                "complex": {
+                    "superpos": true,
+                    "gestalt": true,
+		    "bnd": false
+                },
+                "clst": {
+                    "contours": false
+                }
+            },
+	    "grp": {
+		"dialog": "dialogId",
+		"turn": "turnId"
+	    },
+            "save": false
+	},
+        "grp": {
+            "type": {
+                "loc": {
+                    "decl": false,
+                    "acc": false
+                },
+                "glob": {
+                    "decl": false
+                }
+            },
+            "grouping": [
+		"spk"
+            ],
+	    "save": false
+        },
+        "res": {
+            "type": {
+                "clst": {
+                    "contours": false
+                }
+            },
+            "save": false
+        }
+    }
+}

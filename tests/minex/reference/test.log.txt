@@ -1,0 +1,27 @@
+
+## 2023-10-08T12:40:39.726637
+DOING: preprocessing ...
+	file dialogId_turnId_spkId, channel 1
+DOING: styl glob
+	file dialogId_turnId_spkId, channel 1
+DOING: styl loc
+	file dialogId_turnId_spkId, channel 1
+DOING: styl loc ext
+	file dialogId_turnId_spkId, channel 1
+DOING: styl bnd
+	file dialogId_turnId_spkId, channel 1
+DOING: styl gnl f0 ...
+	file dialogId_turnId_spkId, channel 1
+DOING: styl gnl en ...
+	file dialogId_turnId_spkId, channel 1
+DOING: styl rhy f0
+	file dialogId_turnId_spkId, channel 1
+DOING: styl rhy en
+	file dialogId_turnId_spkId, channel 1
+DOING: styl voice
+	file dialogId_turnId_spkId, channel 1
+# validation
+clst.glob.sil_mean: nan
+clst.loc.sil_mean: nan
+styl.glob.err_prop: 0.0
+styl.loc.rms_mean: 0.380612890869189

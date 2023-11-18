@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## Version 1.3.0 (2023-11-18)
+* update: `copasul.py` restructured: all functions now included as methods in `Copasul` class.
+* update: `copasul_init.copa_opt_init()`
+    * path names standardized to respective platform (so that provided minimal example should run on MS Windows without manual update of the config file)
+    * if config input is a string (name of json file), relative paths in this file are expanded relative to its location
+* update: directory structure changed for packaging
+* as a consequence `copasul.py` cannot be run anymore on the command line. See `scripts/example_call.py` for a command line script
+* `copasul` now available as package which can be installed with `pip install copasul`
+* tests added to `tests/` folder
+* praat scripts and `example_call.py` moved to `scripts/` folder
+* documentation updated accordingly
+
 ## Version 1.2.3 (2023-11-08)
 * fixed: `copasul_styl.styl_polyfit()` replaced `np.int()` by `int()`, since the former is not supported anymore by numpy.
 

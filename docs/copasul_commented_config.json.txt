@@ -1,0 +1,759 @@
+{
+    ## f0 sample rate (in Hz)
+    # internally f0 is always resampled to 100 Hz
+    "fs": 100,
+    ## navigation steps
+    # pipeline can be resumed at any point
+    # (intermediate) results are stored in fsys.export.dir+stm.pickle
+    "navigate": {
+	# +/- start from scratch (erase all analyses
+	# stored in fsys:export:dir+stm.pickle file)
+	"from_scratch": false,
+	# overwrite config settings stored in .pickle file
+	# by current config file
+	"overwrite_config": true,
+	## annotation #####################
+	# chunking
+	"do_augment_chunk": false,
+	# syllable nucleus + boundary extraction
+	"do_augment_syl": false,
+	# IP extraction
+	"do_augment_glob": false,
+	# accent extraction
+	"do_augment_loc": false,
+	## feature extraction ############
+	# f0, energy preprocessing
+	"do_preproc": true,
+	# IP level stylization
+	"do_styl_glob": true,
+	# accent(-group) level stylization
+	"do_styl_loc": true,
+	# extended accent feature set
+	"do_styl_loc_ext": true,
+	# general f0 features
+	"do_styl_gnl_f0": true,
+	# general energy features
+	"do_styl_gnl_en": true,
+	# boundary features
+	"do_styl_bnd": true,
+	# boundary features; constant window lengths
+	"do_styl_bnd_win": false,
+	# boundary trend features derived from entire signal 
+	"do_styl_bnd_trend": false,
+	# rhythm features from f0 contour
+	"do_styl_rhy_f0": true,
+	# rhythm features from energy contour
+	"do_styl_rhy_en": true,
+	# cluster accent poly coefs
+	"do_clst_loc": true,
+	# cluster IP poly coefs
+	"do_clst_glob": true,
+        # voice quality features
+	"do_voice": true,
+	## export ########################
+	# generate .csv feature tables and .R template files
+	"do_export": true,
+	# plot
+	"do_plot": false
+    },
+    ## file system specifications: directory, type, extension
+    # aud/annot/f0 directories must contain the same number of files
+    # (identified by ext) with the same alphanumeric order.
+    # If relative paths are given, they will be expanded RELATIVE TO
+    # THE CONFIG FILE (not relative to the calling script).
+    "fsys": {
+	# signal files
+	"aud": {
+	    "dir": "/my/path/to/signal/files",
+	    "typ": "wav",
+	    "ext": "wav"
+	},
+	# annotation files
+	"annot": {
+	    "dir": "/my/path/to/annotation/files",
+	    "typ": "TextGrid",
+	    "ext": "TextGrid"
+	},
+	# f0 files
+	"f0": {
+	    "dir": "/my/path/to/f0/files",
+	    "ext": "f0",
+	    "typ": "tab"
+	},
+	# pulse files
+	"pulse": {
+            "dir": "/my/path/to/pulse/files",
+            "ext": "pulse",
+            "typ": "tab"
+        },
+	# output
+	"export": {
+	    "dir": "/my/output/path",
+	    # stem of output files
+	    "stm": "myOutputFileStem",
+	    # output csv feature tables
+	    "csv": true,
+	    # column separator in csv table
+	    "sep": ",",
+	    # output summary statistics per file
+	    "summary": true,
+	    # output preprocessed f0 contours
+	    "f0_preproc": false,
+	    # output f0 contour after declination substraction
+	    "f0_residual": false
+	},
+	# pictures
+	"pic": {
+            "dir": "/my/plotting/output/path",
+            "stm": "myPlottingOutputFileStem"
+        },
+	# grouping by file name
+	# will be exported as grp_a, grp_b, grp_c columns in csv table
+	"grp": {
+	    # from which filenames (here: f0 files) 
+	    "src": "f0",
+	    # file name separator
+	    "sep": "_",
+	    # grouping labels;
+	    # in this example 3 grouping columns are added to the ouput table with
+	    # the names 'grp_a', 'grp_b', and 'grp_c'.
+	    # A file name xy_za_bc.f0 would be assigned to the 3 columns as follows:
+	    # 'xy' to column 'grp_a', 'za' to 'grp_b', and 'bc' to 'grp_c'
+	    "lab": ["a","b","c"]
+	},
+	# label specifications
+	"label": {
+	    # (automatically annotated) pauses
+	    # should match pause labels that are already in the data
+	    "pau": "<p:>",
+	    # automatically annotated chunks
+	    "chunk": "x",
+	    # automatically annotated syllables
+	    "syl": "x"
+	},
+	# transcription tier info (if available)
+	# can be used for prosodic structure annotation
+	# (vowel duration feature)
+        "pho": {
+	    # tier name(s), 1 per channel
+	    "tier": ["MAU_1","MAU_2"],
+	    # pattern of vowel symbols used in the annotation (e.g. SAMPA)
+            "vow": "[AEIOUYaeiouy29}]"
+        },
+	# automatic annotation tier specifications
+	# tier_parent: parent tier defining boundaries of segments within which
+	#        to detect events. E.g. CHUNK for syllable nucleus
+	#        detection: nuclei are only looked for in chunk segments
+	# tier: analysis tier containing the time stamps for feature extraction 
+	# tier_out_stm: tier(s) to be generated
+	#               channel index will be appended automatically, also for
+	#               mono files; e.g. CHUNK_myChannelIdx
+	"augment": {
+	    # chunking
+	    "chunk": {
+		"tier_out_stm": "CHUNK"
+	    },
+	    # syllable nucleus extraction
+	    "syl": {
+		"tier_parent": ["CHUNK_1", "CHUNK_2"],
+		"tier_out_stm": "SYL",
+		# if 1: output only syllable nucleus tier(s)
+		# if 0: output both syllable nucleus and boundary tier(s)
+		"ncl_only": false
+	    },
+	    "glob": {
+		"tier_parent": ["CHUNK_1", "CHUNK_2"],
+		# tier with boundary candidates (here: word boundaries)
+		"tier": ["ORT_1", "ORT_2"],
+		"tier_out_stm": "IP",
+		# specification of export file name stem STM if a feature table
+		# should be stored for later supervised machine learning
+		# (targets must be added by user)
+		# file will be stored as fsys.export.dir/STM.glob.pickle
+		"export": ""
+	    },
+	    "loc": {
+		"tier_parent": ["IP_1","IP_2"],
+		# tier with accent candidates (obligatory, here: syllable nuclei)
+		"tier_acc": ["SYL_1","SYL_2"],
+		# tier with accent group candidates (e.g. words)
+		# not obligatory. If provided, maximally one accent per AG is assigned
+		"tier_ag": ["ORT_1","ORT_2"],
+		"tier_out_stm": "A",
+		# specification of export file name stem if a feature table
+		# should be stored for later supervised machine learning
+		# (targets must be added by user)
+		# file will be stored as fsys.export.dir/STM.glob.pickle
+		"export": ""
+	    }
+	},
+	# tier names for feature extraction
+	# chunks; relevant for +/- feature extraction across chunk
+	#         boundaries; cf. styl.bnd.cross_chunk
+	"chunk": {
+	    "tier": ["CHUNK_1","CHUNK_2"]
+	},
+	# IP
+	# if PointTier: timestamps treated as right IP boundaries
+	# if IntervalTier: Interval = IP
+	# max. 1 segment tier per channel
+	"glob": {
+	    "tier": ["IP_1", "IP_2"]
+	},
+	# for accent features around extracted pitch accents
+	# tier_acc: point tier with accent time stamps
+	# tier_ag: interval tier with accent group segments
+	# at least one must be specified
+	# If both are specified time is normalized from [-1 1] in
+	# the tier_ag segments, and the 0 is placed on the points defined by tier_acc
+	# max. 1 tier of each tier_acc (event) and tier_ag (segment) per channel
+	"loc": {
+	    "tier_acc": ["A_1", "A_2"]
+	},
+	# boundaries between IPs
+	# any number of event or segment tiers per channel
+	"bnd": {
+	    "tier": ["IP_1", "IP_2"]
+	},
+	# general f0 features in IPs, around accents
+	# any number of event or segment tiers per channel
+	"gnl_f0": {
+	    "tier": ["IP_1", "IP_2", "A_1", "A_2"]
+	},
+	# general energy features in IPs, around accents
+	# any number of event or segment tiers per channel
+	"gnl_en": {
+            "tier": ["IP_1", "IP_2", "A_1", "A_2"]
+        },
+	# rhythm features f0
+	# any number of event or segment tiers per channel
+	"rhy_f0": {
+	    # in IPs
+	    "tier": ["IP_1", "IP_2"],
+	    # rates and influence on contour in IP calculated
+	    # for syllables and accents
+	    # any number of event or segment tiers per channel
+	    "tier_rate": ["SYL_1","SYL_2","A_1","A_2"]
+	},
+	# rhythm features energy
+	# any number of event or segment tiers per channel
+	"rhy_en": {
+	    "tier": ["IP_1", "IP_2"],
+	    "tier_rate": ["SYL_1","SYL_2","A_1","A_2"]
+	},
+	# tier-channel assignment (obligatory also for mono files !)
+	# for used tiers: tier name -> channel index
+	"channel": {
+	    "ORT_1": 1,"ORT_2": 2,"KAN_1": 1,"KAN_2": 2,
+	    "CHUNK_1": 1,"CHUNK_2": 2,"MAU_1": 1,"MAU_2": 2,
+	    "SYL_1": 1,"SYL_2": 2,"A_1": 1,"A_2": 1
+	}
+    },
+    ## f0 preprocessing options
+    "preproc": {
+	# outlier definition
+	# (omit if no outlier removal wanted)
+	"out": {
+	    # factor (2*sd)
+	    "f": 2,
+	    # from mean
+	    "m": "mean"
+	},
+	# semitone conversion
+	"st": true,
+	# ... according to base value (as percentile)
+	# 0 means: base value is 1 Hz
+	# here: separately for each channel.
+	"base_prct": 5,
+	# normalization per speaker over entire data:
+	# for this purpose the speaker ID needs to be encoded
+	# in the file name grouping (see fsys.grp).
+	# if "base_prct_grp" is ommited each channel in each file
+	# is normalized separately
+	"base_prct_grp": {
+	    # for channel 1: grouping variable 'a'
+            "1": "a"
+        }
+	# smoothing parameters
+	"smooth": {
+	    # filter
+	    "mtd": "sgolay",
+	    # filter-related parameters
+	    # window length (samples)
+	    "win": 7,
+	    # polynomial order
+	    "ord": 3
+	},
+	# interpolation (can be omitted for simple linear interp)
+	# "kind" as in scipy.interpolate.interp1d()
+	# in any case horizontal extrapolation
+	"interp" {
+	    "kind": "linear"
+	},
+	# point_win: length of analysis window centered on events
+	#            in TextTiers (sec)
+	# nrm_win: longer window with same midpoint for local
+	#          median, maximum etc normalization (sec)
+	"gnl_f0": {
+            "nrm_win": 0.6,
+            "point_win": 0.2
+        },
+        "gnl_en": {
+            "nrm_win": 0.6,
+            "point_win": 0.2
+        },
+        "loc": {
+            "nrm_win": 0.6,
+            "point_win": 0.3
+        },
+	# only output accent-related features that are available across
+	# all feature sets
+	"loc_sync": true,
+	# if both tier_acc and tier_ag are specified below, i.e. for accent group AG
+	# stylization both, the AG and its accent position ACC are considered,
+	# then "skip" skips all AGs with more than one ACC, "left" keeps the first ACC,
+	# and "right" keeps the last one. AGs with zero ACCs are always skipped
+	"loc_align": "skip"
+    },
+    ## automatic annotation settings
+    "augment": {
+	# chunking (inverse pause detector)
+	"chunk": {
+	    # relative energy threshold for pause detection 
+	    "e_rel": 0.3,
+	    # analysis window length (sec)
+	    "l": 0.15,
+	    # reference window length (sec)
+	    "l_ref": 3,
+	    # predefined number of expected pauses
+	    # -1 for unknown
+	    "n": -1,
+	    # force to be utterance-initial and -final pauses 
+	    "fbnd": true,
+	    # minimum pause length (sec)
+	    # shorter pause will be bridged by adjacent chunks
+	    "min_pau_l": 0.5,
+	    # minimum chunk length
+	    # shorter chunks will be bridged by adjacent pauses
+	    "min_chunk_l": 0.3,
+	    # silence margin at start and end of each chunk (sec)
+	    "margin": 0.1,
+	    # signal filter specifications before energy calculation
+	    "flt": {
+		# butterworth pass type
+		"btype": "low",
+		# cutoff frequency/ies (Hz)
+		"f": 8000,
+		# order
+		"ord": 5
+	    }
+	},
+	## syllable nucleus extraction
+	"syl": {
+	    # relative energy factor to surpass
+	    "e_rel": 1.07,
+	    # analysis window length (sec)
+	    "l": 0.08,
+	    # reference window length (sec)
+	    "l_ref": 0.15,
+	    # minimum syllable duration (sec)
+	    "d_min": 0.05,
+	    # minimum energy factor wrt overall energy
+	    "e_min": 0.16,
+	    # filter options
+	    "flt": {
+		# cutoff frequency/ies (Hz)
+		"f": [200,4000],
+		# pass type
+		"btype": "band",
+		# order
+		"ord": 5
+	    }
+	},
+	## IP segment extraction
+	"glob": {
+	    ## used features
+	    # assign weights (all 1 means: derived automatically)
+            "wgt": {
+		# z-scored vowel length (last one before boundary candidate)
+                "pho": 1,
+		# boundary features with constant window length
+                "win":  {
+		    # midline discontinuities at word boundaries
+		    # measured for segment styl.bnd.win before and after boundary
+                    "ml": {
+                        "rms": 1,
+                        "rms_pre": 1,
+                        "rms_post": 1
+                    },
+		    # range discontinuities
+                    "rng": {
+                        "rms": 1,
+                        "rms_pre": 1,
+                        "rms_post": 1
+                    }
+                }
+            },
+	    # +/- including delta values (diff to preceding boundary candidate)
+            "measure": "abs+delta",
+	    # level of vowel length normalization
+	    # 'batch' over all data (for short
+	    #       input files)
+	    # 'file' per file/channel (faster)
+	    "unit": "batch",
+	    # how to determine weights (goodness of initial clustering)
+	    # the better a feature separates IP-boundary and no-IP-boundary candidates
+	    # the higher its weight
+            "wgt_mtd": "silhouette",
+	    # minimum IP length (in sec)
+	    # to identify within-IP word boundaries in the vicinity of pauses
+            "min_l": 1,
+	    # how to assign IP boundary and non-boundary instances after centroid
+	    # initialization
+            "cntr_mtd": "seed_prct",
+	    # assignment assymmetry: the higher, the fewer boundaries
+            "prct": 87,
+	    # assign a prosodic boundary to each found gap
+            "use_gaps": true,
+	    # exploit features of ORT tier (if available e.g. from MAUS
+	    # output): hand-crafted heuristics, e.g. no boundary is set
+	    # after a word with duration < 0.1 sec (as articles etc.)
+            "heuristics": "ORT"
+	},
+	"loc": {
+	    # feature selection and weighting (1 for automatically derived weights)
+            "wgt": {
+		# z-scored vowel length (closest to accent marker)
+                "pho": 1,
+		# accent features: polycoefs. (Only) for these features
+		# absolute values are taken (unless c_no_abs below is set to 1)
+		# abs values are better for unsupervised clustering
+		# not abs values might be benefitial if feature matrix is exported
+		# for supervised learning
+                "acc": {
+                    "c": 1
+                },
+		# standard energy features
+		# rms, median, maxium, all locally normalized
+                "gnl_en": {
+                    "rms_nrm": 1,
+                    "med_nrm": 1,
+                    "max_nrm": 1
+                },
+		# standard f0 features
+		# rms, inter-quartile range, median, maximum, all locally normalized
+                "gnl_f0": {
+                    "med_nrm": 1,
+                    "iqr_nrm": 1,
+                    "rms_nrm": 1,
+                    "max_nrm": 1
+                },
+		# gestalt features
+		# midline and range deviation from underlying IP in terms of RMS
+                "gst": {
+                    "ml": {
+                        "rms": 1
+                    },
+                    "rng": {
+                        "rms": 1
+                    }
+                }
+            },
+	    # +/- including delta values (diff to preceding boundary candidate)
+            "measure": "abs+delta",
+	    # how to derive feature weights
+	    # (if not set explicitely above)
+            "wgt_mtd": "silhouette",
+	    # min length of inter-accent intervals (sec)
+            "min_l": 0.1,
+	    # min length of accented AG seed candidates (sec)
+	    # length depends on choice of AG representatnt (e.g. word)
+            "min_l_a": 0.5,
+	    # max length of non-accented AG seed candidates
+            "max_l_na": 0.1,
+	    # how to split the remaining accent and non-accent instances
+	    # after cluster initialization
+            "cntr_mtd": "seed_prct",
+	    # assignment assymmetry: the higher the fewer accents
+            "prct": 90,
+	    # which accent candidates to select among
+	    # possible candidates in AG (here: ORT segment,
+            # see fsys.augment.loc.tier_ag)
+	    # for Hungarian: 'left', French: 'right',
+	    # German: 'max'
+            "acc_select": "left",
+	    # which among the AGs to select
+	    # 'all': every segmented AG gets an accent
+	    # 'max'. all the prominent ones
+            "ag_select": "max",
+	    # +/- use heuristics from ORT tier (MAUS output)
+            "heuristics": "ORT",
+	    # per default absolute polycoef values are used. This can be
+	    # switched off by setting c_no_abs to 1
+	    "c_no_abs": false
+	}
+    },
+    ## feature extraction options
+    "styl": {
+	# IP features
+	"glob": {
+	    # time normalization
+	    "nrm": {
+		# minmax norm
+		"mtd": "minmax",
+		# time mapped to range [0 1]
+		"rng": [0,1]
+	    },
+	    # window length for register input median calculation (sec)
+	    "decl_win": 0.1,
+	    # median window alignment: <center>, left (no lookback), right (no lookahead)
+	    "align": "center",
+	    # f0 percentiles for base- and topline fitting input
+	    "prct": {
+		"bl": 10,
+		"tl": 90
+	    }
+	},
+	# accent features
+	"loc": {
+	    # time normalization
+	    "nrm": {
+		"mtd": "minmax",
+		"rng": [-1,1]
+	    },
+	    # polynomial order
+	    "ord": 3
+	},
+	# what to subtract before local contour stylization
+	# here: midline
+	"register": "ml",
+	## boundary features
+	"bnd": {
+	    # time normalization
+	    "nrm": {
+		"mtd": "minmax",
+		"rng": [0,1]
+	    },
+	    # window length for register input median calculation (sec)
+	    "decl_win": 0.1,
+	    # f0 percentiles for base- and topline fitting input
+	    "prct": {
+		"bl": 10,
+		"tl": 90
+	    },
+	    # window length for bnd_win features (sec)
+	    "win": 1,
+	    # +/- calculate f0 discontinuities across chunks
+	    # if chunk = turn, set to false
+	    # crucial decision, since in the same file chunks
+	    # may be turns and turn parts
+	    "cross_chunk": false
+	},
+	## standard energy features
+        "gnl_en": {
+            # spectral balance calculation SPLH-SPL
+	    # (meaningful for vowel segments only)
+	    "sb": {
+		# preemphasis in frequency (according to Fant, et al, 2000)
+		# or time domain (y[n] = x[n]-alpha*x[n-1])
+		"domain": "time",
+		# length of analysis window in sec (in center of segment to
+		# reduce the influence of coarticulation); -1 means that the
+		# entire segment is analysed
+		"win": -1,
+		# filter signal before calculating spectral balance?
+		# (high, low, band, none)
+		"btype": "none",
+		# cutoff frequencies (1 value for btype = "high"/"low";
+		# 2 values for btype = "band"; -1 for btype="none")
+		"f": -1,
+		# 0<=alpha<=1: filter coefficient in time domain pre-emphasis
+		# alpha>1: lower frequency threshold where pre-emphasis starts
+		"alpha": 0.97
+            },
+	    # pre-emphasis coef (deprecated, now in sub-block "sb" above)
+            "alpha": 0.95,
+	    # stepsize for energy calculation (sec)
+	    "sts": 0.01,
+	    # analysis window length (sec)
+	    "win": 0.05,
+	    # signal window type
+	    "wintyp": "hamming",
+	    # window paramaters dependent on wintyp
+	    "winparam": null
+        },
+	## f0 rhythm features
+	"rhy_f0": {
+	    # dummy for internal processing
+	    "typ": "f0",
+	    # DCT options
+	    "rhy": {
+		# signal window
+		"wintyp": "kaiser",
+		# its options
+		"winparam": 1,
+		# lower frequency boundary (Hz)
+		"lb": 0,
+		# upper frequency boundary (Hz)
+		"ub": 8,
+		# number of spectral moments to be outputted
+		"nsm": 3,
+		# +/- remove constant DCT offset (representing mean spectral energy)
+		"rmo": true,
+		# rate weight options
+		"wgt": {
+		    # catch bandwidth around extraced rate (in Hz)
+		    "rb": 1
+		}
+	    }
+	},
+	## energy rhythm features
+	"rhy_en": {
+	    # dummy
+	    "typ": "en",
+	    # signal processiong options
+	    "sig": {
+		# stepsize (sec)
+		"sts": 0.01,
+		# analysis window length (sec)
+		"win": 0.05,
+		# window type
+		"wintyp": "hamming",
+		# its parameters
+		"winparam": null
+	    },
+	    # DCT options (as for rhy_f0)
+	    "rhy": {
+		"wintyp": "kaiser",
+		"winparam": 1,
+		"lb": 0,
+		"ub": 8,
+		"nsm": 3,
+		"rmo": true,
+		"wgt": {
+		    "rb": 1
+		}
+	    }
+	}
+    },
+    ## clustering options
+    "clst": {
+	# IP related contour coefs
+	"glob": {
+	    # cluster method
+	    "mtd": "meanShift",
+	    # metod-related details
+	    "kMeans": {
+		# method to initialize centroids
+		"init": "meanShift",
+		# number of clusters (for certain init only)
+		"n_cluster": 3,
+		# max number of iterations
+		"max_iter": 300,
+		# how often algo will be run with different centroid seeds
+		"n_init": 10
+	    },
+	    # mean shift for automatically derived cluster number
+	    "meanShift": {
+		# grid to reduce num of seed candidates
+		"bin_seeding": false,
+		# num of items in bin, works with bin_seeding
+		"min_bin_freq": 1,
+		# bandwidth used in the RBF kernel
+		# null: estimaed by estimate_bandwidth
+		"bandwidth": null
+	    },
+	    # bandwidth estimation for meanShift
+	    "estimate_bandwidth": {
+		# between [0 1]
+		"quantile": 0.3,
+		# number of samples to be used
+		"n_samples": 1000
+	    },
+	    # random seed for KMeans and bandwidth estimation
+	    # to ensure reproducibility
+	    "seed": 42
+	},
+	# accent related contour coefs (comments see above)
+	"loc": {
+	    "mtd": "meanShift",
+	    "kMeans": {
+		"init": "meanShift",
+		"n_cluster": 5,
+		"max_iter": 300,
+		"n_init": 10
+	    },
+	    "meanShift": {
+		"bin_seeding": "False",
+		"min_bin_freq": 1,
+		"bandwidth": null
+	    },
+	    "estimate_bandwidth": {
+		"quantile": 0.3,
+		"n_samples": 1000
+	    },
+	    "seed": 42
+	}
+    },
+    ## plotting options
+    "plot": {
+	# browse through results
+        "browse": {
+	    # online or after data processing
+            "time": "final",
+	    # which type to plot
+            "type": {
+		# accent: shape, declination
+                "loc": {
+                    "decl": false,
+                    "acc": false
+                },
+		# IP declination
+                "glob": {
+                    "decl": false
+                },
+		# DCT coefs
+                "rhy_f0": {
+                    "rhy": false
+                },
+                "rhy_en": {
+                    "rhy": false
+                },
+		# complex plots
+                "complex": {
+		    # superposition of IP and accent-related shapes
+                    "superpos": false,
+		    # IP and accent deviations
+                    "gestalt": false,
+		    # boundaries
+		    "bnd": false
+                },
+		# plot global and local contour classes
+                "clst": {
+                    "contours": false
+                }
+            },
+	    # save plot
+            "save": false
+	},
+	# plot by grouping
+        "grp": {
+	    # what to plot
+            "type": {
+                "loc": {
+                    "decl": false,
+                    "acc": false
+                },
+                "glob": {
+                    "decl": false
+                }
+            },
+	    # one plot for each grouping level (mean value) of 'lng'
+            "grouping": [
+		"lng"
+            ],
+	    # save plot
+	    "save": false
+        }
+    }
+}

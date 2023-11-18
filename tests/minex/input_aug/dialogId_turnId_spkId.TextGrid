@@ -1,0 +1,390 @@
+File type = "ooTextFile"
+Object class = "TextGrid"
+xmin = 0.0
+xmax = 4.516875
+tiers? <exists>
+size = 10
+item []:
+    item [1]:
+        class = "IntervalTier"
+        name = "WRD"
+        xmin = 0.0
+        xmax = 4.516875
+        intervals: size = 17
+        intervals [1]:
+            xmin = 0.0
+            xmax = 0.06528930981251779
+            text = ""
+        intervals [2]:
+            xmin = 0.06528930981251779
+            xmax = 0.23494972712974965
+            text = "this"
+        intervals [3]:
+            xmin = 0.23494972712974965
+            xmax = 0.37494046555652966
+            text = "is"
+        intervals [4]:
+            xmin = 0.37494046555652966
+            xmax = 0.4332351163342485
+            text = "a"
+        intervals [5]:
+            xmin = 0.4332351163342485
+            xmax = 0.7750394463800826
+            text = "test"
+        intervals [6]:
+            xmin = 0.7750394463800826
+            xmax = 1.0587590306138575
+            text = "file"
+        intervals [7]:
+            xmin = 1.0587590306138575
+            xmax = 1.2101616854749455
+            text = "to"
+        intervals [8]:
+            xmin = 1.2101616854749455
+            xmax = 1.6502227720006746
+            text = "check"
+        intervals [9]:
+            xmin = 1.6502227720006746
+            xmax = 1.8727758604633025
+            text = "whether"
+        intervals [10]:
+            xmin = 1.8727758604633025
+            xmax = 2.4901049302059173
+            text = "CoPaSul"
+        intervals [11]:
+            xmin = 2.4901049302059173
+            xmax = 2.6989955492117415
+            text = "is"
+        intervals [12]:
+            xmin = 2.6989955492117415
+            xmax = 3.0281069079222394
+            text = "working"
+        intervals [13]:
+            xmin = 3.0281069079222394
+            xmax = 3.5486563920007264
+            text = "properly"
+        intervals [14]:
+            xmin = 3.5486563920007264
+            xmax = 3.7243867481360686
+            text = "on"
+        intervals [15]:
+            xmin = 3.7243867481360686
+            xmax = 3.944106999867135
+            text = "your"
+        intervals [16]:
+            xmin = 3.944106999867135
+            xmax = 4.4685016868191365
+            text = "machine"
+        intervals [17]:
+            xmin = 4.4685016868191365
+            xmax = 4.516875
+            text = ""
+    item [2]:
+        class = "IntervalTier"
+        name = "CHUNK_REF_1"
+        xmin = 0.0
+        xmax = 4.516875
+        intervals: size = 2
+        intervals [1]:
+            xmin = 0.0
+            xmax = 6.25e-05
+            text = "<p:>"
+        intervals [2]:
+            xmin = 6.25e-05
+            xmax = 4.516875
+            text = "x"
+    item [3]:
+        class = "TextTier"
+        name = "SYL_REF_1"
+        xmin = 0.0
+        xmax = 4.516875
+        points: size = 21
+        points [1]:
+            time = 0.120125
+            mark = "x"
+        points [2]:
+            time = 0.270125
+            mark = "x"
+        points [3]:
+            time = 0.390125
+            mark = "x"
+        points [4]:
+            time = 0.630125
+            mark = "x"
+        points [5]:
+            time = 0.960125
+            mark = "x"
+        points [6]:
+            time = 1.170125
+            mark = "x"
+        points [7]:
+            time = 1.440125
+            mark = "x"
+        points [8]:
+            time = 1.590125
+            mark = "x"
+        points [9]:
+            time = 1.710125
+            mark = "x"
+        points [10]:
+            time = 1.830125
+            mark = "x"
+        points [11]:
+            time = 2.010125
+            mark = "x"
+        points [12]:
+            time = 2.190125
+            mark = "x"
+        points [13]:
+            time = 2.400125
+            mark = "x"
+        points [14]:
+            time = 2.640125
+            mark = "x"
+        points [15]:
+            time = 2.760125
+            mark = "x"
+        points [16]:
+            time = 2.940125
+            mark = "x"
+        points [17]:
+            time = 3.180125
+            mark = "x"
+        points [18]:
+            time = 3.360125
+            mark = "x"
+        points [19]:
+            time = 3.480125
+            mark = "x"
+        points [20]:
+            time = 3.840125
+            mark = "x"
+        points [21]:
+            time = 4.080125
+            mark = "x"
+    item [4]:
+        class = "TextTier"
+        name = "LOC_REF_1"
+        xmin = 0.0
+        xmax = 4.516875
+        points: size = 3
+        points [1]:
+            time = 0.630125
+            mark = "x"
+        points [2]:
+            time = 2.400125
+            mark = "x"
+        points [3]:
+            time = 4.080125
+            mark = "x"
+    item [5]:
+        class = "IntervalTier"
+        name = "GLOB_REF_1"
+        xmin = 0.0
+        xmax = 4.516875
+        intervals: size = 4
+        intervals [1]:
+            xmin = 0.0
+            xmax = 0.06528930981251779
+            text = "<p:>"
+        intervals [2]:
+            xmin = 0.06528930981251779
+            xmax = 1.2101616854749455
+            text = "x"
+        intervals [3]:
+            xmin = 1.2101616854749455
+            xmax = 2.4901049302059173
+            text = "x"
+        intervals [4]:
+            xmin = 2.4901049302059173
+            xmax = 4.516875
+            text = "x"
+    item [6]:
+        class = "IntervalTier"
+        name = "CHUNK_1"
+        xmin = 0
+        xmax = 4.516875
+        intervals: size = 2
+        intervals [1]:
+            xmin = 0
+            xmax = 6.25e-05
+            text = "<p:>"
+        intervals [2]:
+            xmin = 6.25e-05
+            xmax = 4.516875
+            text = "x"
+    item [7]:
+        class = "TextTier"
+        name = "SYL_1"
+        xmin = 0
+        xmax = 4.516875
+        points: size = 21
+        points [1]:
+            time = 0.120125
+            mark = "x"
+        points [2]:
+            time = 0.270125
+            mark = "x"
+        points [3]:
+            time = 0.390125
+            mark = "x"
+        points [4]:
+            time = 0.630125
+            mark = "x"
+        points [5]:
+            time = 0.960125
+            mark = "x"
+        points [6]:
+            time = 1.170125
+            mark = "x"
+        points [7]:
+            time = 1.440125
+            mark = "x"
+        points [8]:
+            time = 1.590125
+            mark = "x"
+        points [9]:
+            time = 1.710125
+            mark = "x"
+        points [10]:
+            time = 1.830125
+            mark = "x"
+        points [11]:
+            time = 2.010125
+            mark = "x"
+        points [12]:
+            time = 2.190125
+            mark = "x"
+        points [13]:
+            time = 2.400125
+            mark = "x"
+        points [14]:
+            time = 2.640125
+            mark = "x"
+        points [15]:
+            time = 2.760125
+            mark = "x"
+        points [16]:
+            time = 2.940125
+            mark = "x"
+        points [17]:
+            time = 3.180125
+            mark = "x"
+        points [18]:
+            time = 3.360125
+            mark = "x"
+        points [19]:
+            time = 3.480125
+            mark = "x"
+        points [20]:
+            time = 3.840125
+            mark = "x"
+        points [21]:
+            time = 4.080125
+            mark = "x"
+    item [8]:
+        class = "TextTier"
+        name = "SYL_bnd_1"
+        xmin = 0
+        xmax = 4.516875
+        points: size = 21
+        points [1]:
+            time = 0.210125
+            mark = "x"
+        points [2]:
+            time = 0.330125
+            mark = "x"
+        points [3]:
+            time = 0.480125
+            mark = "x"
+        points [4]:
+            time = 0.780125
+            mark = "x"
+        points [5]:
+            time = 1.080125
+            mark = "x"
+        points [6]:
+            time = 1.260125
+            mark = "x"
+        points [7]:
+            time = 1.530125
+            mark = "x"
+        points [8]:
+            time = 1.620125
+            mark = "x"
+        points [9]:
+            time = 1.770125
+            mark = "x"
+        points [10]:
+            time = 1.890125
+            mark = "x"
+        points [11]:
+            time = 2.100125
+            mark = "x"
+        points [12]:
+            time = 2.250125
+            mark = "x"
+        points [13]:
+            time = 2.610125
+            mark = "x"
+        points [14]:
+            time = 2.670125
+            mark = "x"
+        points [15]:
+            time = 2.850125
+            mark = "x"
+        points [16]:
+            time = 3.060125
+            mark = "x"
+        points [17]:
+            time = 3.270125
+            mark = "x"
+        points [18]:
+            time = 3.390125
+            mark = "x"
+        points [19]:
+            time = 3.750125
+            mark = "x"
+        points [20]:
+            time = 3.930125
+            mark = "x"
+        points [21]:
+            time = 4.516875
+            mark = "x"
+    item [9]:
+        class = "IntervalTier"
+        name = "GLOB_1"
+        xmin = 0
+        xmax = 4.516875
+        intervals: size = 4
+        intervals [1]:
+            xmin = 0
+            xmax = 0.06528930981251779
+            text = "<p:>"
+        intervals [2]:
+            xmin = 0.06528930981251779
+            xmax = 1.2101616854749455
+            text = "x"
+        intervals [3]:
+            xmin = 1.2101616854749455
+            xmax = 2.4901049302059173
+            text = "x"
+        intervals [4]:
+            xmin = 2.4901049302059173
+            xmax = 4.516875
+            text = "x"
+    item [10]:
+        class = "TextTier"
+        name = "LOC_1"
+        xmin = 0
+        xmax = 4.516875
+        points: size = 3
+        points [1]:
+            time = 0.630125
+            mark = "x"
+        points [2]:
+            time = 2.400125
+            mark = "x"
+        points [3]:
+            time = 4.080125
+            mark = "x"

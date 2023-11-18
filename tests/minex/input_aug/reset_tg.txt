@@ -1,0 +1,81 @@
+File type = "ooTextFile"
+Object class = "TextGrid"
+xmin = 0.0
+xmax = 4.516875
+tiers? <exists>
+size = 1
+item []:
+    item [1]:
+        class = "IntervalTier"
+        name = "WRD"
+        xmin = 0.0
+        xmax = 4.516875
+        intervals: size = 17
+        intervals [1]:
+            xmin = 0.0
+            xmax = 0.06528930981251779
+            text = ""
+        intervals [2]:
+            xmin = 0.06528930981251779
+            xmax = 0.23494972712974965
+            text = "this"
+        intervals [3]:
+            xmin = 0.23494972712974965
+            xmax = 0.37494046555652966
+            text = "is"
+        intervals [4]:
+            xmin = 0.37494046555652966
+            xmax = 0.4332351163342485
+            text = "a"
+        intervals [5]:
+            xmin = 0.4332351163342485
+            xmax = 0.7750394463800826
+            text = "test"
+        intervals [6]:
+            xmin = 0.7750394463800826
+            xmax = 1.0587590306138575
+            text = "file"
+        intervals [7]:
+            xmin = 1.0587590306138575
+            xmax = 1.2101616854749455
+            text = "to"
+        intervals [8]:
+            xmin = 1.2101616854749455
+            xmax = 1.6502227720006746
+            text = "check"
+        intervals [9]:
+            xmin = 1.6502227720006746
+            xmax = 1.8727758604633025
+            text = "whether"
+        intervals [10]:
+            xmin = 1.8727758604633025
+            xmax = 2.4901049302059173
+            text = "CoPaSul"
+        intervals [11]:
+            xmin = 2.4901049302059173
+            xmax = 2.6989955492117415
+            text = "is"
+        intervals [12]:
+            xmin = 2.6989955492117415
+            xmax = 3.0281069079222394
+            text = "working"
+        intervals [13]:
+            xmin = 3.0281069079222394
+            xmax = 3.5486563920007264
+            text = "properly"
+        intervals [14]:
+            xmin = 3.5486563920007264
+            xmax = 3.7243867481360686
+            text = "on"
+        intervals [15]:
+            xmin = 3.7243867481360686
+            xmax = 3.944106999867135
+            text = "your"
+        intervals [16]:
+            xmin = 3.944106999867135
+            xmax = 4.4685016868191365
+            text = "machine"
+        intervals [17]:
+            xmin = 4.4685016868191365
+            xmax = 4.516875
+            text = ""

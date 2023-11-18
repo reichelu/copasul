@@ -1,68 +1,111 @@
 # CoPaSul - Contour-based, parametric, and superpositional intonation stylization
 
-## author
+## Author
 
 * Uwe Reichel, Research Institute for Linguistics, Hungarian Academy of Sciences, Budapest
 
 ## Dependencies
 
-* python >=3.5
-* matplotlib >= 1.3.1
-* numpy >= 1.8.2
-* pandas >= 0.13.1
-* scipy >= 0.13.3
-* scikit learn >= 0.17.1
-* tested only for Linux
+* Python: `>= 3.6`
+* Packages: see `requirements.txt`
+* tested for Linux, might work for Windows
 
 ## Installation
 
+### From PyPi
+
+* set up a virtual environment `venv_copasul`, activate it, and install copasul. For Linux this works e.g. as follows:
+
+```bash
+$ virtualenv --python="/usr/bin/python3" venv_copasul
+$ source venv_copasul/bin/activate
+(venv_copasul) $ pip install copasul
+```
+
+### From GitHub
+
+* project URL: [https://github.com/reichelu/copasul](https://github.com/reichelu/copasul)
 * set up a virtual environment `venv_copasul`, activate it, and install requirements. For Linux this works e.g. as follows:
 
-    ```
-    $ cd /my/Path/to/copasul/
-    $ virtualenv --python="/usr/bin/python3" venv_copasul
-    $ source venv_copasul/bin/activate
-    (venv_copasul) $ pip install -r requirements.txt
-    ```
-
-## Example call from terminal
-
-* call of main script `src/copasul.py` with a configuration file
-
-```
-$ cd /my/Path/to/copasul/
+```bash
+$ git clone git@github.com:reichelu/copasul.git
+$ cd copasul/
+$ virtualenv --python="/usr/bin/python3" venv_copasul
 $ source venv_copasul/bin/activate
-(venv_copasul) $ cd src/
-(venv_copasul) $ python copasul.py -c ../minex/config/minex.json
+(venv_copasul) $ pip install -r requirements.txt
 ```
 
-* processes input files in `minex/input/`
-* outputs feature tables to `minex/output/`
+## Usage
 
-## Example integration into python code
+### Required files
+* audio (wav), f0, pulse, and annotation files (Textgrid), see on GitHub: `tests/minex/input`
+    * f0 and pulse files can be generated with the help of the praat scripts on Github: `scripts/*praat`
+* a config file (json), see on GitHub `tests/minex/config/minex.json`
+    * see on Github `docs/copasul_commented_config.json.txt` and the [article](https://arxiv.org/abs/1612.04765) for further details
 
-* see also `src/example_call.py`
+### Call from terminal (if cloned from GitHub)
 
+* see on [GitHub project page](https://github.com/reichelu/copasul) `scripts/run_copasul.py [-c myConfigFile.json]`
+* `PROJECT_DIR`: directory where GitHub project has been cloned
+
+```bash
+(venv_copasul) $ cd PROJECT_DIR/scripts/
+(venv_copasul) $ python run_copasul.py -c ../tests/minex/config/minex.json
 ```
+
+* if you use `../tests/minex/config/minex.json` as config file, CoPaSul
+    * processes the files in `../tests/minex/input/`, and
+    * outputs feature tables to `../tests/minex/output/test.FEATURESET.{csv, R}`
+    * outputs the CoPaSul output dict to `../tests/minex/output/test.pickle`
+    * this output dict can be used for further (warm start) processing
+* if you use your own config file, make sure, that all directories in `fsys:*:dir` are either absolute paths or relative paths relative to your config file
+
+### Example integration into python code
+
+```python
 import json
-import copasul
+import pickle
+import sys
 
-with open("my/Path/to/minex/config/minex.json", 'r') as h:
-    opt = json.load(h)
+# add this line if you use the cloned code from GitHub
+# sys.path.append(PROJECT_DIR)
 
+from copasul import copasul
+
+# feature extractor
 fex = copasul.Copasul()
-copa = fex.process(config=opt)
+
+# processing based on config file
+config_file = MYCONFIGFILE.json
+copa = fex.process(config=config_file)
+
+# processing based on config dict
+with open(config_file, 'r') as h:
+    config_dict = json.load(h)
+copa = fex.process(config=config_dict)
+
+# warm start: continue processing
+#   - implicit loading from config
+config_dict["navigate"]["from_scratch"] = False
+config_dict["navigate"]["overwrite_config"] = True
+#     ... change further navigation values to your needs
+copa = fex.process(config=config_dict)
+
+#   - explicit loading from file
+copa_file = MYCOPASULOUTPUT.pickle
+config_dict["navigate"]["overwrite_config"] = True
+#     ... change further navigation values to your needs
+with open(copa_file, "rb") as h:
+   copa = pickle.load(h)
+copa_further_processed = fex.process(config=config_dict, copa=copa)
 ```
 
-## Further information, license, history
+## Material
 
-* manual: `doc/copasul_manual_latest.pdf`
-* example configuration: `minex/config/minex.json`
-* commented configurations: `doc/copasul_commented_config.json.txt`
-* [LICENSE](./LICENSE)
-* [CHANGELOG](./CHANGELOG.md)
+* [Manual](https://github.com/reichelu/copasul/docs/copasul_manual_latest.pdf)
+* [Example configuration](https://github.com/reichelu/copasul/tests/minex/config/minex.json)
+* [Commented configuration](https://github.com/reichelu/copasul/docs/copasul_commented_config.json.txt)
 
 ## Reference
 
-Reichel, U.D. (2017). CoPaSul Manual: Contour-based, parametric, and superpositional intonation stylization, arXiv:1612.04765.
-
+Reichel, U.D. (2017). [CoPaSul Manual: Contour-based, parametric, and superpositional intonation stylization](https://arxiv.org/abs/1612.04765), arXiv:1612.04765.
