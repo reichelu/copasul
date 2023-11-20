@@ -12,7 +12,7 @@ import sys
 # case 1) copasul cloned from github project
 #         calling script is in PROJECT_DIR/scripts/
 #         (PROJECT_DIR: absolute path of cloned github project)
-sys.path.append(f"{os.path.dirname(os.path.abspath(__file__))}/..")
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
 # case 2) copasul cloned from github project
 #         calling script is in some other directory:

@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## Version 1.3.1 (2023-11-20)
+* `scripts/run_copasul.py`: platform-independent directory string normalization
+
 ## Version 1.3.0 (2023-11-18)
 * update: `copasul.py` restructured: all functions now included as methods in `Copasul` class.
 * update: `copasul_init.copa_opt_init()`
