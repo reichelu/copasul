@@ -1,7 +1,10 @@
 # CHANGELOG
 
-## Version 1.3.1 (2023-11-20)
+## Version 1.3.1 (2023-11-21)
 * `scripts/run_copasul.py`: platform-independent directory string normalization
+* `scripts/*praat`: cleaned code
+* `README.md` update
+* `setup.cfg` update
 
 ## Version 1.3.0 (2023-11-18)
 * update: `copasul.py` restructured: all functions now included as methods in `Copasul` class.

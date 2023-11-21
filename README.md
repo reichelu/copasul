@@ -4,11 +4,21 @@
 
 * Uwe Reichel, Research Institute for Linguistics, Hungarian Academy of Sciences, Budapest
 
+## Purpose: Prosodic Feature extraction
+
+* Intonation
+  * Global f0 register
+  * Local f0 shapes
+  * Prosodic boundaries
+* Energy
+* Rhythm
+* Voice quality
+
 ## Dependencies
 
 * Python: `>= 3.6`
 * Packages: see `requirements.txt`
-* tested for Linux, might work for Windows
+* tested for Linux and Python 3.6, 3.8, and 3.10
 
 ## Installation
 
@@ -89,7 +99,7 @@ copa = fex.process(config=config_dict)
 config_dict["navigate"]["from_scratch"] = False
 config_dict["navigate"]["overwrite_config"] = True
 #     ... change further navigation values to your needs
-copa = fex.process(config=config_dict)
+copa_further_processed = fex.process(config=config_dict)
 
 #   - explicit loading from file
 copa_file = MYCOPASULOUTPUT.pickle

@@ -42,7 +42,6 @@ for ios to nos
   call clean_up
 endfor
 
-
 ## outputs pulse time stamps, one per row ###########################
 procedure get_pulse_stereo
 
@@ -103,11 +102,3 @@ procedure get_of
   fo$="'diro$'/'fstem$''pulse_ext$'"
 endproc
 
-
-#New Praat script
-#Read from file... /home/reichelu/data/hunGameCorpus/minimalExample/wav/gr1_game1_bl3.wav
-#Extract one channel... 1
-#To Pitch (cc)... 0 75 15 no 0.03 0.45 0.01 0.35 0.14 600
-#select Sound gr1_game1_bl3_ch1
-#plus Pitch gr1_game1_bl3_ch1
-#To PointProcess (cc)

@@ -22,12 +22,10 @@ form input
      word f0_ext
 endform
 
-
 ## settings ###########################################################
 
-## precision of time output
+# precision of time output
 timeprec=round(abs(log10(framelength)))
-
 
 ## main ###############################################################
 
@@ -50,7 +48,6 @@ for ios to nos
   call clean_up
 endfor
 
-
 ## removing current objects #########################################
 procedure clean_up
   select aud
@@ -66,7 +63,6 @@ procedure clean_up
 endproc
 
 ## extract pitch object for each channel ############################
-
 procedure get_pitchObj
   # read audio into sound object
   aud = Read from file... 'dir$'/'fileName$'
@@ -78,20 +74,16 @@ procedure get_pitchObj
 endproc
 
 ## gets name of output file (exchanges extension to ext$) ###########
-
 procedure get_of
   fstem$=left$(fileName$,rindex(fileName$,"."))
   fo$="'diro$'/'fstem$''f0_ext$'"
 endproc
 
-
 ## extracts and outputs f0 contour ##################################
-
 procedure get_f0
   # frame count
   select pitch1
   nof = Get number of frames
-
   for iof to nof
     # time of current frame
     time = Get time from frame... iof

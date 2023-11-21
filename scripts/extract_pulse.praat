@@ -51,7 +51,6 @@ procedure clean_up
   Remove
 endproc
 
-
 ## outputs pulse time stamps, one per row ###########################
 procedure get_pulse
 

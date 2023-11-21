@@ -6,7 +6,7 @@
 # output: 2 column table <frame timestamp> <f0 value>
 # call:
 # > extract_f0.praat framelength minfrequ maxfrequ inputDir outputDir \
-#   audioExtension f0FileExtension
+#                    audioExtension f0FileExtension
 # example:
 # > extract_f0.praat 0.01 50 400 myAudioDir/ myF0Dir/ wav f0
 
@@ -20,25 +20,10 @@ form input
      word f0_ext
 endform
 
-
 ## settings ###########################################################
 
-## framesize for f0 extraction:
-#framelength=0.01
-## min and max allowed f0 (below or higher --> 0)
-#minfrequ=50
-#maxfrequ=500
-## precision of time output
+# precision of time output
 timeprec=round(abs(log10(framelength)))
-## Input/Output-Directories
-#dir$="/homes/reichelu/data/inton_hu2012/sound"
-# Output-Directory (anzupassen)
-#diro$="/homes/reichelu/data/inton_hu2012/sound"
-# Extension der Signal-Files (Input)
-#aud_ext$="wav"
-# Extension der f0-Files (Output)
-#f0_ext$="f0"
-
 
 ## main ###############################################################
 
@@ -68,13 +53,11 @@ procedure clean_up
   Remove
 endproc
 
-
 ## gets name of output file (exchanges extension to ext$) ###########
 procedure get_of
   fstem$=left$(fileName$,rindex(fileName$,"."))
   fo$="'diro$'/'fstem$''f0_ext$'"
 endproc
-
 
 ## extracts and outputs f0 contour ##################################
 procedure get_f0
