@@ -22,7 +22,7 @@
 
 ## Installation
 
-### From PyPi
+### From PyPI
 
 * set up a virtual environment `venv_copasul`, activate it, and install copasul. For Linux this works e.g. as follows:
 
