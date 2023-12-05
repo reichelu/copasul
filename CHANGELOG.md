@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## Version 1.3.2 (2023-12-05)
+* dropped support for Python 3.6 due to `audeer` dependency
+
 ## Version 1.3.1 (2023-11-21)
 * `scripts/run_copasul.py`: platform-independent directory string normalization
 * `scripts/*praat`: cleaned code
