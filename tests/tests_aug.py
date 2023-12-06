@@ -179,29 +179,29 @@ def i_tg(ff):
     idx = {'item': 0, 'points': 0, 'intervals': 0}
     with open(ff, encoding='utf-8') as f:
         for z in f:
-            z = re.sub('\s*\n$', '', z)
-            if re.search('object\s*class', z, re.I):
+            z = re.sub(r'\s*\n$', '', z)
+            if re.search(r'object\s*class', z, re.I):
                 skip = False
                 continue
             else:
-                if ((skip == True) or re.search('^\s*$', z) or
+                if ((skip == True) or re.search(r'^\s*$', z) or
                         re.search('<exists>', z)):
                     continue
-            if re.search('item\s*\[\s*\]:?', z, re.I):
+            if re.search(r'item\s*\[\s*\]:?', z, re.I):
                 key = 'item'
-            elif re.search('(item|points|intervals)\s*\[(\d+)\]\s*:?', z, re.I):
+            elif re.search(r'(item|points|intervals)\s*\[(\d+)\]\s*:?', z, re.I):
                 m = re.search(
-                    '(?P<typ>(item|points|intervals))\s*\[(?P<idx>\d+)\]\s*:?', z)
+                    r'(?P<typ>(item|points|intervals))\s*\[(?P<idx>\d+)\]\s*:?', z)
                 i_type = m.group('typ').lower()
                 idx[i_type] = int(m.group('idx'))
                 if i_type == 'item':
                     idx['points'] = 0
                     idx['intervals'] = 0
-            elif re.search('([^\s+]+)\s*=\s*\"?(.*)', z):
-                m = re.search('(?P<fld>[^\s+]+)\s*=\s*\"?(?P<val>.*)', z)
+            elif re.search(r'([^\s+]+)\s*=\s*\"?(.*)', z):
+                m = re.search(r'(?P<fld>[^\s+]+)\s*=\s*\"?(?P<val>.*)', z)
                 (fld, val) = (m.group('fld').lower(), m.group('val'))
                 fld = re.sub('number', 'time', fld)
-                val = re.sub('[\"\s]+$', '', val)
+                val = re.sub(r'[\"\s]+$', '', val)
                 # type cast
                 if fld == 'size':
                     val = int(val)
@@ -326,7 +326,7 @@ def tgv(v, a):
     s renderedValue
     '''
     
-    if re.search('(xmin|xmax|time|size)', a):
+    if re.search(r'(xmin|xmax|time|size)', a):
         return v
     else:
         return "\"{}\"".format(v)
