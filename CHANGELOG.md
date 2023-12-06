@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## Version 1.3.3 (2023-12-06)
+* `copasul_augment.aug_annot_init()` added Windows path support
+
 ## Version 1.3.2 (2023-12-05)
 * dropped support for Python 3.6 due to `audeer` dependency
 
