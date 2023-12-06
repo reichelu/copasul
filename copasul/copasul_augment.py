@@ -81,6 +81,7 @@ def aug_main(copa, f_log_in):
 
     # over wav files
     timeStamp = utils.isotime()
+    timeStamp = re.sub("[:\.]", "-", timeStamp)
     for i in tqdm(utils.idx_a(len(ff_wav)), desc="augmentation"):
 
         # add to existing file or generation from scratch
@@ -551,10 +552,13 @@ def aug_annot_init(ff_annot, ff_wav, i, opt, infx=None):
     '''
 
     if len(ff_annot) > i:
-        
+
+        pth, f = os.path.split(f"{ff_annot[i]}")
+        fo = os.path.join(pth, f"{f}_{infx}")
+                
         # secure copy
         if infx is not None:
-            sh.copy(ff_annot[i], f"{ff_annot[i]}.copy_{infx}")
+            sh.copy(ff_annot[i], fo)
 
         # annotation file content
         annot = utils.input_wrapper(ff_annot[i], opt['fsys']['annot']['typ'])
