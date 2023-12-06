@@ -81,7 +81,7 @@ def aug_main(copa, f_log_in):
 
     # over wav files
     timeStamp = utils.isotime()
-    timeStamp = re.sub("[:\.]", "-", timeStamp)
+    timeStamp = re.sub(r"[:\.]", "-", timeStamp)
     for i in tqdm(utils.idx_a(len(ff_wav)), desc="augmentation"):
 
         # add to existing file or generation from scratch
@@ -307,7 +307,7 @@ def aug_pho(dom, pho, annot, tc, ci, stm, opt):
     '''
 
     # vowel pattern
-    vow = opt['fsys']['pho']['vow']
+    vow = r"{}".format(opt['fsys']['pho']['vow'])
 
     # pho-tier(s) in list
     tn = copp.pp_tiernames(opt['fsys'], 'pho', 'tier', ci)
@@ -862,7 +862,7 @@ def aug_annot_upd_xml(dom, annot, aug, i, opt, lng, tn, lab):
     oa = opt['fsys']['augment']
 
     # tier type
-    if re.search('(chunk|glob)$', dom):
+    if re.search(r'(chunk|glob)$', dom):
         ttyp = 'segment'
     else:
         ttyp = 'event'
@@ -1361,7 +1361,7 @@ def aug_glob_fv(ty, y, annot, opt, i, fstm, f, lng, spec):
         is0, is1 = aug_seed_minmax(fmat, gopt)
 
     # get is0 seeds from min_l next to is1 boundaries
-    elif len(is1) > 0 and re.search('^seed', gopt['cntr_mtd']):
+    elif len(is1) > 0 and re.search(r'^seed', gopt['cntr_mtd']):
         is0 = aug_is0(tc, is0, is1, gopt['min_l'])
 
     # merge featset-related featmats and weights to single matrices
@@ -1747,7 +1747,7 @@ def aug_loc_fv(ty, y, bv, annot, opt, i, fstm, f, lng, add_mat, spec):
 
         if x == 'acc':
             copa = cost.styl_loc(copa, f_log, silent=True)
-        elif re.search('gst|decl', x):
+        elif re.search(r'(gst|decl)', x):
             copa = cost.styl_loc_ext(copa, f_log, silent=True)
         elif x == 'gnl_f0':
             copa = cost.styl_gnl(copa, 'f0', f_log, silent=True)
@@ -1790,7 +1790,7 @@ def aug_loc_fv(ty, y, bv, annot, opt, i, fstm, f, lng, add_mat, spec):
         is0, is1 = set([]), set([])
 
     # get is0 seeds from min_l next to is1 candidates
-    if len(is1) > 0 and re.search('^seed', lopt['cntr_mtd']):
+    if len(is1) > 0 and re.search(r'^seed', lopt['cntr_mtd']):
         is0 = aug_is0(tc, is0, is1, lopt['min_l'])
 
     # abs, delta, abs+delta
@@ -2336,7 +2336,7 @@ def aug_loc_preselect(t, to, lab, at, ato, alab, opt):
         return at, ato, lab_a, False
 
     # max selection per segment only possible after classification
-    if not re.search('(left|right)', opt['augment']['loc']['acc_select']):
+    if not re.search(r'(left|right)', opt['augment']['loc']['acc_select']):
         return t, to, lab, True
 
     # left/rightmost syllable
@@ -2540,7 +2540,7 @@ def aug_cntr_wrapper_sub(x, i0, i1, wgt, topt):
     # 'seed_prct': set seed centroids, percentile-based fv-assignment
     # 'seed_kmeans': set/update seed centroids by kmeans clustering
     # 'seed_wgt': set seed centroids, weighted dist fv assignment
-    if re.search('^seed', topt['cntr_mtd']) and len(i1) > 0:
+    if re.search(r'^seed', topt['cntr_mtd']) and len(i1) > 0:
         cntr, ww = aug_cntr_seed(x, {0: i0, 1: i1}, topt)
     else:
         # 'split': centroids from fv above, below defined percentile

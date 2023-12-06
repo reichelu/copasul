@@ -855,7 +855,7 @@ def output_wrapper(v, f, typ, opt={'sep': ',', 'header': True}):
     elif re.search('xml', typ):
         o_copa_xml(v, f)
         
-    elif re.search('(string|list|list1line)', typ):
+    elif re.search(r'(string|list|list1line)', typ):
         if typ == 'list':
             x = "\n".join(v)
             x += "\n"
@@ -874,7 +874,7 @@ def output_wrapper(v, f, typ, opt={'sep': ',', 'header': True}):
             h.close()
             
     elif typ == 'csv':
-        if re.search('\.csv$', f):
+        if re.search(r'\.csv$', f):
             pd.DataFrame(v).to_csv(f"{f}", na_rep='NA', index_label=False,
                                    index=False, sep=opt['sep'], header=opt['header'])
         else:
@@ -882,7 +882,7 @@ def output_wrapper(v, f, typ, opt={'sep': ',', 'header': True}):
                                    index=False, sep=opt['sep'], header=opt['header'])
             
     elif typ == 'csv_quote':
-        if re.search('\.csv$', f):
+        if re.search(r'\.csv$', f):
             pd.DataFrame(d).to_csv(f"{f}", na_rep='NA', index_label=False, index=False,
                                    quoting=csv.QUOTE_NONNUMERIC, sep=opt['sep'],
                                    header=opt['header'])
@@ -993,7 +993,7 @@ def tgv(v, a):
       s: (str, float, int ...) renderedValue
     '''
 
-    if re.search('(xmin|xmax|time|size)', a):
+    if re.search(r'(xmin|xmax|time|size)', a):
         return v
     else:
         return f"\"{v}\""
@@ -1416,7 +1416,7 @@ def is_pau(s, lab=''):
      (boolean)
     '''
 
-    if re.search('^\s*$', s) or s == lab:
+    if re.search(r'^\s*$', s) or s == lab:
         return True
     
     return False
@@ -1435,10 +1435,10 @@ def copa_categ_var(x):
     '''
 
     if ((x in lists('factors', 'set')) or
-        re.search('^(grp|lab|class|spk|tier)', x) or
-        re.search('_(grp|lab|class|tier)$', x) or
-        re.search('_(grp|lab|class|tier)_', x) or
-            re.search('is_(init|fin)', x)):
+        re.search(r'^(grp|lab|class|spk|tier)', x) or
+        re.search(r'_(grp|lab|class|tier)$', x) or
+        re.search(r'_(grp|lab|class|tier)_', x) or
+            re.search(r'is_(init|fin)', x)):
         return True
     
     return False
@@ -1456,7 +1456,7 @@ def copa_reference_var(x):
     (boolean)
     '''
 
-    if re.search("(t_on|t_off|bv|dur)", x):
+    if re.search(r"(t_on|t_off|bv|dur)", x):
         return True
     
     return False
@@ -1528,9 +1528,9 @@ def copa_unifChannel(d):
 
     y, z = {}, {}
     for x in d:
-        if re.search('[12]_', x):
+        if re.search(r'[12]_', x):
             # key and subkey in z
-            k = re.sub('_*[12]_', '_', x)
+            k = re.sub(r'_*[12]_', '_', x)
             if k not in z:
                 z[k] = {}
             if re.search('1_', x):
@@ -1601,9 +1601,9 @@ def i_seg_lab(f, sep=None):
     '''
 
 
-    if type(sep) is str and re.search('^r:', sep):
+    if type(sep) is str and re.search(r'^r:', sep):
         is_re = True
-        sep = re.sub('^r:', '', sep)
+        sep = re.sub(r'^r:', '', sep)
     else:
         is_re = False
     d = {'t': [], 'lab': []}
@@ -1908,7 +1908,7 @@ def dfe(x):
     d = dd[0]
     s = os.path.splitext(os.path.basename(dd[1]))
     e = s[1]
-    e = re.sub('\.', '', e)
+    e = re.sub(r'\.', '', e)
     
     return d, s[0], e
 
@@ -2648,16 +2648,16 @@ def i_tg_short(ff):
     
     with open(ff, encoding='utf-8') as f:
         for z in f:
-            z = re.sub('\s*\n$', '', z)
-            if re.search('object\s*class', z, re.I):
+            z = re.sub(r'\s*\n$', '', z)
+            if re.search(r'object\s*class', z, re.I):
                 fld = nf[state]['#']
                 skip = False
                 continue
             else:
-                if ((skip == True) or re.search('^\s*$', z) or
+                if ((skip == True) or re.search(r'^\s*$', z) or
                         re.search('<exists>', z)):
                     continue
-            if re.search('(interval|text)tier', z, re.I):
+            if re.search(r'(interval|text)tier', z, re.I):
                 if re.search('intervaltier', z, re.I):
                     typ = 'interval'
                 else:
@@ -2697,7 +2697,7 @@ def i_tg_short(ff):
                         fld = nf[state]['#']
                     else:
                         fld = nf[state][fld]
-                elif re.search('(points|intervals)', state):
+                elif re.search(r'(points|intervals)', state):
                     # increment points|intervals idx if first field adressed
                     if fld == nf[state]['#']:
                         idx[subkey] += 1
@@ -2732,29 +2732,29 @@ def i_tg_long(ff):
     
     with open(ff, encoding='utf-8') as f:
         for z in f:
-            z = re.sub('\s*\n$', '', z)
-            if re.search('object\s*class', z, re.I):
+            z = re.sub(r'\s*\n$', '', z)
+            if re.search(r'object\s*class', z, re.I):
                 skip = False
                 continue
             else:
-                if ((skip == True) or re.search('^\s*$', z) or
+                if ((skip == True) or re.search(r'^\s*$', z) or
                         re.search('<exists>', z)):
                     continue
-            if re.search('item\s*\[\s*\]:?', z, re.I):
+            if re.search(r'item\s*\[\s*\]:?', z, re.I):
                 key = 'item'
-            elif re.search('(item|points|intervals)\s*\[(\d+)\]\s*:?', z, re.I):
+            elif re.search(r'(item|points|intervals)\s*\[(\d+)\]\s*:?', z, re.I):
                 m = re.search(
-                    '(?P<typ>(item|points|intervals))\s*\[(?P<idx>\d+)\]\s*:?', z)
+                    r'(?P<typ>(item|points|intervals))\s*\[(?P<idx>\d+)\]\s*:?', z)
                 i_type = m.group('typ').lower()
                 idx[i_type] = int(m.group('idx'))
                 if i_type == 'item':
                     idx['points'] = 0
                     idx['intervals'] = 0
-            elif re.search('([^\s+]+)\s*=\s*\"?(.*)', z):
-                m = re.search('(?P<fld>[^\s+]+)\s*=\s*\"?(?P<val>.*)', z)
+            elif re.search(r'([^\s+]+)\s*=\s*\"?(.*)', z):
+                m = re.search(r'(?P<fld>[^\s+]+)\s*=\s*\"?(?P<val>.*)', z)
                 (fld, val) = (m.group('fld').lower(), m.group('val'))
                 fld = re.sub('number', 'time', fld)
-                val = re.sub('[\"\s]+$', '', val)
+                val = re.sub(r'[\"\s]+$', '', val)
                 # type cast
                 if fld == 'size':
                     val = int(val)
@@ -2830,10 +2830,10 @@ def i_tg_format(ff):
 
     with open(ff, encoding='utf-8') as f:
         for z in f:
-            if re.search('^\s*<exists>', z):
+            if re.search(r'^\s*<exists>', z):
                 f.close
                 return 'short'
-            elif re.search('xmin\s*=', z):
+            elif re.search(r'xmin\s*=', z):
                 f.close
                 return 'long'
     return 'long'
@@ -2985,7 +2985,7 @@ def check_var(c):
                                  f"Set navigate.do_{x} to true.")
 
             # ideosyncrasies
-            if re.search('^rhy', dom):
+            if re.search(r'^rhy', dom):
                 if ('rate' not in copa['data'][ii][i]):
                     sys.exit(f"ERROR! {dom} feature extraction requires an update of the preprocessing step.\n" \
                              "Set navigate.do_preproc to true")
@@ -3239,9 +3239,9 @@ def i_lol(f, sep=None, frm='2d'):
          or 1-dim (rows concat to 1 list)
     '''
 
-    if type(sep) is str and re.search('^r:', sep):
+    if type(sep) is str and re.search(r'^r:', sep):
         is_re = True
-        sep = re.sub('^r:', '', sep)
+        sep = re.sub(r'^r:', '', sep)
     else:
         is_re = False
         
@@ -3285,11 +3285,11 @@ def str_standard(x, a=False):
       x: (str) standardized string
     '''
 
-    x = re.sub('^\s+', '', x)
-    x = re.sub('\s+$', '', x)
+    x = re.sub(r'^\s+', '', x)
+    x = re.sub(r'\s+$', '', x)
     
     if a:
-        x = re.sub('\s+', ' ', x)
+        x = re.sub(r'\s+', ' ', x)
 
     return x
 
@@ -3506,9 +3506,9 @@ def i_par(f, opt=None):
             fs = int(z[1])
         elif z[0] == 'LBD:':
             headOff = True
-        elif headOff == False or (not re.search(':$', z[0])):
+        elif headOff == False or (not re.search(r':$', z[0])):
             continue
-        tn = re.sub(':$', '', z[0])
+        tn = re.sub(r':$', '', z[0])
         if tn not in tc:
             continue
         if tn not in par:
@@ -4123,7 +4123,7 @@ def webservice_output(cmd, opt):
         return
 
     # parse webservice answer
-    m = re.search('<downloadLink>(?P<res>(.+?))<\/downloadLink>', ans)
+    m = re.search(r'<downloadLink>(?P<res>(.+?))<\/downloadLink>', ans)
 
     if m is None:
         if opt['fatal']:

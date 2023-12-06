@@ -48,7 +48,7 @@ def resyn_channel(copa, ii, i):
         # time in glob seg
         ttg = np.linspace(gs['t'][0], gs['t'][1], len(gs['decl']['tn']))
         # register line in glob seg
-        if re.search('(bl|ml|tl)$', reg):
+        if re.search(r'(bl|ml|tl)$', reg):
             y_reg = gs['decl'][reg]['y']
         elif reg == 'rng':
             y_reg = {'bl': gs['decl']['bl'],
