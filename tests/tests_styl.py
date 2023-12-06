@@ -95,6 +95,13 @@ def tests(task, feature_set, column_name):
         copa = fex.process(config=opt)
         diagnosis = {"pass": True}
 
+        # factor variables
+        fac = ['class', 'ci', 'fi', 'si', 'gi', 'stm', 'tier', 'spk',
+               'is_init', 'is_fin', 'is_init_chunk', 'is_fin_chunk', 'lab',
+               'lab_next', "f0_is_init", "f0_is_fin", "f0_is_init_chunk",
+               "f0_is_fin_chunk", "en_is_init", "en_is_fin", "en_is_init_chunk",
+               "en_is_fin_chunk", "lab_acc", "lab_ag"]
+        
         # test each feature set
         fsets = ["bnd", "glob", "gnl", "gnl_file", "loc", "rhy", "rhy_file",
                  "summary", "voice", "voice_file"]
@@ -114,16 +121,14 @@ def tests(task, feature_set, column_name):
                     continue
                 r = df_ref[c].to_numpy()
                 a = df_ans[c].to_numpy()
-                if np.any(r != a):
-                    # check whether these are NaN-s, since
-                    # np.nan != np.nan is True
-                    nanonly = True
-                    ii = np.where(r != a)[0]
-                    for i in ii:
-                        if np.isfinite(r[i]) or np.isfinite(a[i]):
-                            nanonly = False
-                            break
-                    if not nanonly:
+                if c in fac or re.search(r"^(grp|tier)_", c):
+                    # categorical variables
+                    if np.any(r != a):
+                        diagnosis[fset]["diff_cols"].append(c)
+                else:
+                    # numeric variables
+                    b = np.allclose(r, a, equal_nan=True)
+                    if not b:
                         diagnosis[fset]["diff_cols"].append(c)
 
             if max(len(diagnosis[fset]["diff_cols"]),

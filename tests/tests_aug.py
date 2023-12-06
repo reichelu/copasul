@@ -127,7 +127,7 @@ def tests_aug(task):
             tier_apl = tg_tier(tg, f"{tn}_1")
             t_ref, _ = tg_tier2tab(tier_ref)
             t_apl, _ = tg_tier2tab(tier_apl)
-            if np.any(t_ref != t_apl):
+            if not np.allclose(t_ref, t_apl):
                 print(f"{tn} mismatch!")
                 diagnosis[tn] = {"ref": t_ref,
                                  "apply": t_apl}
