@@ -616,7 +616,7 @@ def pp_channel(copa, opt, ii, i, f0_dat, annot_dat, ff, f_log_in=None):
 
             # rates of tier_rate entries for each segment
             #   (all rate tiers of same channel as tn)
-            if re.search('^rhy_', ft):
+            if re.search(r'^rhy_', ft):
 
                 # ...['tier_rate'] -> npArray of time values (1- or 2-dim)
                 tt = pp_tier_time_to_tab(

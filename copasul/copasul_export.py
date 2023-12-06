@@ -256,15 +256,15 @@ def upd_suma_feat(suma, fs, ds, fi, ci, fac, u, x, t):
         key = f"{t}_{x}"
 
     # file-level grouping
-    if (x == 'stm' or re.search('^grp_', x)):
+    if (x == 'stm' or re.search(r'^grp_', x)):
         v = list(ds[x])
         suma[fi][ci][fs][key] = {'g': v[0], 'u': u}
         return suma
     
     # skip factor variables (except of class)
-    if ((x in fac) or re.search('^(lab|spk|tier)', x) or
-        re.search('_(lab|tier)$', x) or
-            re.search('_(lab|tier)_', x)):
+    if ((x in fac) or re.search(r'^(lab|spk|tier)', x) or
+        re.search(r'_(lab|tier)$', x) or
+            re.search(r'_(lab|tier)_', x)):
         return suma
 
     v = np.asarray(ds[x])
@@ -349,11 +349,11 @@ def exp_rm_redun(exp):
     # over column names
     cnn = utils.sorted_keys(exp)
     for cn in cnn:
-        if not re.search('_(grp_|stm)', cn):
+        if not re.search(r'_(grp_|stm)', cn):
             continue
         nc = cn
-        nc = re.sub('^(.+?)_grp', 'grp', nc)
-        nc = re.sub('^(.+?)_stm', 'stm', nc)
+        nc = re.sub(r'^(.+?)_grp', 'grp', nc)
+        nc = re.sub(r'^(.+?)_stm', 'stm', nc)
         if nc not in exp:
             exp[nc] = cp.deepcopy(exp[cn])
         del exp[cn]
@@ -390,7 +390,7 @@ def suma2exp_init(suma):
                 else:
                     # over subfields m,sd,med...
                     for s in suma[fi][ci][fs][x]:
-                        if re.search('[vu]', s):
+                        if re.search(r'[vu]', s):
                             continue
                         key = exp_suma_key(fs, x, s)
                         exp[key] = []
@@ -433,7 +433,7 @@ def suma2exp_upd(exp, suma, fi, ci):
 
             # over subfields m,sd,med...
             for s in suma[fi][ci][fs][x]:
-                if re.search('[vu]', s):
+                if re.search(r'[vu]', s):
                     continue
                 key = exp_suma_key(fs, x, s)
                 exp[key].append(suma[fi][ci][fs][x][s])
@@ -1246,7 +1246,7 @@ def export_merge(fo, infx, dd, opt):
     # unique field names
     ff = {'fi', 'ci', 'si', 'stm', 't_on',
           't_off', 'tier', 'lab', 'dur', 'dur_nrm'}
-    pat = '^grp'
+    pat = r'^grp'
     dk = dd.keys()
     if len(dk) <= 1:
         return
@@ -1397,17 +1397,17 @@ def exp_R(d, fo, facpat='', fullPath=False, sep=','):
          "\tcolClasses=c("]
 
     for x in sorted(d.keys()):
-        if ((x in fac) or re.search('^(grp|lab|class|spk|tier)', x) or
-            re.search('_(grp|lab|class|tier)$', x) or
-            re.search('_(grp|lab|class|tier)_', x) or
-                re.search('(is_fin|is_init)', x)):
+        if ((x in fac) or re.search(r'^(grp|lab|class|spk|tier)', x) or
+            re.search(r'_(grp|lab|class|tier)$', x) or
+            re.search(r'_(grp|lab|class|tier)_', x) or
+            re.search(r'(is_fin|is_init)', x)):
             typ = 'factor'
-        elif (len(facpat) > 0 and re.search(facpat, x)):
+        elif (len(facpat) > 0 and re.search(r"{}".format(facpat), x)):
             typ = 'factor'
         else:
             typ = 'numeric'
         z = f"{x}='{typ}',"
-        if (not re.search(',$', o[-1])):
+        if (not re.search(r',$', o[-1])):
             o[-1] += z
         else:
             o.append("\t\t"+z)
@@ -1476,19 +1476,19 @@ def selAbs(v, n, fset, sel=('glob', 'loc', 'bnd')):
         return v
     
     # loc
-    if re.search('^c[13579]$', n):
+    if re.search(r'^c[13579]$', n):
         return abs(v)
 
     # gnl
-    if re.search('(f0|en)_c[13]', n):
+    if re.search(r'(f0|en)_c[13]', n):
         return abs(v)
 
     # glob/loc
-    if re.search('^([bmt]l|rng)_(r|c1|rate|d_(init|fin)|s?d)$', n):
+    if re.search(r'^([bmt]l|rng)_(r|c1|rate|d_(init|fin)|s?d)$', n):
         return abs(v)
 
     # bnd
-    if re.search('_([bmt]l|rng)_r$', n):
+    if re.search(r'_([bmt]l|rng)_r$', n):
         return abs(v)
     return v
 

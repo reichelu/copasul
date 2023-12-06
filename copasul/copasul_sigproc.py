@@ -791,10 +791,10 @@ def fu_filt_freq(X, opt):
         return utils.idx_a(len(X))
     
     # error handling
-    if re.search('(band|stop)', typ) and (not utils.listType(f)):
+    if re.search(r'(band|stop)', typ) and (not utils.listType(f)):
         print('filter type requires frequency list. Done nothing.')
         return utils.idx_a(len(X))
-    if re.search('(low|high)', typ) and utils.listType(f):
+    if re.search(r'(low|high)', typ) and utils.listType(f):
         print('filter type requires only 1 frequency value. Done nothing.')
         return utils.idx_a(len(X))
 
@@ -1420,7 +1420,7 @@ def fu_filt(y, opt):
     '''
 
     # do nothing
-    if not re.search('^(high|low|band)$', opt['btype']):
+    if not re.search(r'^(high|low|band)$', opt['btype']):
         return {'y': y, 'b': np.array([]), 'a': np.array([])}
 
     # check f < fs / 2

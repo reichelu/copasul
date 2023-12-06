@@ -85,7 +85,7 @@ def plot_browse_channel(copa, typ, s, ii, i):
 
     # for all complex plots range over global segments
     if typ == 'complex':
-        if re.search('^bnd', s):
+        if re.search(r'^bnd', s):
             dom = 'bnd'
         else:
             dom = 'glob'
@@ -110,7 +110,7 @@ def plot_browse_channel(copa, typ, s, ii, i):
                 continue
 
         if typ != 'complex':
-            if re.search('^rhy_', typ):
+            if re.search(r'^rhy_', typ):
 
                 # tiers
                 for k in utils.sorted_keys(c[ii][i][dom][j]):
@@ -140,7 +140,7 @@ def plot_browse_channel(copa, typ, s, ii, i):
                        'infx': f"{ii}-{i}-{j}", 'local': myLoc}
                 plot_main(obj, copa['config'])
         else:
-            if re.search('^bnd', s):
+            if re.search(r'^bnd', s):
                 
                 # get key depending on s
                 if s == 'bnd':
@@ -233,14 +233,14 @@ def plot_main(obj, opt):
 
         if obj['type'] == 'clst':
             fig = plot_clst(obj, opt)
-        elif re.search('^(glob|loc)$', obj['type']):
+        elif re.search(r'^(glob|loc)$', obj['type']):
             fig = plot_styl_cont(obj, opt['fsys']['pic'])
-        elif re.search('^rhy', obj['type']):
+        elif re.search(r'^rhy', obj['type']):
             fig = plot_styl_rhy(obj, opt)
         elif obj['type'] == 'complex':
-            if re.search('(superpos|gestalt)', obj['set']):
+            if re.search(r'(superpos|gestalt)', obj['set']):
                 fig = plot_styl_complex(obj, opt)
-            elif re.search('^bnd', obj['set']):
+            elif re.search(r'^bnd', obj['set']):
                 fig = plot_styl_bnd(obj, opt)
 
         # save plot
@@ -357,7 +357,7 @@ def plot_grp(obj, opt):
 
     dom = obj['type']
     mySet = obj['set']
-    if not re.search('^(glob|loc)$', dom):
+    if not re.search(r'^(glob|loc)$', dom):
         sys.exit("plot by grouping is supported only for glob and loc feature set")
     c = obj['fit']['data']
     h = plot_harvest(c, dom, mySet, opt['plot']['grp']['grouping'])
@@ -500,7 +500,7 @@ def copa_grp_key(grp, c, dom, ii, i, j):
         elif x == 'channel':
             key.append(str(i))
         else:
-            if (x == 'lab' or re.search('lab_(pnt|int)', x)):
+            if (x == 'lab' or re.search(r'lab_(pnt|int)', x)):
                 z = c[ii][i][dom][j]
             elif x == 'lab_next':
                 if j+1 in c[ii][i][dom]:
@@ -563,7 +563,7 @@ def plot_styl_complex(obj, opt):
         if obj['set'] == 'superpos':
 
             # add/denormFor register
-            if re.search('^(bl|ml|tl)$', opt['styl']['register']):
+            if re.search(r'^(bl|ml|tl)$', opt['styl']['register']):
                 # part in local segment
                 regs = np.asarray(reg[utils.find_interval(ttg, tl)])
                 while len(regs) < len(ttl):
