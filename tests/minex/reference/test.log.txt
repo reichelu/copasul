@@ -1,5 +1,5 @@
 
-## 2023-10-08T12:40:39.726637
+## 2023-12-11T13:35:05.378909
 DOING: preprocessing ...
 	file dialogId_turnId_spkId, channel 1
 DOING: styl glob
@@ -24,4 +24,4 @@ DOING: styl voice
 clst.glob.sil_mean: nan
 clst.loc.sil_mean: nan
 styl.glob.err_prop: 0.0
-styl.loc.rms_mean: 0.380612890869189
+styl.loc.rms_mean: 0.3806128908676638

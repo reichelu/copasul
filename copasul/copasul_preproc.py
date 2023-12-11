@@ -69,7 +69,7 @@ def pp_main(copa, f_log_in=None):
         f0_dat = utils.input_wrapper(ff['f0'][ii], opt['fsys']['f0']['typ'])
         annot_dat = utils.input_wrapper(
             ff['annot'][ii], opt['fsys']['annot']['typ'])
-
+        
         # over channels
         for i in range(opt['fsys']['nc']):
             myLog(f"\tfile {utils.stm(ff['f0'][ii])}, channel {i+1}")
@@ -104,7 +104,7 @@ def pp_f0_st_wrapper(copa):
     '''
 
     opt = copa['config']
-
+    
     # do nothing
     if 'base_prct_grp' not in opt['preproc']:
         return copa
@@ -123,7 +123,7 @@ def pp_f0_st_wrapper(copa):
     # 2. base value for each grouping level
     # bv[myGrpLevel] = myBaseValue
     bv = pp_f0_grp_bv(fg, opt)
-
+    
     # 3. group-wise semitone conversion
     for ii in utils.sorted_keys(copa['data']):
         for i in utils.sorted_keys(copa['data'][ii]):
@@ -200,7 +200,7 @@ def pp_f0_grp_st(copa, ii, i, bv, lci, opt):
     Returns:
       copa with st-transformed f0
     '''
-
+    
     # grp value
     gv = copa['data'][ii][i]['grp'][lci[i]]
     y = copa['data'][ii][i]['f0']['y']
@@ -265,7 +265,7 @@ def pp_channel(copa, opt, ii, i, f0_dat, annot_dat, ff, f_log_in=None):
         f0_ut = f0
     else:
         f0, f0_ut = pp_read_f0(f0_dat, opt['fsys']['f0'], i)
-
+        
     # chunk ########################
     # list of tiernames for channel i (only one element for chunk)
     tn = pp_tiernames(opt['fsys'], 'chunk', 'tier', i)
@@ -358,7 +358,7 @@ def pp_channel(copa, opt, ii, i, f0_dat, annot_dat, ff, f_log_in=None):
         # for embedding in augment
         f0 = pp_zp(f0, glb[-1][1], opt, True)
         copa['data'][ii][i]['f0'] = {'t': f0[:, 0], 'y': f0[:, 1]}
-
+        
     # error?
     if np.max(y) == 0:
         myLog(f"ERROR! {ff['f0'][ii]} contains only zeros " \
@@ -848,7 +848,7 @@ def pp_f0_preproc(f0, t_max, opt):
     # smoothing
     if 'smooth' in opt['preproc']:
         y = cosp.pp_smooth(y, opt['preproc']['smooth'])
-
+        
     # <0 -> 0
     y[y < 0] = 0
 
@@ -858,7 +858,7 @@ def pp_f0_preproc(f0, t_max, opt):
         bv = -1
     else:
         y, bv = pp_semton(y, opt)
-
+        
     return f0, t, y, bv
 
 
@@ -1992,7 +1992,7 @@ def pp_semton(y, opt, bv=-1.0):
         b = max(bv, 1)
     else:
         bv, b = 0, 1
-    
+
     if opt['preproc']['st'] == 1:
         # ST conversion relative to BV
         y[yi] = 12 * np.log2(y[yi] / b)
@@ -2018,9 +2018,11 @@ def pp_bv(yp, opt):
     '''
 
     px = np.percentile(yp, opt['preproc']['base_prct'])
-    bv = np.median(yp[yp <= px])
+    px = np.round(px, 8)
+    ypr = np.round(yp, 8)
+    bv = np.median(ypr[ypr <= px])
     b = max(bv, 1)
-
+    
     return bv, b
 
 
