@@ -792,7 +792,7 @@ def outl_idx(y, opt):
 
     if np.size(i) == 0:
         return np.array([])
-
+    
     # getting lower and upper boundary lb, ub
     if opt['m'] == 'mean':
 
@@ -804,6 +804,8 @@ def outl_idx(y, opt):
         
         m = np.median(y.take(i))
         q1, q3 = np.percentile(y.take(i), [25, 75])
+        q1 = np.round(q1, 8)
+        q3 = np.round(q3, 8)
         r = q3 - q1
 
         if opt['m'] == 'median':

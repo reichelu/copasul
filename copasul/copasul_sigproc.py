@@ -587,6 +587,7 @@ def pp_smooth(y, opt):
         if len(y) <= opt['win']:
             return y
         y = sis.savgol_filter(y, opt['win'], opt['ord'])
+        
     elif opt['mtd'] == 'med':
         y = sis.medfilt(y, opt['win'])
 
@@ -1171,7 +1172,6 @@ def pau2chunk(t, l):
         
     return tc
 
-#!x
 
 def syl_ncl(s, opt={}):
 
@@ -1268,7 +1268,7 @@ def syl_ncl(s, opt={}):
     wopt_en = {'win': ml, 'rng': [0, ls]}
     wopt_ref = {'win': rws, 'rng': [0, ls]}
     for i in i_steps:
-        yi = utils.windowing_idx(i, wopt_en) #!x
+        yi = utils.windowing_idx(i, wopt_en)
         ys = y[yi]
         e_y = utils.rmsd(ys)
         ri = utils.windowing_idx(i, wopt_ref)

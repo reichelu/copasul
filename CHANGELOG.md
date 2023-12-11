@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## Version 1.4.0 (2023-12-11)
+* update: `copasul_preproc.pp_bv()`, `copasul_styl.styl_reg_med()`: percentiles rounded to 8th decimal due to likely precision differences of different numpy versions.
+
 ## Version 1.3.3 (2023-12-06)
 * `copasul_augment.aug_annot_init()` added Windows path support
 * `*.py` explicit marking of regular expressions for `re.search` and `re.sub`

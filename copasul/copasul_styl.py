@@ -153,7 +153,7 @@ def styl_gnl_file(copa, ii, fld, opt):
                 
                 # analysis window
                 yi = styl_yi(copa['data'][ii][i][fld][j][k]['t'], myFs, y)
-
+                
                 # for interval tier input; for styl_std_feat duration calculation
                 if len(copa['data'][ii][i][fld][j][k]['to']) > 1:
                     to = copa['data'][ii][i][fld][j][k]['to'][0:2]
@@ -1466,8 +1466,10 @@ def styl_reg_med(y, opt):
     # med [[med_bl med_ml med_tl]...]
     med = []
     for i in range(len(yw)):
-        ys = y[yw[i, 0]:yw[i, 1]]
+        ys = np.round(y[yw[i, 0]:yw[i, 1]], 8)
         qb, qt = np.percentile(ys, [opt['prct']['bl'], opt['prct']['tl']])
+        qb = np.round(qb, 8)
+        qt = np.round(qt, 8)
         if len(ys) <= 2:
             ybl = ys
             ytl = ys
@@ -1477,9 +1479,11 @@ def styl_reg_med(y, opt):
 
         # fallbacks
         if len(ybl) == 0:
-            ybl = ys[ys <= np.percentile(ys, 50)]
+            qm = np.round(np.percentile(ys, 50), 8)
+            ybl = ys[ys <= qm]
         if len(ytl) == 0:
-            ytl = ys[ys >= np.percentile(ys, 50)]
+            qm = np.round(np.percentile(ys, 50), 8)
+            ytl = ys[ys >= qm]
 
         if len(ybl) > 0:
             med_bl = np.median(ybl)
@@ -1977,7 +1981,7 @@ def styl_bnd_file(copa, ii, navi, opt):
             y = copa['data'][ii][i]['f0']['r']
         else:
             y = copa['data'][ii][i]['f0']['y']
-
+            
         # [[bl ml tl]...] medians over complete F0 contour (same length as y)
         med = styl_reg_med(y, opt)
 
