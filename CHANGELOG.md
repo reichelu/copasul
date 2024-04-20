@@ -1,6 +1,9 @@
 # CHANGELOG
 
-## Version 1.5.0 (2024-04-21)
+## Version 1.5.2 (2024-04-20)
+* fix requirements
+
+## Version 1.5.0 (2024-04-20)
 * added `copasul.praat_utils.py` for pitch and pulse extraction with Praat/Parselmouth
 
 ## Version 1.4.0 (2023-12-11)
