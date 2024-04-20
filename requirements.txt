@@ -2,6 +2,7 @@ audeer
 matplotlib
 numpy
 pandas
+parselmouth
 scikit-learn
 scipy
 tqdm

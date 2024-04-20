@@ -49,17 +49,58 @@ $ source venv_copasul/bin/activate
 
 ### Required files
 * audio (wav), f0, pulse, and annotation files (Textgrid), see on GitHub: `tests/minex/input`
-    * f0 and pulse files can be generated with the help of the praat scripts on Github: `scripts/*praat`
 * a config file (json), see on GitHub `tests/minex/config/minex.json`
     * see on Github `docs/copasul_commented_config.json.txt` and the [article](https://arxiv.org/abs/1612.04765) for further details
 
-### Call from terminal (if cloned from GitHub)
+### Extract f0 and pulse by means of Praat
 
-* see on [GitHub project page](https://github.com/reichelu/copasul) `scripts/run_copasul.py [-c myConfigFile.json]`
-* `PROJECT_DIR`: directory where GitHub project has been cloned
+* see [example script](https://github.com/reichelu/copasul/scripts/run_praat.py)
+
+```python
+# add this line if you use the code from GitHub
+# sys.path.append(PROJECT_ROOT)
+
+from copasul import praat_utils
+
+# Praat pitch extractor
+piex = praat_utils.PraatPitchExtractor(
+    hopsize=0.01, minfreq=75, maxfreq=600)
+
+# process mono files
+piex.process_mono_files(
+    input_dir=INPUT_AUDIO_DIR,
+    output_dir=OUTPUT_PITCH_DIR,
+    input_ext="wav",
+    output_ext="f0"
+)
+
+# ... in order to process stereo files, use:
+# piex.process_stereo_files()
+
+# Praat pulse extractor
+puex = praat_utils.PraatPulseExtractor(
+    hopsize=0.01, minfreq=75, maxfreq=400)
+
+# process mono files
+puex.process_mono_files(
+    input_dir=INPUT_AUDIO_DIR,
+    output_dir=OUTPUT_PULSE_DIR,
+    input_ext="wav",
+    output_ext="pulse"
+)
+
+# ... in order to process stereo files, use:
+# puex.process_stereo_files()
+```
+
+### Call Copasul from terminal (if cloned from GitHub)
+
+* see on [example script](https://github.com/reichelu/copasul/scripts/run_copasul.py)
+* `python scripts/run_copasul.py [-c myConfigFile.json]`
+* `PROJECT_ROOT`: directory where GitHub project has been cloned
 
 ```bash
-(venv_copasul) $ cd PROJECT_DIR/scripts/
+(venv_copasul) $ cd PROJECT_ROOT/scripts/
 (venv_copasul) $ python run_copasul.py -c ../tests/minex/config/minex.json
 ```
 
@@ -77,8 +118,8 @@ import json
 import pickle
 import sys
 
-# add this line if you use the cloned code from GitHub
-# sys.path.append(PROJECT_DIR)
+# add this line if you use the code from GitHub
+# sys.path.append(PROJECT_ROOT)
 
 from copasul import copasul
 
