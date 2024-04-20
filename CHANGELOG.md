@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## Version 1.5.0 (2024-04-21)
+* added `copasul.praat_utils.py` for pitch and pulse extraction with Praat/Parselmouth
+
 ## Version 1.4.0 (2023-12-11)
 * update: `copasul_preproc.pp_bv()`, `copasul_styl.styl_reg_med()`: percentiles rounded to 8th decimal due to likely precision differences of different numpy versions.
 
