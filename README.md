@@ -18,7 +18,6 @@
 
 * Python: `>= 3.8`
 * Packages: see `requirements.txt`
-* tested for Linux and Python 3.8, and 3.10
 
 ## Installation
 
