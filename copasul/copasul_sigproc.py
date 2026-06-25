@@ -183,7 +183,7 @@ def dct_peak(x, f, cog, opt):
     if len(i) > 1:
         i = int(np.mean(i))
 
-    f_gm = float(f[i])
+    f_gm = float(f[i].item())
 
     # local maxima
     # threshold to be superseeded
